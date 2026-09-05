@@ -431,7 +431,8 @@ const (
 
 // 对接协议类型常量
 const (
-	ConnectionProtocolDujiaoNext = "dujiao-next"
+	ConnectionProtocolDujiaoNext  = "dujiao-next"
+	ConnectionProtocolSharedStock = "shared-stock"
 )
 
 // API 凭证状态常量

@@ -199,6 +199,11 @@ func NewAdapter(conn *siteconnectiondomain.Connection, uploadsDir string, option
 	switch conn.Protocol {
 	case constants.ConnectionProtocolDujiaoNext:
 		return NewDujiaoNextAdapter(conn, uploadsDir), nil
+	case constants.ConnectionProtocolSharedStock:
+		if options.ExternalReferences == nil {
+			return nil, fmt.Errorf("shared-stock external reference registry is required")
+		}
+		return NewSharedStockAdapter(conn, uploadsDir, options.ExternalReferences), nil
 	default:
 		return nil, fmt.Errorf("unsupported protocol: %s", conn.Protocol)
 	}

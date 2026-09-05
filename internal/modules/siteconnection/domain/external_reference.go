@@ -3,8 +3,10 @@ package domain
 import "time"
 
 const (
-	ExternalReferenceKindProduct = "product"
-	ExternalReferenceKindSKU     = "sku"
+	ExternalReferenceKindProduct  = "product"
+	ExternalReferenceKindSKU      = "sku"
+	ExternalReferenceKindCategory = "category"
+	ExternalReferenceKindOrder    = "order"
 )
 
 // ExternalReference gives protocols with string identifiers a stable numeric

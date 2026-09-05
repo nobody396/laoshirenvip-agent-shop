@@ -61,5 +61,8 @@ func (s *ExternalReferenceStore) Lookup(connectionID uint, kind string, id uint)
 }
 
 func validExternalReferenceKind(kind string) bool {
-	return kind == siteconnectiondomain.ExternalReferenceKindProduct || kind == siteconnectiondomain.ExternalReferenceKindSKU
+	return kind == siteconnectiondomain.ExternalReferenceKindProduct ||
+		kind == siteconnectiondomain.ExternalReferenceKindSKU ||
+		kind == siteconnectiondomain.ExternalReferenceKindCategory ||
+		kind == siteconnectiondomain.ExternalReferenceKindOrder
 }
