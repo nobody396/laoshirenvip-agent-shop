@@ -72,6 +72,34 @@ func TestRequestIDMiddleware(t *testing.T) {
 	}
 }
 
+func TestDynamicNoStoreMiddlewareOnlyMarksDynamicProtocols(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(DynamicNoStoreMiddleware())
+	r.Any("/*path", func(c *gin.Context) { c.Status(http.StatusNoContent) })
+
+	tests := []struct {
+		path    string
+		noStore bool
+	}{
+		{path: "/health", noStore: true},
+		{path: "/api/v1/public/config", noStore: true},
+		{path: "/api/v1/payments/callback", noStore: true},
+		{path: "/shared/commodity/trade", noStore: true},
+		{path: "/plugin/SharedStock/api/trade", noStore: true},
+		{path: "/assets/app.123.js", noStore: false},
+		{path: "/uploads/product.webp", noStore: false},
+	}
+	for _, test := range tests {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, test.path, nil))
+		got := strings.Contains(w.Header().Get("Cache-Control"), "no-store")
+		if got != test.noStore {
+			t.Fatalf("%s no-store=%v, want %v (header %q)", test.path, got, test.noStore, w.Header().Get("Cache-Control"))
+		}
+	}
+}
+
 func TestJWTAuthMiddlewareMissingSecret(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

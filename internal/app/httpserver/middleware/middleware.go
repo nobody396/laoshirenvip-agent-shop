@@ -33,6 +33,23 @@ const adminIsSuperContextKey = "admin_is_super"
 const authHeaderKey = "Authorization"
 const authSchemeBearer = "Bearer"
 
+// DynamicNoStoreMiddleware prevents shared CDNs from caching tenant-sensitive
+// APIs, payment callbacks, upstream protocols, or health responses. Static
+// hashed assets retain the immutable cache policy emitted by the web layer.
+func DynamicNoStoreMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		path := c.Request.URL.Path
+		if path == "/health" || path == "/api" || strings.HasPrefix(path, "/api/") ||
+			path == "/shared" || strings.HasPrefix(path, "/shared/") ||
+			path == "/plugin/SharedStock" || strings.HasPrefix(path, "/plugin/SharedStock/") {
+			c.Header("Cache-Control", "no-store, no-cache, must-revalidate, private")
+			c.Header("Pragma", "no-cache")
+			c.Header("Expires", "0")
+		}
+		c.Next()
+	}
+}
+
 // CORSMiddleware 跨域中间件
 func CORSMiddleware(cfg config.CORSConfig) gin.HandlerFunc {
 	allowedOrigins := cfg.AllowedOrigins
