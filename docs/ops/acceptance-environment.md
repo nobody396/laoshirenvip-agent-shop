@@ -1,6 +1,6 @@
 # 验收环境状态
 
-更新时间：2026-09-05 20:32（北京时间）
+更新时间：2026-09-05 23:20（北京时间）
 
 ## 服务器
 
@@ -11,10 +11,23 @@
 - UFW 只开放 SSH、80、443；
 - `/opt/laoshirenvip-agent-shop` 归 `deploy` 用户；
 - 购买周期至 2026-10-05。
-- 已部署镜像 `sha-31340c2df8dd4a59f74dac2078c38e699830b78d`；
+- 已部署镜像 `sha-d80f3aa19be3e8ed45515317abbaea192ec679ab`；
 - PostgreSQL、Redis、应用、Nginx 均为运行状态；
 - 临时总站：`http://agent.187-53-134-185.sslip.io`；
-- 临时验收子站：`http://acceptance.shop.187-53-134-185.sslip.io`。
+- 原临时验收子站已迁移为正式域名 `acceptance.lsrai.shop`；旧 sslip.io 子站地址不再作为租户入口。
+
+## 正式域名与支付准备
+
+- 正式总站：`https://lsrai.shop`；
+- 正式验收子站：`https://acceptance.lsrai.shop`；
+- 腾讯云 EdgeOne 个人版已购买 1 个月，自动续费关闭；站点使用全球可用区（不含中国大陆）和 NS 接入；
+- Hostinger 域名服务器已提交切换至 `ns1.qeodns.com`、`ns2.qeodns.com`；切换期间旧 Hostinger DNS 和新 EdgeOne DNS 都指向 EdgeOne，避免解析空窗；
+- 根域名 EdgeOne 免费证书已部署；`*.lsrai.shop` 泛域名免费证书仍处于平台自动申请阶段，证书部署前不得开始子站真钱验收；
+- 源站 `80/443` 已启用，HTTPS 回源使用覆盖 `lsrai.shop` 与 `*.lsrai.shop` 的源站证书，EdgeOne 回源证书校验保持关闭；
+- 动态 `/api/*`、`/shared/*`、`/plugin/SharedStock/*` 与 `/health` 均由应用返回 `Cache-Control: no-store`；指纹静态资源保持一年 immutable 缓存；
+- ZPay 支付宝渠道 ID `1` 已启用，网关为 `https://zpayz.cn`，回调为 `https://lsrai.shop/api/v1/payments/callback`，费率 `1.60%` 且客户承担手续费；
+- ZPay 余额查询只读验证返回成功，未创建测试支付单；
+- 总站与默认子站公开配置均只显示支付宝；子站支付渠道列表为空时按产品约定自动回落为“仅支付宝”。
 
 ## 只读上游验证
 
@@ -44,9 +57,9 @@
 ## 生产开放前仍需老板验收/授权
 
 - Aisou 最小真实采购、未知结果对账和真实交付回传；
-- 正式支付渠道、真实支付回调、支付手续费与退款手续费读回；
+- 真实支付回调、支付手续费与退款手续费读回；
 - 真实退款与人工提现打款；退款冲回已有自动化集成测试，但未制造真钱退款；
-- 正式域名、wildcard DNS、TLS 与客户可见路径；
+- `*.lsrai.shop` 泛域名证书从“申请中”变为“已部署”后的客户可见路径复核；
 - 异地备份和隔离恢复演练。
 
 以上属于生产资金或域名变更，不在验收环境中伪造。老板验收后再逐项开启。
