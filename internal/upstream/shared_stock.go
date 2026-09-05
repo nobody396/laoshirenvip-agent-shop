@@ -241,6 +241,10 @@ func sharedVariants(raw json.RawMessage) map[string]string {
 	if len(raw) == 0 {
 		return result
 	}
+	var encoded string
+	if json.Unmarshal(raw, &encoded) == nil {
+		return parseSharedINI(encoded)
+	}
 	var object map[string]any
 	if json.Unmarshal(raw, &object) == nil {
 		source, _ := object["category_factory"].(map[string]any)
@@ -252,4 +256,32 @@ func sharedVariants(raw json.RawMessage) map[string]string {
 		}
 	}
 	return result
+}
+
+func parseSharedINI(value string) map[string]string {
+	categories := map[string]string{}
+	factoryPrices := map[string]string{}
+	section := ""
+	for _, rawLine := range strings.Split(value, "\n") {
+		line := strings.TrimSpace(strings.TrimSuffix(rawLine, "\r"))
+		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
+			section = strings.TrimSpace(line[1 : len(line)-1])
+			continue
+		}
+		key, price, found := strings.Cut(line, "=")
+		key, price = strings.TrimSpace(key), strings.TrimSpace(price)
+		if !found || key == "" || price == "" {
+			continue
+		}
+		switch section {
+		case "category_factory":
+			factoryPrices[key] = price
+		case "category":
+			categories[key] = price
+		}
+	}
+	if len(factoryPrices) > 0 {
+		return factoryPrices
+	}
+	return categories
 }
