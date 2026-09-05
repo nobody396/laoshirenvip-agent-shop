@@ -16,6 +16,7 @@ import (
 
 	"github.com/dujiao-next/internal/constants"
 	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
+	"github.com/dujiao-next/internal/shared/integrationtrace"
 	"github.com/dujiao-next/internal/shared/jsonmap"
 	"github.com/dujiao-next/internal/shared/money"
 	"github.com/dujiao-next/internal/shared/outboundctx"
@@ -177,11 +178,37 @@ func (s *PaymentService) applyProviderPayment(input CreatePaymentInput, order *o
 		// NotifyURL 留空，始终由各 adapter 从 cfg 读取。
 		ReturnURL: resolveTenantReturnURL(input.Context, input.RequestScheme, channel),
 	}
+	configuredNotifyURL := ""
+	if raw, ok := channel.ConfigJSON["notify_url"]; ok {
+		configuredNotifyURL = strings.TrimSpace(fmt.Sprint(raw))
+	}
+	configuredReturnURL := ""
+	if raw, ok := channel.ConfigJSON["return_url"]; ok {
+		configuredReturnURL = strings.TrimSpace(fmt.Sprint(raw))
+	}
+	log.Infow("integration_trace_payment_request",
+		"direction", "outbound",
+		"amount", payment.Amount.Decimal.StringFixed(2),
+		"currency", payment.Currency,
+		"subject", createInput.Subject,
+		"notify_url", integrationtrace.URLSummary(configuredNotifyURL),
+		"return_url", integrationtrace.URLSummary(pickFirstNonEmpty(createInput.ReturnURL, configuredReturnURL)),
+	)
 
 	result, err := p.CreatePayment(gatewayCtx, channel.ConfigJSON, createInput)
 	if err != nil {
+		log.Warnw("integration_trace_payment_response", "direction", "inbound", "accepted", false, "error", err)
 		return mapProviderErrorToService(err)
 	}
+	log.Infow("integration_trace_payment_response",
+		"direction", "inbound",
+		"accepted", true,
+		"provider_ref", strings.TrimSpace(result.ProviderRef),
+		"redirect_url", integrationtrace.URLSummary(result.RedirectURL),
+		"qr_url", integrationtrace.URLSummary(result.QRCodeURL),
+		"amount_sent", strings.TrimSpace(result.AmountSent),
+		"currency_sent", strings.TrimSpace(result.CurrencySent),
+	)
 
 	// 把 result 写回 payment 字段
 	payment.PayURL = strings.TrimSpace(result.RedirectURL)

@@ -228,7 +228,7 @@ const checklist = [
   '建立订单、钱包、上游采购和交付的每日对账。',
 ]
 
-const guideText = computed(() => `老实人VIP代理供货站对接教程
+const guideText = computed(() => `老实人 AI 伙伴对接教程
 
 本站地址：${siteBase.value}
 
@@ -257,7 +257,7 @@ App Key：YOUR_API_SECRET
 - 余额不足不采购；所有 API 订单按采购余额结算。
 - 正式开放前必须验证扣款、交付、查询和幂等。`)
 
-const aiPrompt = computed(() => `你要把我的发卡系统接入“老实人VIP代理供货站”。请先阅读并遵守以下契约，然后检查现有项目类型，制定最小改动方案并完成测试。不要索要或输出真实 API Secret。
+const aiPrompt = computed(() => `你要把我的发卡系统接入“老实人 AI 伙伴”。请先阅读并遵守以下契约，然后检查现有项目类型，制定最小改动方案并完成测试。不要索要或输出真实 API Secret。
 
 上游根地址：${siteBase.value}
 认证占位符：YOUR_API_KEY / YOUR_API_SECRET
@@ -294,7 +294,7 @@ async function copyText(value: string | { value: string }, key: string) {
 
 usePageSeo({
   title: () => '发卡系统对接教程',
-  description: () => '独角兽 Dujiao-Next 与异次元 ACG SharedStock 对接老实人VIP代理供货站的完整教程。',
+  description: () => '独角兽 Dujiao-Next 与异次元 ACG SharedStock 对接老实人 AI 伙伴的完整教程。',
   canonicalPath: () => '/integration-guide',
 })
 </script>

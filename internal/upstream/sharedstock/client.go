@@ -12,6 +12,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/dujiao-next/internal/logger"
+	"github.com/dujiao-next/internal/shared/integrationtrace"
 )
 
 const (
@@ -156,10 +159,32 @@ func (c *Client) request(ctx context.Context, action string, values map[string]s
 
 	var invalidJSON error
 	for index, path := range paths {
+		traceLog := logger.SW(
+			"integration_trace", true,
+			"integration", "sharedstock",
+			"action", action,
+			"path", path,
+			"request_no", pickTraceValue(values, "request_no", "contact"),
+			"upstream_trade_no", pickTraceValue(values, "tradeNo"),
+		)
+		traceLog.Infow("integration_trace_sharedstock_request",
+			"direction", "outbound",
+			"endpoint", c.baseURL+path,
+			"form", integrationtrace.SanitizeStringMap(payload),
+		)
 		data, status, err := c.post(ctx, path, payload)
 		if err != nil {
+			traceLog.Warnw("integration_trace_sharedstock_response",
+				"direction", "inbound", "accepted", false, "error", err)
 			return err
 		}
+		traceLog.Infow("integration_trace_sharedstock_response",
+			"direction", "inbound",
+			"http_status", status,
+			"body_size", len(data),
+			"body_sha256", integrationtrace.Digest(data),
+			"body", integrationtrace.SanitizeJSON(data),
+		)
 		var envelope struct {
 			Code ScalarString    `json:"code"`
 			Msg  string          `json:"msg"`
@@ -191,6 +216,15 @@ func (c *Client) request(ctx context.Context, action string, values map[string]s
 		return nil
 	}
 	return invalidJSON
+}
+
+func pickTraceValue(values map[string]string, keys ...string) string {
+	for _, key := range keys {
+		if value := strings.TrimSpace(values[key]); value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func (c *Client) candidatePaths(core, legacy string) []string {

@@ -11,6 +11,7 @@ import (
 	ginutil "github.com/dujiao-next/internal/platform/http/ginutil"
 
 	"github.com/dujiao-next/internal/constants"
+	"github.com/dujiao-next/internal/shared/integrationtrace"
 	"github.com/dujiao-next/internal/shared/jsonmap"
 
 	"github.com/gin-gonic/gin"
@@ -85,7 +86,10 @@ func (h *Handler) handleEpayCallback(c *gin.Context) bool {
 	}
 	log.Infow("epay_callback_received", "client_ip", c.ClientIP(), "out_trade_no", outTradeNo,
 		"trade_no", strings.TrimSpace(getFirstValue(form, "trade_no")),
-		"trade_status", strings.TrimSpace(getFirstValue(form, "trade_status")))
+		"trade_status", strings.TrimSpace(getFirstValue(form, "trade_status")),
+		"integration_trace", true,
+		"direction", "inbound",
+		"callback_form", integrationtrace.SanitizeForm(form))
 
 	payment, err := h.payments.GetByGatewayOrderNo(outTradeNo)
 	if err != nil || payment == nil {

@@ -75,14 +75,14 @@ func TestBuildOrderSubject(t *testing.T) {
 					{TitleJSON: jsonmap.JSON{"zh-CN": "父订单商品"}},
 				},
 			},
-			want: "老实人AI伙伴 · 父订单商品",
+			want: "老实人 AI 伙伴",
 		},
 		{
 			name: "trims order number",
 			order: &orderdomain.Order{
 				OrderNo: " DJ-FALLBACK-1 ",
 			},
-			want: "老实人AI伙伴 · DJ-FALLBACK-1",
+			want: "老实人 AI 伙伴",
 		},
 	}
 

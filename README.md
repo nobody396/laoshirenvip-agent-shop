@@ -1,4 +1,4 @@
-# 老实人VIP代理卡网
+# 老实人 AI 伙伴
 
 这是独立于老实人AI网关和 VIP GMShop 的第三个项目，基于 Dujiao-Next `v1.4.7` 二次开发。
 

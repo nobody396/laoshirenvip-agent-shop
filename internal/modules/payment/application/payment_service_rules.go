@@ -232,22 +232,5 @@ func buildOrderSubject(order *orderdomain.Order) string {
 	if order == nil {
 		return ""
 	}
-	const prefix = "老实人AI伙伴"
-	items := order.Items
-	if len(items) == 0 {
-		for i := range order.Children {
-			if len(order.Children[i].Items) > 0 {
-				items = order.Children[i].Items
-				break
-			}
-		}
-	}
-	for _, item := range items {
-		for _, locale := range []string{"zh-CN", "zh-TW", "en-US"} {
-			if title, ok := item.TitleJSON[locale].(string); ok && strings.TrimSpace(title) != "" {
-				return prefix + " · " + strings.TrimSpace(title)
-			}
-		}
-	}
-	return prefix + " · " + strings.TrimSpace(order.OrderNo)
+	return "老实人 AI 伙伴"
 }

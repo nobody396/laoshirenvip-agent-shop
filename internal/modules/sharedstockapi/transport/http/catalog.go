@@ -46,7 +46,7 @@ func (h *Handler) Connect(c *gin.Context) {
 		failure(c, "商户ID不存在")
 		return
 	}
-	name := "老实人VIP代理"
+	name := "老实人 AI 伙伴"
 	if settings, err := h.Settings.GetByKey(constants.SettingKeySiteConfig); err == nil {
 		if brand, ok := settings["brand"].(map[string]any); ok {
 			if value := strings.TrimSpace(fmt.Sprint(brand["site_name"])); value != "" {

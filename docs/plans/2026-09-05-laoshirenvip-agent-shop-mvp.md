@@ -1,4 +1,4 @@
-# 老实人VIP代理卡网 MVP
+# 老实人 AI 伙伴 MVP
 
 > 状态：本地开发立项，不授权购买服务器、配置生产域名、接入真钱支付或上线。
 > 上游基线：Dujiao-Next `v1.4.7` (`47cc6207c6796ccfda0526a3708be39e1b59eba3`)，GPL-3.0。
@@ -10,7 +10,7 @@
 ```text
 Aisou / SharedStock
         ↓
-老实人VIP代理总站
+老实人 AI 伙伴总站
         ↓
 代理子站（独立品牌和售价）
         ↓
@@ -87,7 +87,7 @@ Aisou / SharedStock
 
 ```text
 已有 Dujiao 卡网 ── Dujiao OpenAPI ─┐
-                                     ├→ 老实人VIP代理总站 → SharedStock → Aisou
+                                     ├→ 老实人 AI 伙伴总站 → SharedStock → Aisou
 已有异次元卡网 ── SharedStock ──────┘
 
 无卡网代理 ── Dujiao 白标子站 ──────┘
