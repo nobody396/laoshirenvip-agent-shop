@@ -677,6 +677,8 @@
           "supportDescription": "联系方式",
           "content": "内容",
           "contentDescription": "公告与 SEO",
+          "payment": "支付",
+          "paymentDescription": "子站收款方式",
           "navigation": "导航",
           "navigationDescription": "页脚与导航"
         },
@@ -684,6 +686,14 @@
           "blog": "博客",
           "notice": "公告",
           "about": "关于"
+        },
+        "payments": {
+          "title": "子站支付方式",
+          "description": "选择客户在你的子站可以看到的总站支付渠道",
+          "empty": "总站暂未配置可用支付渠道",
+          "hint": "新子站默认只开启支付宝。你只能选择总站已经启用的渠道，支付密钥、回调、退款和结算仍由总站统一管理。至少保留一种支付方式。",
+          "alipay": "支付宝 · 总站统一收款与回调",
+          "usdt": "USDT · 可按代理需要单独开启"
         },
         "announcementTypes": {
           "info": "信息",

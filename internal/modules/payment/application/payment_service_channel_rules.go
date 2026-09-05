@@ -1,6 +1,8 @@
 package application
 
 import (
+	"strings"
+
 	"github.com/dujiao-next/internal/constants"
 	productcontract "github.com/dujiao-next/internal/modules/catalog/product/contract"
 	productdomain "github.com/dujiao-next/internal/modules/catalog/product/domain"
@@ -204,6 +206,7 @@ type AvailablePaymentChannelFilter struct {
 	TargetAmount *money.Amount
 	User         *userdomain.User
 	PaymentType  string
+	ResellerID   *uint
 }
 
 func (s *PaymentService) GetAvailableChannels(filter AvailablePaymentChannelFilter) ([]map[string]interface{}, error) {
@@ -215,7 +218,14 @@ func (s *PaymentService) GetAvailableChannels(filter AvailablePaymentChannelFilt
 	}
 	customerFeeEnabled := s.settingService != nil && s.settingService.GetPaymentFeeConfig().CustomerFeeEnabled
 	available := make([]map[string]interface{}, 0, len(channels))
+	resellerAllowed, err := s.resolveResellerAllowedChannelIDs(filter.ResellerID)
+	if err != nil {
+		return nil, err
+	}
 	for _, channel := range channels {
+		if filter.ResellerID != nil && !resellerChannelAllowed(channel, resellerAllowed) {
+			continue
+		}
 		if !matchesChannelAmount(channel, filter.TargetAmount) ||
 			!matchesChannelRole(channel, filter.User) ||
 			!matchesChannelMemberLevel(channel, filter.User) ||
@@ -239,6 +249,31 @@ func (s *PaymentService) GetAvailableChannels(filter AvailablePaymentChannelFilt
 		available = append(available, item)
 	}
 	return available, nil
+}
+
+func (s *PaymentService) resolveResellerAllowedChannelIDs(resellerID *uint) (map[uint]struct{}, error) {
+	if resellerID == nil || *resellerID == 0 || s.resellerChannels == nil {
+		return nil, nil
+	}
+	ids, err := s.resellerChannels.GetResellerPaymentChannelIDs(*resellerID)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[uint]struct{}, len(ids))
+	for _, id := range ids {
+		if id > 0 {
+			result[id] = struct{}{}
+		}
+	}
+	return result, nil
+}
+
+func resellerChannelAllowed(channel paymentdomain.PaymentChannel, selected map[uint]struct{}) bool {
+	if len(selected) == 0 {
+		return strings.EqualFold(strings.TrimSpace(channel.ChannelType), constants.PaymentChannelTypeAlipay)
+	}
+	_, ok := selected[channel.ID]
+	return ok
 }
 
 func matchesChannelAmount(channel paymentdomain.PaymentChannel, targetAmount *money.Amount) bool {

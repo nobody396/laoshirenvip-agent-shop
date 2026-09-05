@@ -724,6 +724,8 @@
           "supportDescription": "Contact channels",
           "content": "Content",
           "contentDescription": "Announcement and SEO",
+          "payment": "Payments",
+          "paymentDescription": "Child-site methods",
           "navigation": "Navigation",
           "navigationDescription": "Footer and navigation"
         },
@@ -731,6 +733,14 @@
           "blog": "Blog",
           "notice": "Notice",
           "about": "About"
+        },
+        "payments": {
+          "title": "Child-site payment methods",
+          "description": "Choose which platform payment channels customers can see on your child site",
+          "empty": "The platform has not configured any payment channels yet",
+          "hint": "New child sites enable Alipay only by default. You may select only channels enabled by the platform; credentials, callbacks, refunds, and settlement remain centrally managed. Keep at least one method enabled.",
+          "alipay": "Alipay · centrally collected and reconciled",
+          "usdt": "USDT · optional per reseller"
         },
         "announcementTypes": {
           "info": "Info",

@@ -12,6 +12,7 @@ import (
 	orderapp "github.com/dujiao-next/internal/modules/order/application"
 
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
+	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
 	settingsapp "github.com/dujiao-next/internal/modules/settings/application"
 
 	"github.com/dujiao-next/internal/constants"
@@ -116,6 +117,15 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 				}
 				if !resolvedChannel.IsActive {
 					return ErrPaymentChannelInactive
+				}
+				if tenant, ok := resellercontract.TenantFromContext(input.Context); ok && tenant.ResellerID != nil {
+					selected, selectErr := s.resolveResellerAllowedChannelIDs(tenant.ResellerID)
+					if selectErr != nil {
+						return selectErr
+					}
+					if !resellerChannelAllowed(*resolvedChannel, selected) {
+						return ErrPaymentChannelNotAllowedForReseller
+					}
 				}
 				resolvedFeeRate := resolvedChannel.FeeRate.Decimal.Round(2)
 				if resolvedFeeRate.LessThan(decimal.Zero) || resolvedFeeRate.GreaterThan(decimal.NewFromInt(100)) {

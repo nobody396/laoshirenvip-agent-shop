@@ -167,6 +167,7 @@ func (a orderUserPaymentChannelAdapter) GetAvailableChannels(filter ordertranspo
 		TargetAmount: filter.TargetAmount,
 		User:         filter.User,
 		PaymentType:  filter.PaymentType,
+		ResellerID:   filter.ResellerID,
 	})
 }
 

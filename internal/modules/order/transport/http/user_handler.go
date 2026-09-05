@@ -43,6 +43,7 @@ type AvailablePaymentChannelFilter struct {
 	TargetAmount *money.Amount
 	User         *userdomain.User
 	PaymentType  string
+	ResellerID   *uint
 }
 
 // PaymentChannelPolicy 订单可用支付渠道端口。
@@ -233,10 +234,12 @@ func (h *UserHandler) GetOrderPaymentChannels(c *gin.Context) {
 		ginutil.RespondError(c, response.CodeInternal, "error.payment_fetch_failed", nil)
 		return
 	}
+	tenant := tenantFromRequest(c)
 	channels, err := h.payments.GetAvailableChannels(AvailablePaymentChannelFilter{
 		TargetAmount: &money.Amount{Decimal: amount},
 		User:         user,
 		PaymentType:  constants.PaymentTypeOrder,
+		ResellerID:   tenant.ResellerID,
 	})
 	if err != nil {
 		ginutil.RespondError(c, response.CodeInternal, "error.payment_fetch_failed", err)

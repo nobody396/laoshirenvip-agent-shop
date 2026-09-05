@@ -724,6 +724,8 @@
           "supportDescription": "聯絡方式",
           "content": "內容",
           "contentDescription": "公告與 SEO",
+          "payment": "支付",
+          "paymentDescription": "子站收款方式",
           "navigation": "導航",
           "navigationDescription": "頁腳與導覽"
         },
@@ -731,6 +733,14 @@
           "blog": "部落格",
           "notice": "公告",
           "about": "關於"
+        },
+        "payments": {
+          "title": "子站支付方式",
+          "description": "選擇客戶在你的子站可以看到的總站支付渠道",
+          "empty": "總站暫未配置可用支付渠道",
+          "hint": "新子站預設只開啟支付寶。你只能選擇總站已啟用的渠道，支付密鑰、回調、退款和結算仍由總站統一管理。至少保留一種支付方式。",
+          "alipay": "支付寶 · 總站統一收款與回調",
+          "usdt": "USDT · 可按代理需要單獨開啟"
         },
         "announcementTypes": {
           "info": "資訊",

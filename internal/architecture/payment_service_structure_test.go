@@ -41,6 +41,7 @@ func TestPaymentServiceImplementationIsSplitByResponsibility(t *testing.T) {
 			"validateProductPaymentChannel", "validateWalletRechargeChannel",
 			"GetAllowedChannelsForProducts", "GetWalletRechargeChannels", "GetAllowedChannelIDsForOrder",
 			"GetAvailableChannels", "matchesChannelAmount", "matchesChannelRole",
+			"resolveResellerAllowedChannelIDs", "resellerChannelAllowed",
 			"matchesChannelMemberLevel", "matchesChannelPaymentType",
 			"validateOrderChannelEligibility", "validateWalletChannelEligibility",
 		},

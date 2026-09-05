@@ -279,6 +279,7 @@ export interface ResellerSiteConfigPayload {
         builtin: Record<string, boolean>
         custom_items: Array<{ name: ResellerLocalizedText; url: string }>
     }
+	payment_channel_ids?: number[]
 }
 
 export interface ResellerSiteConfigData extends ResellerSiteConfigPayload {

@@ -41,6 +41,54 @@ func setupAvailableChannelService(t *testing.T) (*paymentapp.PaymentService, *se
 	}), settingService, db
 }
 
+type fixedResellerChannels struct{ ids []uint }
+
+func (s fixedResellerChannels) GetResellerPaymentChannelIDs(uint) ([]uint, error) {
+	return append([]uint(nil), s.ids...), nil
+}
+
+func TestResellerChannelsDefaultToAlipayAndAllowExplicitOptIn(t *testing.T) {
+	_, settingService, db := setupAvailableChannelService(t)
+	store := paymentgormstore.NewChannelStore(db)
+	alipay := createAvailableChannelFixture(t, db, paymentdomain.PaymentChannel{
+		Name: "支付宝", ProviderType: constants.PaymentProviderEpay,
+		ChannelType: constants.PaymentChannelTypeAlipay, IsActive: true,
+	})
+	usdt := createAvailableChannelFixture(t, db, paymentdomain.PaymentChannel{
+		Name: "USDT", ProviderType: constants.PaymentProviderEpusdt,
+		ChannelType: "usdt.tron", IsActive: true,
+	})
+	resellerID := uint(9)
+
+	defaultService := paymentapp.NewPaymentService(paymentapp.PaymentServiceOptions{
+		ChannelStore: store, SettingService: settingService,
+		ResellerChannels: fixedResellerChannels{},
+	})
+	channels, err := defaultService.GetAvailableChannels(paymentapp.AvailablePaymentChannelFilter{
+		PaymentType: constants.PaymentTypeOrder, ResellerID: &resellerID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := collectAvailableChannelIDs(t, channels); !reflect.DeepEqual(got, []uint{alipay.ID}) {
+		t.Fatalf("default child site channels=%v want alipay=%d", got, alipay.ID)
+	}
+
+	optInService := paymentapp.NewPaymentService(paymentapp.PaymentServiceOptions{
+		ChannelStore: store, SettingService: settingService,
+		ResellerChannels: fixedResellerChannels{ids: []uint{alipay.ID, usdt.ID}},
+	})
+	channels, err = optInService.GetAvailableChannels(paymentapp.AvailablePaymentChannelFilter{
+		PaymentType: constants.PaymentTypeOrder, ResellerID: &resellerID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := collectAvailableChannelIDs(t, channels); !reflect.DeepEqual(got, []uint{alipay.ID, usdt.ID}) {
+		t.Fatalf("explicit child site channels=%v", got)
+	}
+}
+
 func TestGetAvailableChannelsFilters(t *testing.T) {
 	svc, settingService, db := setupAvailableChannelService(t)
 

@@ -93,16 +93,17 @@ type ResellerManagementSnapshotResp struct {
 }
 
 type ResellerSiteConfigResp struct {
-	ID           uint          `json:"id"`
-	SiteName     string        `json:"site_name"`
-	Logo         string        `json:"logo"`
-	Favicon      string        `json:"favicon"`
-	Announcement jsonmap.JSON  `json:"announcement"`
-	Support      jsonmap.JSON  `json:"support"`
-	SEO          jsonmap.JSON  `json:"seo"`
-	FooterLinks  []interface{} `json:"footer_links"`
-	NavConfig    jsonmap.JSON  `json:"nav_config"`
-	UpdatedAt    time.Time     `json:"updated_at"`
+	ID                uint          `json:"id"`
+	SiteName          string        `json:"site_name"`
+	Logo              string        `json:"logo"`
+	Favicon           string        `json:"favicon"`
+	Announcement      jsonmap.JSON  `json:"announcement"`
+	Support           jsonmap.JSON  `json:"support"`
+	SEO               jsonmap.JSON  `json:"seo"`
+	FooterLinks       []interface{} `json:"footer_links"`
+	NavConfig         jsonmap.JSON  `json:"nav_config"`
+	PaymentChannelIDs []uint        `json:"payment_channel_ids"`
+	UpdatedAt         time.Time     `json:"updated_at"`
 }
 
 type ResellerSiteConfigSnapshotResp struct {
@@ -126,19 +127,20 @@ type ResellerSiteConfigProfileRefResp struct {
 }
 
 type AdminResellerSiteConfigResp struct {
-	ID           uint                              `json:"id"`
-	ResellerID   uint                              `json:"reseller_id"`
-	SiteName     string                            `json:"site_name"`
-	Logo         string                            `json:"logo"`
-	Favicon      string                            `json:"favicon"`
-	Announcement jsonmap.JSON                      `json:"announcement"`
-	Support      jsonmap.JSON                      `json:"support"`
-	SEO          jsonmap.JSON                      `json:"seo"`
-	FooterLinks  []interface{}                     `json:"footer_links"`
-	NavConfig    jsonmap.JSON                      `json:"nav_config"`
-	Profile      *ResellerSiteConfigProfileRefResp `json:"profile,omitempty"`
-	CreatedAt    time.Time                         `json:"created_at"`
-	UpdatedAt    time.Time                         `json:"updated_at"`
+	ID                uint                              `json:"id"`
+	ResellerID        uint                              `json:"reseller_id"`
+	SiteName          string                            `json:"site_name"`
+	Logo              string                            `json:"logo"`
+	Favicon           string                            `json:"favicon"`
+	Announcement      jsonmap.JSON                      `json:"announcement"`
+	Support           jsonmap.JSON                      `json:"support"`
+	SEO               jsonmap.JSON                      `json:"seo"`
+	FooterLinks       []interface{}                     `json:"footer_links"`
+	NavConfig         jsonmap.JSON                      `json:"nav_config"`
+	PaymentChannelIDs []uint                            `json:"payment_channel_ids"`
+	Profile           *ResellerSiteConfigProfileRefResp `json:"profile,omitempty"`
+	CreatedAt         time.Time                         `json:"created_at"`
+	UpdatedAt         time.Time                         `json:"updated_at"`
 }
 
 type ResellerProductSettingResp struct {
@@ -299,16 +301,17 @@ func NewResellerSiteConfigResp(row *resellerdomain.SiteConfig) *ResellerSiteConf
 		return nil
 	}
 	return &ResellerSiteConfigResp{
-		ID:           row.ID,
-		SiteName:     row.SiteName,
-		Logo:         row.Logo,
-		Favicon:      row.Favicon,
-		Announcement: row.AnnouncementJSON,
-		Support:      row.SupportJSON,
-		SEO:          row.SEOJSON,
-		FooterLinks:  resellerFooterLinksFromEnvelope(row.FooterLinksJSON),
-		NavConfig:    row.NavConfigJSON,
-		UpdatedAt:    row.UpdatedAt,
+		ID:                row.ID,
+		SiteName:          row.SiteName,
+		Logo:              row.Logo,
+		Favicon:           row.Favicon,
+		Announcement:      row.AnnouncementJSON,
+		Support:           row.SupportJSON,
+		SEO:               row.SEOJSON,
+		FooterLinks:       resellerFooterLinksFromEnvelope(row.FooterLinksJSON),
+		NavConfig:         row.NavConfigJSON,
+		PaymentChannelIDs: []uint(row.PaymentChannelIDs),
+		UpdatedAt:         row.UpdatedAt,
 	}
 }
 
@@ -358,19 +361,20 @@ func NewAdminResellerSiteConfigResp(row *resellerdomain.SiteConfig) AdminReselle
 		}
 	}
 	return AdminResellerSiteConfigResp{
-		ID:           row.ID,
-		ResellerID:   row.ResellerID,
-		SiteName:     row.SiteName,
-		Logo:         row.Logo,
-		Favicon:      row.Favicon,
-		Announcement: row.AnnouncementJSON,
-		Support:      row.SupportJSON,
-		SEO:          row.SEOJSON,
-		FooterLinks:  resellerFooterLinksFromEnvelope(row.FooterLinksJSON),
-		NavConfig:    row.NavConfigJSON,
-		Profile:      profile,
-		CreatedAt:    row.CreatedAt,
-		UpdatedAt:    row.UpdatedAt,
+		ID:                row.ID,
+		ResellerID:        row.ResellerID,
+		SiteName:          row.SiteName,
+		Logo:              row.Logo,
+		Favicon:           row.Favicon,
+		Announcement:      row.AnnouncementJSON,
+		Support:           row.SupportJSON,
+		SEO:               row.SEOJSON,
+		FooterLinks:       resellerFooterLinksFromEnvelope(row.FooterLinksJSON),
+		NavConfig:         row.NavConfigJSON,
+		PaymentChannelIDs: []uint(row.PaymentChannelIDs),
+		Profile:           profile,
+		CreatedAt:         row.CreatedAt,
+		UpdatedAt:         row.UpdatedAt,
 	}
 }
 

@@ -42,26 +42,28 @@ func NewAdminSiteConfigHandler(siteConfig AdminSiteConfigService, directory Site
 }
 
 type adminSiteConfigRequest struct {
-	SiteName     string                                   `json:"site_name"`
-	Logo         string                                   `json:"logo"`
-	Favicon      string                                   `json:"favicon"`
-	Announcement resellermodule.ResellerAnnouncementInput `json:"announcement"`
-	Support      resellermodule.ResellerSupportInput      `json:"support"`
-	SEO          resellermodule.ResellerSEOInput          `json:"seo"`
-	FooterLinks  []resellermodule.ResellerFooterLinkInput `json:"footer_links"`
-	NavConfig    resellermodule.ResellerNavConfigInput    `json:"nav_config"`
+	SiteName          string                                   `json:"site_name"`
+	Logo              string                                   `json:"logo"`
+	Favicon           string                                   `json:"favicon"`
+	Announcement      resellermodule.ResellerAnnouncementInput `json:"announcement"`
+	Support           resellermodule.ResellerSupportInput      `json:"support"`
+	SEO               resellermodule.ResellerSEOInput          `json:"seo"`
+	FooterLinks       []resellermodule.ResellerFooterLinkInput `json:"footer_links"`
+	NavConfig         resellermodule.ResellerNavConfigInput    `json:"nav_config"`
+	PaymentChannelIDs []uint                                   `json:"payment_channel_ids"`
 }
 
 func (req adminSiteConfigRequest) toInput() resellermodule.ResellerSiteConfigInput {
 	return resellermodule.ResellerSiteConfigInput{
-		SiteName:     req.SiteName,
-		Logo:         req.Logo,
-		Favicon:      req.Favicon,
-		Announcement: req.Announcement,
-		Support:      req.Support,
-		SEO:          req.SEO,
-		FooterLinks:  req.FooterLinks,
-		NavConfig:    req.NavConfig,
+		SiteName:          req.SiteName,
+		Logo:              req.Logo,
+		Favicon:           req.Favicon,
+		Announcement:      req.Announcement,
+		Support:           req.Support,
+		SEO:               req.SEO,
+		FooterLinks:       req.FooterLinks,
+		NavConfig:         req.NavConfig,
+		PaymentChannelIDs: req.PaymentChannelIDs,
 	}
 }
 

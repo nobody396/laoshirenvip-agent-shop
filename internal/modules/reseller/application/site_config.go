@@ -18,6 +18,7 @@ import (
 	"github.com/dujiao-next/internal/cache"
 	"github.com/dujiao-next/internal/constants"
 	"github.com/dujiao-next/internal/shared/jsonmap"
+	"github.com/dujiao-next/internal/shared/jsonslice"
 	"github.com/dujiao-next/internal/shared/mailbrand"
 )
 
@@ -55,14 +56,31 @@ type ResellerNavConfigInput struct {
 }
 
 type ResellerSiteConfigInput struct {
-	SiteName     string                    `json:"site_name"`
-	Logo         string                    `json:"logo"`
-	Favicon      string                    `json:"favicon"`
-	Announcement ResellerAnnouncementInput `json:"announcement"`
-	Support      ResellerSupportInput      `json:"support"`
-	SEO          ResellerSEOInput          `json:"seo"`
-	FooterLinks  []ResellerFooterLinkInput `json:"footer_links"`
-	NavConfig    ResellerNavConfigInput    `json:"nav_config"`
+	SiteName          string                    `json:"site_name"`
+	Logo              string                    `json:"logo"`
+	Favicon           string                    `json:"favicon"`
+	Announcement      ResellerAnnouncementInput `json:"announcement"`
+	Support           ResellerSupportInput      `json:"support"`
+	SEO               ResellerSEOInput          `json:"seo"`
+	FooterLinks       []ResellerFooterLinkInput `json:"footer_links"`
+	NavConfig         ResellerNavConfigInput    `json:"nav_config"`
+	PaymentChannelIDs []uint                    `json:"payment_channel_ids"`
+}
+
+func normalizeResellerPaymentChannelIDs(input []uint) jsonslice.Uints {
+	seen := make(map[uint]struct{}, len(input))
+	result := make(jsonslice.Uints, 0, len(input))
+	for _, id := range input {
+		if id == 0 {
+			continue
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		result = append(result, id)
+	}
+	return result
 }
 
 type SiteConfigService struct {
@@ -262,16 +280,17 @@ func (s *SiteConfigService) buildModel(resellerID uint, input ResellerSiteConfig
 		return nil, err
 	}
 	return &resellerdomain.SiteConfig{
-		ResellerID:       resellerID,
-		SiteName:         trimLimit(input.SiteName, 120),
-		Logo:             logo,
-		Favicon:          favicon,
-		AnnouncementJSON: normalizeResellerAnnouncement(input.Announcement),
-		SupportJSON:      support,
-		SEOJSON:          seo,
-		FooterLinksJSON:  footerLinks,
-		NavConfigJSON:    navConfig,
-		ThemeJSON:        jsonmap.JSON{},
+		ResellerID:        resellerID,
+		SiteName:          trimLimit(input.SiteName, 120),
+		Logo:              logo,
+		Favicon:           favicon,
+		AnnouncementJSON:  normalizeResellerAnnouncement(input.Announcement),
+		SupportJSON:       support,
+		SEOJSON:           seo,
+		FooterLinksJSON:   footerLinks,
+		NavConfigJSON:     navConfig,
+		PaymentChannelIDs: normalizeResellerPaymentChannelIDs(input.PaymentChannelIDs),
+		ThemeJSON:         jsonmap.JSON{},
 	}, nil
 }
 

@@ -56,6 +56,7 @@ func TestResellerSiteConfigServiceNormalizesAndStoresSafeFields(t *testing.T) {
 			Title:       LocalizedTextInput{"zh-CN": "爱丽丝商店", "zh-TW": "愛麗絲商店", "en-US": "Alice Store"},
 			Description: LocalizedTextInput{"zh-CN": "精选商品", "en-US": "Curated products"},
 		},
+		PaymentChannelIDs: []uint{2, 0, 2, 3},
 	})
 	if err != nil {
 		t.Fatalf("update site config failed: %v", err)
@@ -72,6 +73,9 @@ func TestResellerSiteConfigServiceNormalizesAndStoresSafeFields(t *testing.T) {
 	}
 	if len(row.ThemeJSON) != 0 {
 		t.Fatalf("expected theme config to be ignored, got: %+v", row.ThemeJSON)
+	}
+	if len(row.PaymentChannelIDs) != 2 || row.PaymentChannelIDs[0] != 2 || row.PaymentChannelIDs[1] != 3 {
+		t.Fatalf("unexpected payment channel selection: %+v", row.PaymentChannelIDs)
 	}
 }
 

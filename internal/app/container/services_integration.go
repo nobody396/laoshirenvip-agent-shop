@@ -33,6 +33,7 @@ import (
 	reconciliationprocurement "github.com/dujiao-next/internal/modules/reconciliation/infrastructure/procurementreader"
 	reconciliationqueue "github.com/dujiao-next/internal/modules/reconciliation/infrastructure/queueadapter"
 	reconciliationupstream "github.com/dujiao-next/internal/modules/reconciliation/infrastructure/upstreamreader"
+	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
 	siteconnectionapp "github.com/dujiao-next/internal/modules/siteconnection/application"
 	broadcastapp "github.com/dujiao-next/internal/modules/telegram/broadcast/application"
 	notifyapp "github.com/dujiao-next/internal/modules/telegram/notify/application"
@@ -117,6 +118,7 @@ func (c *Container) initIntegrationServices() {
 		NotificationService:     c.NotificationService,
 		PaymentProviderRegistry: c.PaymentProviderRegistry,
 		ResellerAccounting:      c.ResellerAccountingLedger,
+		ResellerChannels:        resellerPaymentChannelSelector{store: c.ResellerStore},
 	})
 	c.ProcurementOrderService = procurementapp.NewService(procurementapp.Options{
 		Repository:         c.ProcurementOrderRepo,
@@ -145,4 +147,23 @@ func (c *Container) initIntegrationServices() {
 		telegrambroadcast.NewDispatcher(c.QueueClient),
 		telegramNotifyService,
 	)
+}
+
+type resellerSiteConfigReader interface {
+	GetSiteConfigByResellerID(resellerID uint) (*resellerdomain.SiteConfig, error)
+}
+
+type resellerPaymentChannelSelector struct {
+	store resellerSiteConfigReader
+}
+
+func (s resellerPaymentChannelSelector) GetResellerPaymentChannelIDs(resellerID uint) ([]uint, error) {
+	if s.store == nil || resellerID == 0 {
+		return nil, nil
+	}
+	config, err := s.store.GetSiteConfigByResellerID(resellerID)
+	if err != nil || config == nil {
+		return nil, err
+	}
+	return []uint(config.PaymentChannelIDs), nil
 }

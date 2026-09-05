@@ -106,9 +106,10 @@ type publicConfigPaymentAdapter struct {
 	payments *paymentapp.PaymentService
 }
 
-func (a publicConfigPaymentAdapter) GetOrderPaymentChannels() ([]map[string]interface{}, error) {
+func (a publicConfigPaymentAdapter) GetOrderPaymentChannels(resellerID *uint) ([]map[string]interface{}, error) {
 	return a.payments.GetAvailableChannels(paymentapp.AvailablePaymentChannelFilter{
 		PaymentType: constants.PaymentTypeOrder,
+		ResellerID:  resellerID,
 	})
 }
 

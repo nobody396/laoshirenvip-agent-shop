@@ -40,6 +40,7 @@ var (
 	ErrPaymentGatewayResponseInvalid       = errors.New("payment gateway response invalid")
 	ErrPaymentChannelNotAllowedForProduct  = errors.New("payment channel not allowed for product")
 	ErrPaymentChannelNotAllowedForRecharge = errors.New("payment channel not allowed for wallet recharge")
+	ErrPaymentChannelNotAllowedForReseller = errors.New("payment channel not allowed for reseller")
 	ErrProductFetchFailed                  = errors.New("product fetch failed")
 	ErrQueueUnavailable                    = errors.New("queue unavailable")
 )
@@ -66,6 +67,7 @@ type PaymentService struct {
 	memberLevelSvc          MemberLevelProgressor
 	paymentProviderRegistry paymentcontract.GatewayRegistry
 	resellerAccounting      resellerAccountingTransactions
+	resellerChannels        ResellerPaymentChannelSelector
 }
 
 type MemberLevelProgressor interface {
@@ -89,6 +91,12 @@ type AffiliatePaymentLifecycle interface {
 
 type resellerAccountingTransactions interface {
 	PostOrderProfit(store resellercontract.AccountingLedgerStore, order *orderdomain.Order, payment *paymentdomain.Payment) error
+}
+
+// ResellerPaymentChannelSelector resolves the channels a child site elected
+// to expose. An empty selection means the platform default: Alipay only.
+type ResellerPaymentChannelSelector interface {
+	GetResellerPaymentChannelIDs(resellerID uint) ([]uint, error)
 }
 
 // SetProcurementService 设置采购单服务（解决循环依赖）
@@ -125,6 +133,7 @@ type PaymentServiceOptions struct {
 	NotificationService     notificationcontract.NotificationEnqueuer
 	PaymentProviderRegistry paymentcontract.GatewayRegistry
 	ResellerAccounting      resellerAccountingTransactions
+	ResellerChannels        ResellerPaymentChannelSelector
 }
 
 // NewPaymentService 创建支付服务
@@ -147,6 +156,7 @@ func NewPaymentService(opts PaymentServiceOptions) *PaymentService {
 		notificationSvc:         opts.NotificationService,
 		paymentProviderRegistry: opts.PaymentProviderRegistry,
 		resellerAccounting:      opts.ResellerAccounting,
+		resellerChannels:        opts.ResellerChannels,
 	}
 }
 

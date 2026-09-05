@@ -337,6 +337,42 @@
           </div>
       </section>
         </div>
+
+        <div v-show="activeSection === 'payment'" class="mt-0">
+          <section class="rounded-2xl border bg-card p-4 sm:p-5">
+            <div class="mb-4 flex items-center gap-3">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <CreditCard class="h-4 w-4" />
+              </span>
+              <div>
+                <h3 class="text-base font-bold text-foreground">{{ t('personalCenter.reseller.siteConfig.payments.title') }}</h3>
+                <p class="text-xs text-muted-foreground">{{ t('personalCenter.reseller.siteConfig.payments.description') }}</p>
+              </div>
+            </div>
+            <div v-if="availablePaymentChannels.length" class="space-y-2.5">
+              <label
+                v-for="channel in availablePaymentChannels"
+                :key="channel.id"
+                class="flex items-center justify-between gap-4 rounded-xl border bg-muted/20 px-4 py-3"
+              >
+                <span class="min-w-0">
+                  <span class="block font-semibold text-foreground">{{ channel.name }}</span>
+                  <span class="mt-0.5 block text-xs text-muted-foreground">{{ paymentChannelDescription(channel) }}</span>
+                </span>
+                <Switch
+                  :model-value="form.payment_channel_ids.includes(channel.id)"
+                  @update:model-value="togglePaymentChannel(channel.id, $event)"
+                />
+              </label>
+            </div>
+            <div v-else class="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
+              {{ t('personalCenter.reseller.siteConfig.payments.empty') }}
+            </div>
+            <p class="mt-4 rounded-xl bg-secondary/60 p-4 text-xs leading-6 text-muted-foreground">
+              {{ t('personalCenter.reseller.siteConfig.payments.hint') }}
+            </p>
+          </section>
+        </div>
       </div>
 
       <!-- 保存栏 -->
@@ -357,6 +393,7 @@ import { computed, defineAsyncComponent, onMounted, reactive, ref, type Componen
 import { useI18n } from 'vue-i18n'
 import {
     Compass,
+	CreditCard,
     CircleAlert,
     CircleCheck,
     Info,
@@ -419,7 +456,7 @@ const builtinNavKeys = ['blog', 'notice', 'about']
 const localeLabels: Record<string, string> = { 'zh-CN': '简体', 'zh-TW': '繁體', 'en-US': 'EN' }
 
 type SiteConfigSection = {
-    value: 'brand' | 'support' | 'content' | 'navigation'
+    value: 'brand' | 'support' | 'content' | 'navigation' | 'payment'
     label: string
     description: string
     icon: Component
@@ -445,6 +482,12 @@ const siteConfigSections = computed<SiteConfigSection[]>(() => [
         icon: Megaphone,
     },
     {
+		value: 'payment',
+		label: t('personalCenter.reseller.siteConfig.tabs.payment'),
+		description: t('personalCenter.reseller.siteConfig.tabs.paymentDescription'),
+		icon: CreditCard,
+	},
+	{
         value: 'navigation',
         label: t('personalCenter.reseller.siteConfig.tabs.navigation'),
         description: t('personalCenter.reseller.siteConfig.tabs.navigationDescription'),
@@ -516,11 +559,42 @@ const createBlankForm = (): ResellerSiteConfigPayload => ({
         builtin: { blog: true, notice: true, about: true },
         custom_items: [],
     },
+	payment_channel_ids: [],
 })
 
 const form = reactive<any>(createBlankForm())
 
 const canEdit = computed(() => canEditResellerSiteConfig(snapshot.value))
+type PaymentChannelOption = { id: number; name: string; provider_type: string; channel_type: string }
+const availablePaymentChannels = computed<PaymentChannelOption[]>(() => {
+	const raw = appStore.config?.payment_channels
+	if (!Array.isArray(raw)) return []
+	return raw
+		.map((item: any) => ({
+			id: Number(item?.id || 0),
+			name: String(item?.name || item?.channel_type || ''),
+			provider_type: String(item?.provider_type || ''),
+			channel_type: String(item?.channel_type || ''),
+		}))
+		.filter((item) => item.id > 0 && item.name)
+})
+const defaultPaymentChannelIDs = () => availablePaymentChannels.value
+	.filter((channel) => channel.channel_type.toLowerCase() === 'alipay')
+	.map((channel) => channel.id)
+
+const paymentChannelDescription = (channel: PaymentChannelOption) => {
+	const type = channel.channel_type.toLowerCase()
+	if (type === 'alipay') return t('personalCenter.reseller.siteConfig.payments.alipay')
+	if (type.includes('usdt') || channel.provider_type.toLowerCase().includes('usdt')) return t('personalCenter.reseller.siteConfig.payments.usdt')
+	return channel.provider_type || channel.channel_type
+}
+
+const togglePaymentChannel = (id: number, enabled: boolean) => {
+	const current = new Set<number>(form.payment_channel_ids || [])
+	if (enabled) current.add(id)
+	else if (current.size > 1) current.delete(id)
+	form.payment_channel_ids = Array.from(current)
+}
 const dirtyHint = computed(
     () => !loading.value && !saving.value && baseline.value !== '' && JSON.stringify(form) !== baseline.value,
 )
@@ -570,6 +644,11 @@ const assignForm = (config?: ResellerSiteConfigData) => {
             builtin: { blog: true, notice: true, about: true, ...(config.nav_config?.builtin || {}) },
             custom_items: normalizeFooterLinksForForm(config.nav_config?.custom_items),
         }
+		next.payment_channel_ids = Array.isArray(config.payment_channel_ids) && config.payment_channel_ids.length
+			? config.payment_channel_ids.filter((id) => Number(id) > 0).map(Number)
+			: defaultPaymentChannelIDs()
+	} else {
+		next.payment_channel_ids = defaultPaymentChannelIDs()
     }
     Object.assign(form, next)
     baseline.value = JSON.stringify(form)
