@@ -17,6 +17,8 @@
 - [Dujiao-Next 下游对接](docs/integration/dujiao-next.md)
 - [异次元 ACG SharedStock 下游对接](docs/integration/acg-sharedstock.md)
 - [验收清单](docs/ops/acceptance-checklist.md)
+- [代理供货价与平台毛利](docs/ops/agent-pricing.md)
+- [备份与恢复](docs/ops/backup-restore.md)
 
 验收环境默认关闭真钱支付；健康检查、测试与镜像构建成功不等于真实支付和真实采购已通过。
 
