@@ -1,6 +1,6 @@
 # 验收环境状态
 
-更新时间：2026-09-05 19:25（北京时间）
+更新时间：2026-09-05 19:33（北京时间）
 
 ## 服务器
 
@@ -11,7 +11,7 @@
 - UFW 只开放 SSH、80、443；
 - `/opt/laoshirenvip-agent-shop` 归 `deploy` 用户；
 - 购买周期至 2026-10-05。
-- 已部署镜像 `sha-6f007da516da142fbc653be6264f409773adc829`；
+- 已部署镜像 `sha-589bafa2b18e4b58672b7e8413a65881345c4143`；
 - PostgreSQL、Redis、应用、Nginx 均为运行状态；
 - 临时总站：`http://agent.187-53-134-185.sslip.io`；
 - 临时验收子站：`http://acceptance.shop.187-53-134-185.sslip.io`。
@@ -36,6 +36,7 @@
 - 客户手续费附加策略已启用，未配置任何真钱支付渠道；
 - 本地全量 `go test ./...` 通过；GitHub CI 的 API、fullstack、installer、release config 全部通过；
 - GHCR linux/amd64 镜像构建成功并按不可变 SHA 部署。
+- 每日同机备份任务已启用，首次 PostgreSQL/上传备份校验和通过；异地恢复仍是生产门槛。
 
 ## 生产开放前仍需老板验收/授权
 
