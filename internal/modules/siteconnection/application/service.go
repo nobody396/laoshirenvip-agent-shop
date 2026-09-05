@@ -69,6 +69,9 @@ func (s *Service) Create(input CreateInput) (*siteconnectiondomain.Connection, e
 	if protocol == "" {
 		protocol = constants.ConnectionProtocolDujiaoNext
 	}
+	if !supportedProtocol(protocol) {
+		return nil, siteconnectioncontract.ErrInvalid
+	}
 
 	encryptedSecret, err := crypto.Encrypt(s.encryptKey, input.ApiSecret)
 	if err != nil {
@@ -143,7 +146,11 @@ func (s *Service) Update(id uint, input UpdateInput) (*siteconnectiondomain.Conn
 		conn.ApiSecret = encrypted
 	}
 	if strings.TrimSpace(input.Protocol) != "" {
-		conn.Protocol = strings.TrimSpace(input.Protocol)
+		protocol := strings.TrimSpace(input.Protocol)
+		if !supportedProtocol(protocol) {
+			return nil, siteconnectioncontract.ErrInvalid
+		}
+		conn.Protocol = protocol
 	}
 	if input.CallbackURL != "" {
 		conn.CallbackURL = strings.TrimSpace(input.CallbackURL)
@@ -189,6 +196,10 @@ func (s *Service) Update(id uint, input UpdateInput) (*siteconnectiondomain.Conn
 	}
 
 	return conn, nil
+}
+
+func supportedProtocol(protocol string) bool {
+	return protocol == constants.ConnectionProtocolDujiaoNext || protocol == constants.ConnectionProtocolSharedStock
 }
 
 // Delete 删除连接

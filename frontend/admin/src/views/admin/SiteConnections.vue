@@ -400,7 +400,8 @@ onMounted(() => {
                   <SelectValue :placeholder="t('siteConnections.form.protocolPlaceholder')" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="dujiao-next">dujiao-next</SelectItem>
+                  <SelectItem value="dujiao-next">Dujiao-Next OpenAPI</SelectItem>
+                  <SelectItem value="shared-stock">ACG SharedStock / Aisou</SelectItem>
                 </SelectContent>
               </Select>
             </div>
