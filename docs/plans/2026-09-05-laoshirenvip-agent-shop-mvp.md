@@ -73,6 +73,26 @@ Aisou / SharedStock
 
 继续服务现有零售业务，不进入代理订单链路，不与代理总站重复结算或共享订单状态。
 
+## 技术底座与兼容协议决策
+
+- **二次开发底座固定为 Dujiao-Next `v1.4.7`**。代理申请、白标子站、域名租户解析、代理定价、订单快照、利润确认、退款扣减、提现与采购状态机都复用 Dujiao 的现有实现，不在异次元上重建这些资金能力。
+- 异次元 ACG 只作为协议兼容目标，不作为业务核心。其 SharedStock 有 core `/shared/*` 与 legacy `/plugin/SharedStock/api/*` 两组路由，另有 `/plugin/open-api/*`；协议数量不应决定核心系统选型。
+- **向上游采购**：Dujiao 增加 ACG SharedStock client adapter，用于连接 Aisou。
+- **向已有卡网供货**：
+  - Dujiao-Next 下游使用现成 `/api/v1/upstream/*`；
+  - 异次元下游增加 SharedStock provider compatibility adapter；
+  - 兼容层全部调用同一份商品、订单、钱包和交付模块，不建立平行账本或平行采购状态机。
+
+目标拓扑：
+
+```text
+已有 Dujiao 卡网 ── Dujiao OpenAPI ─┐
+                                     ├→ 老实人VIP代理总站 → SharedStock → Aisou
+已有异次元卡网 ── SharedStock ──────┘
+
+无卡网代理 ── Dujiao 白标子站 ──────┘
+```
+
 ## 第一阶段开发范围
 
 1. 固定并保留 Dujiao-Next `v1.4.7` 上游基线和 GPL-3.0 许可。
