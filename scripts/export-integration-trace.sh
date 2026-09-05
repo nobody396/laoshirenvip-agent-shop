@@ -14,7 +14,7 @@ tmp=$(mktemp)
 trap 'rm -f "$tmp"' EXIT
 
 ssh laoshirenvip-agent \
-  "cd /opt/laoshirenvip-agent-shop/deploy && docker compose exec -T app cat /app/logs/app.log" \
+  "docker exec deploy-app-1 cat /app/logs/app.log" \
   >"$tmp"
 
 jq -c --arg needle "$needle" '
