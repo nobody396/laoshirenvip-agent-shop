@@ -67,6 +67,9 @@ services:
       RESELLER_ENABLED: "true"
       RESELLER_SELF_APPLY_ENABLED: "true"
       RESELLER_SETTLEMENT_CONFIRM_DAYS: "7"
+      RESELLER_MAIN_HOSTS: ${MAIN_HOSTS:?required}
+      RESELLER_TRUSTED_FORWARDED_HOST: "true"
+      RESELLER_SUBDOMAIN_BASE: ${SUBDOMAIN_BASE:-}
       WEB_ADMIN_PATH: ${ADMIN_PATH:?required}
       DJ_DEFAULT_ADMIN_USERNAME: ${ADMIN_USERNAME:?required}
       DJ_DEFAULT_ADMIN_PASSWORD: ${ADMIN_PASSWORD:?required}
@@ -79,6 +82,20 @@ services:
       resources:
         limits:
           memory: 1536M
+
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.acceptance.conf:/etc/nginx/conf.d/default.conf:ro
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
 volumes:
   postgres-data:
