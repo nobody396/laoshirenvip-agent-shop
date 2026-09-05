@@ -68,21 +68,21 @@ func TestBuildOrderSubject(t *testing.T) {
 			want: "",
 		},
 		{
-			name: "always uses order number regardless of item titles",
+			name: "uses partner brand and concrete product title",
 			order: &orderdomain.Order{
 				OrderNo: "DJ-LEGACY-1",
 				Items: []orderdomain.OrderItem{
 					{TitleJSON: jsonmap.JSON{"zh-CN": "父订单商品"}},
 				},
 			},
-			want: "DJ-LEGACY-1",
+			want: "老实人AI伙伴 · 父订单商品",
 		},
 		{
 			name: "trims order number",
 			order: &orderdomain.Order{
 				OrderNo: " DJ-FALLBACK-1 ",
 			},
-			want: "DJ-FALLBACK-1",
+			want: "老实人AI伙伴 · DJ-FALLBACK-1",
 		},
 	}
 
