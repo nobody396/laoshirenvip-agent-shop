@@ -46,6 +46,7 @@ import (
 	"github.com/dujiao-next/internal/constants"
 	paymentcontract "github.com/dujiao-next/internal/modules/payment/contract"
 	"github.com/dujiao-next/internal/modules/payment/infrastructure/gateway/provider"
+	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
 	"github.com/dujiao-next/internal/platform/database/gormdb"
 	"github.com/dujiao-next/internal/shared/jsonmap"
 	"github.com/dujiao-next/internal/shared/money"
@@ -54,6 +55,23 @@ import (
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
+
+type recordingResellerAccounting struct {
+	calls     int
+	orderID   uint
+	paymentID uint
+}
+
+func (r *recordingResellerAccounting) PostOrderProfit(_ resellercontract.AccountingLedgerStore, order *orderdomain.Order, payment *paymentdomain.Payment) error {
+	r.calls++
+	if order != nil {
+		r.orderID = order.ID
+	}
+	if payment != nil {
+		r.paymentID = payment.ID
+	}
+	return nil
+}
 
 func setupPaymentServiceWalletTest(t *testing.T) (*PaymentService, *gorm.DB) {
 	t.Helper()
@@ -124,6 +142,8 @@ func setupPaymentServiceWalletTest(t *testing.T) (*PaymentService, *gorm.DB) {
 
 func TestCreatePaymentWalletFullAmountCreatesPaymentRecord(t *testing.T) {
 	svc, db := setupPaymentServiceWalletTest(t)
+	resellerAccounting := &recordingResellerAccounting{}
+	svc.resellerAccounting = resellerAccounting
 	now := time.Now()
 
 	user := &userdomain.User{
@@ -230,6 +250,9 @@ func TestCreatePaymentWalletFullAmountCreatesPaymentRecord(t *testing.T) {
 	}
 	if !refreshedAccount.Balance.Decimal.Equal(decimal.NewFromInt(50)) {
 		t.Fatalf("wallet balance want 50 got %s", refreshedAccount.Balance.String())
+	}
+	if resellerAccounting.calls != 1 || resellerAccounting.orderID != order.ID || resellerAccounting.paymentID != payment.ID {
+		t.Fatalf("reseller profit must be posted once in wallet transaction: %+v", resellerAccounting)
 	}
 }
 

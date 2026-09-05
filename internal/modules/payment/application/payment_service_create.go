@@ -196,6 +196,14 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 			if err := s.markOrderPaid(tx, &lockedOrder, paidAt); err != nil {
 				return err
 			}
+			// Wallet-only orders do not pass through the provider callback path.
+			// Post reseller profit in this same transaction or child-site sales
+			// paid from balance silently lose their commission ledger entry.
+			if s.resellerAccounting != nil {
+				if err := s.resellerAccounting.PostOrderProfit(tx.ResellerAccounting(), &lockedOrder, payment); err != nil {
+					return err
+				}
+			}
 			orderPaidByWallet = true
 			order = &lockedOrder
 			return nil
