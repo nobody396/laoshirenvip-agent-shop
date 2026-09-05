@@ -1,0 +1,9 @@
+services:
+  proxy:
+    ports: !override
+      - "80:80"
+      - "443:443"
+    volumes: !override
+      - ./nginx.production.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./tls/origin.pem:/etc/nginx/tls/origin.pem:ro
+      - ./tls/origin-key.pem:/etc/nginx/tls/origin-key.pem:ro
