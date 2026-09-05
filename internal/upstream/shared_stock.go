@@ -109,8 +109,37 @@ func (a *SharedStockAdapter) GetProduct(ctx context.Context, productID uint) (*U
 	if err != nil {
 		return nil, err
 	}
-	result, err := a.product(*commodity, 0)
+	categoryID, err := a.categoryIDForProduct(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+	result, err := a.product(*commodity, categoryID)
 	return &result, err
+}
+
+// SharedStock's item endpoint does not carry the parent category. Importing a
+// product with category 0 breaks PostgreSQL's products -> categories foreign
+// key, so resolve the category from the authoritative items tree before
+// returning product details. The persistent reference registry keeps the
+// resulting numeric ID stable across syncs and restarts.
+func (a *SharedStockAdapter) categoryIDForProduct(ctx context.Context, code string) (uint, error) {
+	categories, err := a.client.Items(ctx)
+	if err != nil {
+		return 0, err
+	}
+	for _, category := range categories {
+		for _, commodity := range category.Children {
+			if commodity.Code != code {
+				continue
+			}
+			key := string(category.ID)
+			if key == "" {
+				key = category.Name
+			}
+			return a.references.Resolve(a.connectionID, siteconnectiondomain.ExternalReferenceKindCategory, key)
+		}
+	}
+	return 0, ErrUpstreamProductDeleted
 }
 
 func (a *SharedStockAdapter) CreateOrder(ctx context.Context, req CreateUpstreamOrderReq) (*CreateUpstreamOrderResp, error) {

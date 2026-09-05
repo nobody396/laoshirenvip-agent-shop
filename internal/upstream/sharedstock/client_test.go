@@ -81,6 +81,25 @@ func TestClientFallsBackToLegacyOnlyAfterDefinitiveNonJSONResponse(t *testing.T)
 	}
 }
 
+func TestClientAcceptsLegacyZeroSuccessCode(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/shared/") {
+			_, _ = fmt.Fprint(w, `<html>not installed</html>`)
+			return
+		}
+		_, _ = fmt.Fprint(w, `{"code":0,"msg":"success","data":{"shopName":"Legacy","balance":"9.00"}}`)
+	}))
+	defer server.Close()
+
+	result, err := NewClient(server.URL, "42", "secret").Connect(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ShopName != "Legacy" || result.Balance != "9.00" {
+		t.Fatalf("unexpected legacy response: %+v", result)
+	}
+}
+
 func TestClientDoesNotReplayAfterJSONBusinessFailure(t *testing.T) {
 	requests := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

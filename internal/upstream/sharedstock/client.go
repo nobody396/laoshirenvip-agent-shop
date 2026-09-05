@@ -173,7 +173,10 @@ func (c *Client) request(ctx context.Context, action string, values map[string]s
 			return invalidJSON
 		}
 		c.rememberRouteFamily(path == corePath)
-		if status != http.StatusOK || string(envelope.Code) != "200" {
+		// Core SharedStock uses 200 while legacy plugin releases commonly use
+		// 0 for success. Supporting both is required for real ACG shops.
+		code := string(envelope.Code)
+		if status != http.StatusOK || (code != "200" && code != "0") {
 			if strings.Contains(strings.ToLower(envelope.Msg), "already exists") {
 				return ErrRequestUncertain
 			}

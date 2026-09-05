@@ -1,13 +1,43 @@
 package upstream
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/dujiao-next/internal/constants"
 	siteconnectiondomain "github.com/dujiao-next/internal/modules/siteconnection/domain"
 )
+
+type memoryReferenceRegistry struct {
+	next  uint
+	byKey map[string]uint
+	byID  map[uint]string
+}
+
+func newMemoryReferenceRegistry() *memoryReferenceRegistry {
+	return &memoryReferenceRegistry{next: 1, byKey: map[string]uint{}, byID: map[uint]string{}}
+}
+
+func (r *memoryReferenceRegistry) Resolve(_ uint, kind, externalKey string) (uint, error) {
+	key := kind + ":" + externalKey
+	if id := r.byKey[key]; id > 0 {
+		return id, nil
+	}
+	id := r.next
+	r.next++
+	r.byKey[key] = id
+	r.byID[id] = externalKey
+	return id, nil
+}
+
+func (r *memoryReferenceRegistry) Lookup(_ uint, _ string, id uint) (string, error) {
+	return r.byID[id], nil
+}
 
 func TestSharedVariantsPreferFactoryPricesFromINI(t *testing.T) {
 	raw, err := json.Marshal("[category]\n250点=80\n500点=160\n[category_factory]\n250点=75\n500点=145\n")
@@ -31,5 +61,32 @@ func TestUnknownAdapterProtocolIsRejected(t *testing.T) {
 	_, err := NewAdapter(&siteconnectiondomain.Connection{Protocol: "unknown"}, t.TempDir())
 	if err == nil || !strings.Contains(err.Error(), "unsupported protocol") {
 		t.Fatalf("expected unsupported protocol error, got %v", err)
+	}
+}
+
+func TestSharedStockGetProductPreservesCategory(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch req.URL.Path {
+		case "/shared/commodity/items":
+			_, _ = fmt.Fprint(w, `{"code":200,"data":[{"id":7,"name":"AI","children":[{"id":23,"code":"SKU-A","name":"Plan","price":"37","stock":8,"status":1}]}]}`)
+		case "/shared/commodity/item":
+			_, _ = fmt.Fprint(w, `{"code":200,"data":{"id":23,"code":"SKU-A","name":"Plan","price":"37","stock":8,"status":1}}`)
+		default:
+			http.NotFound(w, req)
+		}
+	}))
+	defer server.Close()
+
+	references := newMemoryReferenceRegistry()
+	productID, _ := references.Resolve(1, siteconnectiondomain.ExternalReferenceKindProduct, "SKU-A")
+	adapter := NewSharedStockAdapter(&siteconnectiondomain.Connection{
+		ID: 1, BaseURL: server.URL, ApiKey: "42", ApiSecret: "secret",
+	}, t.TempDir(), references)
+	product, err := adapter.GetProduct(context.Background(), productID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if product.CategoryID == 0 {
+		t.Fatalf("expected stable non-zero category id: %+v", product)
 	}
 }

@@ -46,6 +46,7 @@ import (
 	procurementtransport "github.com/dujiao-next/internal/modules/procurement/transport/http"
 	promotiontransport "github.com/dujiao-next/internal/modules/promotion/transport/http"
 	settingstransport "github.com/dujiao-next/internal/modules/settings/transport/http"
+	sharedstocktransport "github.com/dujiao-next/internal/modules/sharedstockapi/transport/http"
 	sitemapbrand "github.com/dujiao-next/internal/modules/sitemap/infrastructure/settingsbrand"
 	sitemaptransport "github.com/dujiao-next/internal/modules/sitemap/transport/http"
 	telegramchanneltransport "github.com/dujiao-next/internal/modules/telegram/channelbot/transport/http"
@@ -92,6 +93,7 @@ func SetupRouter(cfg *config.Config, c *container.Container) *gin.Engine {
 	userCartHandler := carttransport.NewUserHandler(c.CartService)
 	channelHandler := channelwiring.NewHandler(c)
 	upstreamHandler := upstreamwiring.NewHandler(c)
+	sharedStockHandler := sharedstocktransport.New(upstreamHandler.Dependencies)
 	publicContentHandler := contenttransport.NewPublicHandler(
 		c.ContentPostService,
 		c.ContentPostCategoryService,
@@ -227,6 +229,12 @@ func SetupRouter(cfg *config.Config, c *container.Container) *gin.Engine {
 	sitemaptransport.RegisterRoutes(r, sitemaptransport.NewHandler(c.SitemapService, sitemapbrand.New(c.SettingService)))
 
 	apiV1 := r.Group("/api/v1")
+	sharedstocktransport.RegisterRoutes(
+		r,
+		sharedStockHandler,
+		middleware.SharedStockAPIAuthMiddleware(c.ApiCredentialRepo),
+		middleware.RateLimitMiddleware(redisClient, upstreamAPIRule, middleware.KeyByIP),
+	)
 	registerStorefrontRoutes(apiV1, cfg, c, publicContentHandler, publicCatalogHandler, publicCategoryHandler, userResellerHandler, userResellerProductSettingHandler, userResellerFinanceHandler, userResellerOrderHandler, userApiCredentialHandler, userAuditLogHandler, userGiftCardHandler, publicMemberLevelHandler, userProfileHandler, userEmailHandler, userPasswordHandler, userVerifyHandler, userTelegramOIDCHandler, userTelegramHandler, userGoogleHandler, userLoginHandler, user2FAHandler, publicConfigHandler, userCartHandler, userOrderHandler, guestOrderHandler, orderPreviewHandler, orderCreateHandler, paymentLatestHandler, paymentWriteHandler, userWalletHandler, redisClient, loginRule, guestReadRule, guestWriteRule)
 	registerUpstreamRoutes(apiV1, c, upstreamHandler, redisClient, upstreamAPIRule)
 	registerChannelRoutes(apiV1, c, channelHandler, channelMemberLevelHandler, channelGiftCardHandler, channelAffiliateHandler, channelTelegramBotHandler, channelWalletHandler)
