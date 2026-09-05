@@ -173,8 +173,29 @@ type Adapter interface {
 	DownloadImage(ctx context.Context, imageURL string) (localPath string, err error)
 }
 
+type ExternalReferenceRegistry interface {
+	Resolve(connectionID uint, kind, externalKey string) (uint, error)
+	Lookup(connectionID uint, kind string, id uint) (string, error)
+}
+
+type AdapterOptions struct {
+	ExternalReferences ExternalReferenceRegistry
+}
+
+type AdapterOption func(*AdapterOptions)
+
+func WithExternalReferenceRegistry(registry ExternalReferenceRegistry) AdapterOption {
+	return func(options *AdapterOptions) {
+		options.ExternalReferences = registry
+	}
+}
+
 // NewAdapter 根据协议类型创建适配器
-func NewAdapter(conn *siteconnectiondomain.Connection, uploadsDir string) (Adapter, error) {
+func NewAdapter(conn *siteconnectiondomain.Connection, uploadsDir string, optionValues ...AdapterOption) (Adapter, error) {
+	options := AdapterOptions{}
+	for _, option := range optionValues {
+		option(&options)
+	}
 	switch conn.Protocol {
 	case constants.ConnectionProtocolDujiaoNext:
 		return NewDujiaoNextAdapter(conn, uploadsDir), nil

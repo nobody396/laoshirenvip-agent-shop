@@ -72,6 +72,7 @@ import (
 	settingscontract "github.com/dujiao-next/internal/modules/settings/contract"
 	siteconnectionapp "github.com/dujiao-next/internal/modules/siteconnection/application"
 	siteconnectioncontract "github.com/dujiao-next/internal/modules/siteconnection/contract"
+	siteconnectiongormstore "github.com/dujiao-next/internal/modules/siteconnection/infrastructure/gormstore"
 	sitemapapp "github.com/dujiao-next/internal/modules/sitemap/application"
 	broadcastapp "github.com/dujiao-next/internal/modules/telegram/broadcast/application"
 	broadcastcontract "github.com/dujiao-next/internal/modules/telegram/broadcast/contract"
@@ -88,46 +89,47 @@ type Container struct {
 	QueueClient *queue.Client
 
 	// Repositories
-	AdminStore             admincontract.Store
-	UserStore              usercontract.Store
-	ExternalIdentityStore  externalidentitycontract.Store
-	EmailVerificationStore emailverificationcontract.Store
-	OrderStore             ordercontract.Store
-	PaymentStore           paymentcontract.Store
-	PaymentChannelStore    paymentcontract.ChannelStore
-	CardSecretRepo         *cardsecretgormstore.Store
-	CardSecretBatchRepo    *cardsecretgormstore.BatchStore
-	GiftCardRepo           *giftcardgormstore.Store
-	FulfillmentStore       fulfillmentcontract.Store
-	ProductRepo            *productgormstore.ProductStore
-	ProductSKURepo         *productgormstore.SKUStore
-	CartRepo               *cartgormstore.Store
-	CouponRepo             *coupongormstore.Store
-	CouponUsageRepo        *coupongormstore.UsageStore
-	PromotionRepo          *promotiongormstore.Store
-	WalletRepo             *walletgormstore.Store
-	CategoryRepo           categorycontract.Repository
-	SettingRepo            settingscontract.Store
-	UserLoginLogRepo       auditlogcontract.UserLoginRepository
-	AuthzAuditLogRepo      auditlogcontract.AuthzRepository
-	NotificationLogRepo    *notificationgormstore.LogStore
-	AdminLoginLogRepo      auditlogcontract.AdminLoginRepository
-	DashboardRepo          dashboardcontract.Repository
-	AffiliateRepo          affiliatecontract.Store
-	ResellerStore          *resellergormstore.Store
-	ApiCredentialRepo      apicredentialcontract.Repository
-	SiteConnectionRepo     siteconnectioncontract.Repository
-	ProductMappingRepo     *mappinggormstore.MappingStore
-	SKUMappingRepo         *mappinggormstore.SKUMappingStore
-	ProcurementOrderRepo   *procurementgormstore.Store
-	DownstreamOrderRefRepo downstreamcallbackcontract.Repository
-	ReconciliationJobRepo  reconciliationcontract.JobRepository
-	ReconciliationItemRepo reconciliationcontract.ItemRepository
-	ChannelClientStore     channelclientcontract.Store
-	TelegramBroadcastRepo  broadcastcontract.Store
-	MemberLevelRepo        memberlevelcontract.LevelRepository
-	MemberLevelPriceRepo   *memberlevelgormstore.PriceStore
-	MemberLevelUserRepo    memberlevelcontract.UserRepository
+	AdminStore                admincontract.Store
+	UserStore                 usercontract.Store
+	ExternalIdentityStore     externalidentitycontract.Store
+	EmailVerificationStore    emailverificationcontract.Store
+	OrderStore                ordercontract.Store
+	PaymentStore              paymentcontract.Store
+	PaymentChannelStore       paymentcontract.ChannelStore
+	CardSecretRepo            *cardsecretgormstore.Store
+	CardSecretBatchRepo       *cardsecretgormstore.BatchStore
+	GiftCardRepo              *giftcardgormstore.Store
+	FulfillmentStore          fulfillmentcontract.Store
+	ProductRepo               *productgormstore.ProductStore
+	ProductSKURepo            *productgormstore.SKUStore
+	CartRepo                  *cartgormstore.Store
+	CouponRepo                *coupongormstore.Store
+	CouponUsageRepo           *coupongormstore.UsageStore
+	PromotionRepo             *promotiongormstore.Store
+	WalletRepo                *walletgormstore.Store
+	CategoryRepo              categorycontract.Repository
+	SettingRepo               settingscontract.Store
+	UserLoginLogRepo          auditlogcontract.UserLoginRepository
+	AuthzAuditLogRepo         auditlogcontract.AuthzRepository
+	NotificationLogRepo       *notificationgormstore.LogStore
+	AdminLoginLogRepo         auditlogcontract.AdminLoginRepository
+	DashboardRepo             dashboardcontract.Repository
+	AffiliateRepo             affiliatecontract.Store
+	ResellerStore             *resellergormstore.Store
+	ApiCredentialRepo         apicredentialcontract.Repository
+	SiteConnectionRepo        siteconnectioncontract.Repository
+	SiteExternalReferenceRepo *siteconnectiongormstore.ExternalReferenceStore
+	ProductMappingRepo        *mappinggormstore.MappingStore
+	SKUMappingRepo            *mappinggormstore.SKUMappingStore
+	ProcurementOrderRepo      *procurementgormstore.Store
+	DownstreamOrderRefRepo    downstreamcallbackcontract.Repository
+	ReconciliationJobRepo     reconciliationcontract.JobRepository
+	ReconciliationItemRepo    reconciliationcontract.ItemRepository
+	ChannelClientStore        channelclientcontract.Store
+	TelegramBroadcastRepo     broadcastcontract.Store
+	MemberLevelRepo           memberlevelcontract.LevelRepository
+	MemberLevelPriceRepo      *memberlevelgormstore.PriceStore
+	MemberLevelUserRepo       memberlevelcontract.UserRepository
 
 	// Services
 	AuthzService                  *authz.Service

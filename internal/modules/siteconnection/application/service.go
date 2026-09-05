@@ -23,19 +23,32 @@ type MarkupReapplier interface {
 
 // Service 对接连接服务。
 type Service struct {
-	connRepo        siteconnectioncontract.Repository
-	encryptKey      []byte
-	uploadsDir      string
-	markupReapplier MarkupReapplier
+	connRepo           siteconnectioncontract.Repository
+	encryptKey         []byte
+	uploadsDir         string
+	markupReapplier    MarkupReapplier
+	externalReferences upstream.ExternalReferenceRegistry
+}
+
+type ServiceOption func(*Service)
+
+func WithExternalReferenceRegistry(registry upstream.ExternalReferenceRegistry) ServiceOption {
+	return func(service *Service) {
+		service.externalReferences = registry
+	}
 }
 
 // NewService 创建连接服务。
-func NewService(connRepo siteconnectioncontract.Repository, appSecretKey, uploadsDir string) *Service {
-	return &Service{
+func NewService(connRepo siteconnectioncontract.Repository, appSecretKey, uploadsDir string, options ...ServiceOption) *Service {
+	service := &Service{
 		connRepo:   connRepo,
 		encryptKey: crypto.DeriveKey(appSecretKey),
 		uploadsDir: uploadsDir,
 	}
+	for _, option := range options {
+		option(service)
+	}
+	return service
 }
 
 // SetMarkupReapplier 注入定价重算器（容器装配时调用）。
@@ -230,11 +243,12 @@ func (s *Service) Ping(id uint) (*PingResult, error) {
 	}
 
 	adapter, err := upstream.NewAdapter(&siteconnectiondomain.Connection{
+		ID:        conn.ID,
 		BaseURL:   conn.BaseURL,
 		ApiKey:    conn.ApiKey,
 		ApiSecret: decrypted,
 		Protocol:  conn.Protocol,
-	}, s.uploadsDir)
+	}, s.uploadsDir, upstream.WithExternalReferenceRegistry(s.externalReferences))
 	if err != nil {
 		return nil, err
 	}
@@ -278,11 +292,12 @@ func (s *Service) GetAdapter(conn *siteconnectiondomain.Connection) (upstream.Ad
 	}
 
 	return upstream.NewAdapter(&siteconnectiondomain.Connection{
+		ID:        conn.ID,
 		BaseURL:   conn.BaseURL,
 		ApiKey:    conn.ApiKey,
 		ApiSecret: decrypted,
 		Protocol:  conn.Protocol,
-	}, s.uploadsDir)
+	}, s.uploadsDir, upstream.WithExternalReferenceRegistry(s.externalReferences))
 }
 
 func (s *Service) decryptSecret(conn *siteconnectiondomain.Connection) (string, error) {

@@ -58,7 +58,12 @@ func (c *Container) initIntegrationServices() {
 		notificationfeishu.New(),
 	)
 	c.ApiCredentialService = apicredentialapp.NewService(c.ApiCredentialRepo)
-	c.SiteConnectionService = siteconnectionapp.NewService(c.SiteConnectionRepo, c.Config.App.SecretKey, "uploads")
+	c.SiteConnectionService = siteconnectionapp.NewService(
+		c.SiteConnectionRepo,
+		c.Config.App.SecretKey,
+		"uploads",
+		siteconnectionapp.WithExternalReferenceRegistry(c.SiteExternalReferenceRepo),
+	)
 	mediaCore := contentapp.NewMediaService(
 		contentgormstore.NewMediaStore(gormdb.DB),
 		localfilestore.New(),

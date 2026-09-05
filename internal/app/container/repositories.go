@@ -71,6 +71,7 @@ func (c *Container) initRepositories() error {
 	c.ResellerStore = resellergormstore.New(db)
 	c.ApiCredentialRepo = apicredentialgormstore.New(db)
 	c.SiteConnectionRepo = siteconnectiongormstore.New(db)
+	c.SiteExternalReferenceRepo = siteconnectiongormstore.NewExternalReferenceStore(db)
 	c.ProductMappingRepo = mappinggormstore.NewMappingStore(db)
 	c.SKUMappingRepo = mappinggormstore.NewSKUMappingStore(db)
 	c.ProcurementOrderRepo = procurementgormstore.New(db)
