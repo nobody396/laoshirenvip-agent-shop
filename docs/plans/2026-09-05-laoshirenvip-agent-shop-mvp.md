@@ -77,6 +77,7 @@ Aisou / SharedStock
 
 1. 固定并保留 Dujiao-Next `v1.4.7` 上游基线和 GPL-3.0 许可。
 2. 在 `internal/upstream` 增加 ACG SharedStock 协议 adapter，而不是把 Aisou 逻辑散落到采购、商品和 HTTP 调用方。
+   - Dujiao 当前把上游 product/SKU ID 建模为 `uint`，SharedStock 的稳定标识是字符串 `shared_code`；不得直接哈希成整数。先增加可审计的稳定映射表，保存来源、SharedStock 数字商品 ID、`shared_code` 和规格名，再让采购订单引用该映射。
 3. 扩展站点连接协议枚举、管理接口与前端选择项。
 4. 实现连接测试、目录同步、单品查询、采购下单、订单查询、取消/不可取消映射和交付归一化。
 5. 复用现有 procurement 队列、幂等下游订单号、回调和轮询补偿，不新增第二套采购状态机。
