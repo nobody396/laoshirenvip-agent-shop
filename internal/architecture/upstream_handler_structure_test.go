@@ -18,7 +18,7 @@ func TestUpstreamHandlerImplementationIsSplitByResource(t *testing.T) {
 		"upstream_handler.go": {
 			"New", "getUpstreamUserID", "getUpstreamCredentialID", "successResponse", "errorResponse",
 		},
-		"upstream_ping.go": {"Ping"},
+		"upstream_ping.go": {"Ping", "configuredSiteName"},
 		"upstream_catalog.go": {
 			"ListCategories", "ListProducts", "GetProduct", "applyUpstreamStockToProducts",
 			"resolveEffectiveFulfillmentTypes", "toUpstreamProductWithMemberPrice", "computeSKUStock",

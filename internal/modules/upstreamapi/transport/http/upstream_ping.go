@@ -2,6 +2,7 @@ package upstreamhttp
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/dujiao-next/internal/constants"
 
@@ -19,12 +20,8 @@ func (h *Handler) Ping(c *gin.Context) {
 	// 站点名称
 	siteName := ""
 	siteConfig, err := h.Settings.GetByKey(constants.SettingKeySiteConfig)
-	if err == nil && siteConfig != nil {
-		if name, ok := siteConfig["site_name"]; ok {
-			if s, ok := name.(string); ok {
-				siteName = s
-			}
-		}
+	if err == nil {
+		siteName = configuredSiteName(siteConfig)
 	}
 
 	// 用户钱包余额
@@ -61,4 +58,17 @@ func (h *Handler) Ping(c *gin.Context) {
 		"currency":         currency,
 		"member_level":     memberLevel,
 	})
+}
+
+func configuredSiteName(siteConfig map[string]interface{}) string {
+	if brand, ok := siteConfig["brand"].(map[string]interface{}); ok {
+		if value, ok := brand["site_name"].(string); ok && strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	// Backward compatibility for pre-normalized settings rows.
+	if value, ok := siteConfig["site_name"].(string); ok {
+		return strings.TrimSpace(value)
+	}
+	return ""
 }

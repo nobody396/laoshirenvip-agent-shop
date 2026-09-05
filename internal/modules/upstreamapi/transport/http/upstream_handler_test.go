@@ -42,6 +42,16 @@ func TestMapCallbackStatus(t *testing.T) {
 	}
 }
 
+func TestConfiguredSiteNameReadsNormalizedBrand(t *testing.T) {
+	got := configuredSiteName(map[string]interface{}{
+		"site_name": "legacy",
+		"brand":     map[string]interface{}{"site_name": " 老实人VIP代理 "},
+	})
+	if got != "老实人VIP代理" {
+		t.Fatalf("unexpected site name: %q", got)
+	}
+}
+
 type stubConnections struct {
 	conn *siteconnectiondomain.Connection
 }
