@@ -13,6 +13,7 @@
 业务与验收文档：
 
 - [MVP 范围与 14 个代理 SKU](docs/plans/2026-09-05-laoshirenvip-agent-shop-mvp.md)
+- [支付与上游采购链路留痕](docs/ops/integration-trace.md)
 - [代理开通与子站交付](docs/ops/agent-onboarding.md)
 - [Dujiao-Next 下游对接](docs/integration/dujiao-next.md)
 - [异次元 ACG SharedStock 下游对接](docs/integration/acg-sharedstock.md)
