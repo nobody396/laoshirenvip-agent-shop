@@ -55,7 +55,9 @@ func (a *SharedStockAdapter) ListCategories(ctx context.Context) (*CategoryListR
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, UpstreamCategory{ID: id, Name: localized(category.Name)})
+		result = append(result, UpstreamCategory{
+			ID: id, Slug: fmt.Sprintf("shared-%d", id), Name: localized(category.Name),
+		})
 	}
 	return &CategoryListResult{Supported: true, Categories: result}, nil
 }

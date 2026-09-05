@@ -82,6 +82,13 @@ func TestSharedStockGetProductPreservesCategory(t *testing.T) {
 	adapter := NewSharedStockAdapter(&siteconnectiondomain.Connection{
 		ID: 1, BaseURL: server.URL, ApiKey: "42", ApiSecret: "secret",
 	}, t.TempDir(), references)
+	categories, err := adapter.ListCategories(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(categories.Categories) != 1 || categories.Categories[0].Slug == "" {
+		t.Fatalf("expected stable non-empty category slug: %+v", categories)
+	}
 	product, err := adapter.GetProduct(context.Background(), productID)
 	if err != nil {
 		t.Fatal(err)
