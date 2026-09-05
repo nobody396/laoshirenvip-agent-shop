@@ -45,6 +45,7 @@ type CreateOrderResult struct {
 	Currency     string
 	ErrorCode    string
 	ErrorMessage string
+	Fulfillment  *Fulfillment
 }
 
 type UpstreamOrder struct {

@@ -71,6 +71,8 @@ func TestSharedStockGetProductPreservesCategory(t *testing.T) {
 			_, _ = fmt.Fprint(w, `{"code":200,"data":[{"id":7,"name":"AI","children":[{"id":23,"code":"SKU-A","name":"Plan","price":"37","stock":8,"status":1}]}]}`)
 		case "/shared/commodity/item":
 			_, _ = fmt.Fprint(w, `{"code":200,"data":{"id":23,"code":"SKU-A","name":"Plan","price":"37","stock":8,"status":1}}`)
+		case "/shared/commodity/trade":
+			_, _ = fmt.Fprint(w, `{"code":200,"data":{"amount":"37.00","tradeNo":"ORDER-A","secret":"CARD-A"}}`)
 		default:
 			http.NotFound(w, req)
 		}
@@ -95,5 +97,15 @@ func TestSharedStockGetProductPreservesCategory(t *testing.T) {
 	}
 	if product.CategoryID == 0 {
 		t.Fatalf("expected stable non-zero category id: %+v", product)
+	}
+	skuID, _ := references.Resolve(1, siteconnectiondomain.ExternalReferenceKindSKU, "SKU-A")
+	created, err := adapter.CreateOrder(context.Background(), CreateUpstreamOrderReq{
+		SKUID: skuID, Quantity: 1, DownstreamOrderNo: "LOCAL-A",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.Status != "delivered" || created.Fulfillment == nil || created.Fulfillment.Payload != "CARD-A" {
+		t.Fatalf("expected immediate SharedStock delivery: %+v", created)
 	}
 }

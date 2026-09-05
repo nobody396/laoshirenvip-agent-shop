@@ -165,7 +165,16 @@ func (a *SharedStockAdapter) CreateOrder(ctx context.Context, req CreateUpstream
 	if err != nil {
 		return nil, err
 	}
-	return &CreateUpstreamOrderResp{OK: true, OrderID: orderID, OrderNo: rawOrderID, Status: "accepted", Amount: string(trade.Amount), Currency: "CNY"}, nil
+	result := &CreateUpstreamOrderResp{OK: true, OrderID: orderID, OrderNo: rawOrderID, Status: "accepted", Amount: string(trade.Amount), Currency: "CNY"}
+	if strings.TrimSpace(trade.Secret) != "" {
+		now := time.Now()
+		result.Status = "delivered"
+		result.Fulfillment = &UpstreamFulfillment{
+			Type: "auto", Status: "delivered", Payload: trade.Secret,
+			DeliveryData: jsonmap.JSON{"cards": splitCards(trade.Secret)}, DeliveredAt: &now,
+		}
+	}
+	return result, nil
 }
 
 func (a *SharedStockAdapter) GetOrder(ctx context.Context, orderID uint) (*UpstreamOrderDetail, error) {

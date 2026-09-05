@@ -123,6 +123,13 @@ func (s *Service) SubmitToUpstream(procurementOrderID uint) error {
 		"updated_at": now,
 	})
 
+	// SharedStock commonly returns the card secret in the trade response. Apply
+	// it immediately instead of discarding it and waiting for the first poll;
+	// polling remains the fallback for asynchronous upstreams.
+	if resp.Fulfillment != nil && strings.EqualFold(resp.Status, "delivered") {
+		return s.HandleUpstreamCallback(procOrder.ID, "delivered", resp.Fulfillment)
+	}
+
 	// 入队轮询任务（30s 延迟，作为回调的 fallback）
 	if s.queue != nil {
 		_ = s.queue.EnqueuePoll(procOrder.ID, 30*time.Second)
