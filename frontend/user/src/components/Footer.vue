@@ -104,7 +104,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Home, LayoutGrid, Newspaper, Info } from 'lucide-vue-next'
+import { Home, LayoutGrid, BookOpen, Info } from 'lucide-vue-next'
 import { useAppStore } from '../stores/app'
 import { getImageUrl } from '../utils/image'
 import { getLocalizedText } from '../utils/resellerSiteConfig'
@@ -148,9 +148,7 @@ const quickLinks = computed(() => {
     items.push({ path: '/products', label: 'nav.products', icon: LayoutGrid })
   }
   const builtin = navConfig.value?.builtin
-  if (!builtin || builtin.blog !== false) {
-    items.push({ path: '/blog', label: 'nav.blog', icon: Newspaper })
-  }
+  items.push({ path: '/integration-guide', label: 'nav.integrationGuide', icon: BookOpen })
   if (!builtin || builtin.about !== false) {
     items.push({ path: '/about', label: 'nav.about', icon: Info })
   }

@@ -17,7 +17,7 @@
             <RouterLink to="/notice"><Bell /> {{ t('nav.notice') }}</RouterLink>
           </Button>
           <Button as-child variant="outline" size="sm" class="rounded-full">
-            <RouterLink to="/blog"><BookOpen /> {{ t('nav.blog') }}</RouterLink>
+            <RouterLink to="/integration-guide"><BookOpen /> {{ t('nav.integrationGuide') }}</RouterLink>
           </Button>
         </div>
       </div>

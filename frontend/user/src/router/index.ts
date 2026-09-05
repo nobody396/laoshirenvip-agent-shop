@@ -14,8 +14,8 @@ const productDetailViewLoader: RouteComponentLoader = () => import('../views/Pro
 const cartViewLoader: RouteComponentLoader = () => import('../views/Cart.vue')
 const checkoutViewLoader: RouteComponentLoader = () => import('../views/Checkout.vue')
 const paymentViewLoader: RouteComponentLoader = () => import('../views/Payment.vue')
-const blogViewLoader: RouteComponentLoader = () => import('../views/Blog.vue')
 const noticeViewLoader: RouteComponentLoader = () => import('../views/Notice.vue')
+const integrationGuideViewLoader: RouteComponentLoader = () => import('../views/IntegrationGuide.vue')
 const loginViewLoader: RouteComponentLoader = () => import('../views/auth/Login.vue')
 const resellerLayoutLoader: RouteComponentLoader = () => import('../views/reseller/ResellerConsoleLayout.vue')
 
@@ -25,8 +25,8 @@ const routeWarmupLoaders: RouteComponentLoader[] = [
     cartViewLoader,
     checkoutViewLoader,
     paymentViewLoader,
-    blogViewLoader,
     noticeViewLoader,
+    integrationGuideViewLoader,
     loginViewLoader,
 ]
 
@@ -260,13 +260,17 @@ const router = createRouter({
         },
         {
             path: '/blog',
-            name: 'blog',
-            component: templateView('Blog', blogViewLoader),
+            redirect: '/integration-guide',
         },
         {
             path: '/blog/:slug',
             name: 'blog-detail',
             component: templateView('BlogDetail', () => import('../views/BlogDetail.vue')),
+        },
+        {
+            path: '/integration-guide',
+            name: 'integration-guide',
+            component: integrationGuideViewLoader,
         },
         {
             path: '/notice',

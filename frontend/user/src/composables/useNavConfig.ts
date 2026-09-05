@@ -1,7 +1,7 @@
 import { computed, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
-    Home, LayoutGrid, Newspaper, Bell, Info,
+    Home, LayoutGrid, Bell, Info,
     Link2, FileText, Globe, Star, Heart, MessageCircle, Gift, Zap, Shield,
     BookOpen, Code, Phone, MapPin, Music, Camera,
 } from 'lucide-vue-next'
@@ -46,7 +46,7 @@ interface NavConfigRaw {
 }
 
 const builtinNavDefs: Record<string, { path: string; label: string; icon: Component }> = {
-    blog: { path: '/blog', label: 'nav.blog', icon: Newspaper },
+    integrationGuide: { path: '/integration-guide', label: 'nav.integrationGuide', icon: BookOpen },
     notice: { path: '/notice', label: 'nav.notice', icon: Bell },
     about: { path: '/about', label: 'nav.about', icon: Info },
 }

@@ -35,9 +35,9 @@
               </RouterLink>
             </Button>
             <Button variant="secondary" size="sm" as-child>
-              <RouterLink to="/blog">
+              <RouterLink to="/integration-guide">
                 <BookOpen class="opacity-70" />
-                {{ t('nav.blog') }}
+                {{ t('nav.integrationGuide') }}
               </RouterLink>
             </Button>
           </div>
