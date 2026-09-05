@@ -22,3 +22,6 @@ internal/web/dist/
 # Agents 配置
 .agents/
 skills-lock.json
+
+# Local acceptance recordings and evidence bundles
+output/
