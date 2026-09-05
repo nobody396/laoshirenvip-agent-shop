@@ -27,7 +27,7 @@ func RegisterRoutes(engine *gin.Engine, handler *Handler, auth gin.HandlerFunc, 
 	legacy.Use(rateLimit, auth)
 	legacy.POST("/connect", handler.Connect)
 	legacy.POST("/items", handler.Items)
-	legacy.POST("/item", handler.Item)
+	legacy.POST("/item", handler.LegacyItem)
 	legacy.POST("/inventory", handler.Inventory)
 	legacy.POST("/inventoryState", handler.InventoryState)
 	legacy.POST("/stock", handler.Stock)

@@ -28,6 +28,10 @@ type commodity struct {
 	DraftStatus  int    `json:"draft_status"`
 	Status       int    `json:"status"`
 	APIStatus    int    `json:"api_status"`
+	ContactType  int    `json:"contact_type"`
+	PasswordMode int    `json:"password_status"`
+	Minimum      int    `json:"minimum"`
+	Maximum      int    `json:"maximum"`
 }
 
 type sharedCategory struct {
@@ -90,6 +94,28 @@ func (h *Handler) Item(c *gin.Context) {
 		return
 	}
 	success(c, h.commodity(c, *product))
+}
+
+// Legacy SharedStock's item endpoint returns the same category tree as items,
+// narrowed to one product. Older ACG installations index data[0].children[0].
+func (h *Handler) LegacyItem(c *gin.Context) {
+	product, err := h.productByCode(c.PostForm("code"))
+	if err != nil || product == nil || !product.IsActive {
+		failure(c, "商品不存在")
+		return
+	}
+	categoryName := "商品"
+	if categories, err := h.Categories.List(); err == nil {
+		for _, category := range categories {
+			if category.ID == product.CategoryID {
+				categoryName = localizedText(category.NameJSON)
+				break
+			}
+		}
+	}
+	success(c, []sharedCategory{{
+		ID: product.CategoryID, Name: categoryName, Children: []commodity{h.commodity(c, *product)},
+	}})
 }
 
 func (h *Handler) Inventory(c *gin.Context) {

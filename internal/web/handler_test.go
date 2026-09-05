@@ -33,6 +33,8 @@ func TestValidateAdminPath(t *testing.T) {
 		{"reserved uploads", "/uploads", true, "reserved"},
 		{"reserved uploads prefix", "/uploads/x", true, "reserved"},
 		{"reserved health", "/health", true, "reserved"},
+		{"reserved SharedStock", "/shared/commodity/items", true, "reserved"},
+		{"reserved legacy SharedStock", "/plugin/SharedStock/api/items", true, "reserved"},
 
 		{"valid nested", "/ops/console", false, ""},
 		{"valid underscores", "/dj_mgmt_7x9k2", false, ""},

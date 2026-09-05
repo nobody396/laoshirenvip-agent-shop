@@ -1,4 +1,26 @@
-# Dujiao-Next
+# 老实人VIP代理卡网
+
+这是独立于老实人AI网关和 VIP GMShop 的第三个项目，基于 Dujiao-Next `v1.4.7` 二次开发。
+
+已增加：
+
+- 白标代理子站、代理独立定价、总站统一支付与履约；
+- 待确认利润、退款冲回、提现审核；
+- Aisou / ACG SharedStock 上游采购适配器；
+- Dujiao OpenAPI 与异次元 ACG SharedStock 两类下游供货接口；
+- PostgreSQL + Redis + 独立反向代理验收部署。
+
+业务与验收文档：
+
+- [MVP 范围与 14 个代理 SKU](docs/plans/2026-09-05-laoshirenvip-agent-shop-mvp.md)
+- [代理开通与子站交付](docs/ops/agent-onboarding.md)
+- [Dujiao-Next 下游对接](docs/integration/dujiao-next.md)
+- [异次元 ACG SharedStock 下游对接](docs/integration/acg-sharedstock.md)
+- [验收清单](docs/ops/acceptance-checklist.md)
+
+验收环境默认关闭真钱支付；健康检查、测试与镜像构建成功不等于真实支付和真实采购已通过。
+
+## 上游项目说明
 
 Dujiao-Next is a digital goods e-commerce platform. This repository contains the complete
 application: the Go backend, the customer storefront, and the admin panel.
