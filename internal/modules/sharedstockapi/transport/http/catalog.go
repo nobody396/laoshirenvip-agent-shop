@@ -212,7 +212,15 @@ func (h *Handler) productByCode(code string) (*productdomain.Product, error) {
 	if err != nil {
 		return nil, err
 	}
-	return h.Products.GetAdminByID(strconv.FormatUint(uint64(id), 10))
+	product, err := h.Products.GetAdminByID(strconv.FormatUint(uint64(id), 10))
+	if err != nil || product == nil {
+		return product, err
+	}
+	products := []productdomain.Product{*product}
+	if err := h.Products.ApplyAutoStockCounts(products); err != nil {
+		return nil, err
+	}
+	return &products[0], nil
 }
 
 func (h *Handler) commodity(c *gin.Context, product productdomain.Product) commodity {
