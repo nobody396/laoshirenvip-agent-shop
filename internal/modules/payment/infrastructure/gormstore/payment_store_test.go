@@ -122,6 +122,31 @@ func TestPaymentStoresExcludeSoftDeletedRecords(t *testing.T) {
 	}
 }
 
+func TestChannelStoreCreatePreservesExplicitDisabledState(t *testing.T) {
+	_, db := setupStoreTest(t)
+	channels := NewChannelStore(db)
+	channel := &paymentdomain.PaymentChannel{
+		Name:            "staged alipay",
+		ProviderType:    constants.PaymentProviderEpay,
+		ChannelType:     constants.PaymentChannelTypeAlipay,
+		InteractionMode: constants.PaymentInteractionQR,
+		IsActive:        false,
+	}
+	if err := channels.Create(channel); err != nil {
+		t.Fatalf("create disabled channel: %v", err)
+	}
+	if channel.IsActive {
+		t.Fatal("created channel mutated to active")
+	}
+	stored, err := channels.GetByID(channel.ID)
+	if err != nil {
+		t.Fatalf("read disabled channel: %v", err)
+	}
+	if stored == nil || stored.IsActive {
+		t.Fatalf("disabled channel not preserved: %+v", stored)
+	}
+}
+
 func TestStoreListAdminByUserIncludesWalletRechargePayments(t *testing.T) {
 	repo, db := setupStoreTest(t)
 	now := time.Now().UTC().Truncate(time.Second)

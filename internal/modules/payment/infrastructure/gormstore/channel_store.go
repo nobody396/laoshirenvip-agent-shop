@@ -23,7 +23,24 @@ func NewChannelStore(db *gorm.DB) *ChannelStore {
 
 // Create 创建支付渠道
 func (r *ChannelStore) Create(channel *paymentdomain.PaymentChannel) error {
-	return r.db.Create(channel).Error
+	requestedActive := channel.IsActive
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(channel).Error; err != nil {
+			return err
+		}
+		// GORM treats a false bool carrying a database default as "unset" and
+		// otherwise writes the schema default (true). Preserve an explicit
+		// disabled channel so credentials can be staged before callbacks are
+		// reachable without accidentally exposing a live payment method.
+		if !requestedActive {
+			if err := tx.Model(channel).UpdateColumn("is_active", false).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	channel.IsActive = requestedActive
+	return err
 }
 
 // Update 更新支付渠道
