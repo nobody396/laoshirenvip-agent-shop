@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	legacyPrefix    = "/plugin/SharedStock/api"
-	responseMaxSize = 2 << 20
+	legacyPrefix       = "/plugin/SharedStock/api"
+	responseMaxSize    = 2 << 20
+	maxRequestNoLength = 19
 )
 
 var (
@@ -116,19 +117,23 @@ func (c *Client) Inventory(ctx context.Context, code, race string) (*Inventory, 
 }
 
 func (c *Client) Trade(ctx context.Context, input TradeRequest) (*Trade, error) {
-	if input.Quantity < 1 || strings.TrimSpace(input.SharedCode) == "" || strings.TrimSpace(input.RequestNo) == "" {
+	requestNo := strings.TrimSpace(input.RequestNo)
+	if input.Quantity < 1 || strings.TrimSpace(input.SharedCode) == "" || requestNo == "" {
 		return nil, fmt.Errorf("sharedstock trade: invalid request")
+	}
+	if len(requestNo) > maxRequestNoLength {
+		return nil, fmt.Errorf("sharedstock trade: request_no exceeds %d characters", maxRequestNoLength)
 	}
 	contact := strings.TrimSpace(input.Contact)
 	if contact == "" {
-		contact = input.RequestNo
+		contact = requestNo
 	}
 	values := map[string]string{
 		"shared_code": input.SharedCode,
 		"num":         strconv.Itoa(input.Quantity),
 		"contact":     contact,
 		"device":      "0",
-		"request_no":  input.RequestNo,
+		"request_no":  requestNo,
 	}
 	if strings.TrimSpace(input.Password) != "" {
 		values["password"] = strings.TrimSpace(input.Password)
@@ -183,6 +188,13 @@ func (c *Client) request(ctx context.Context, action string, values map[string]s
 		if err != nil {
 			traceLog.Warnw("integration_trace_sharedstock_response",
 				"direction", "inbound", "accepted", false, "error", err)
+			// Once a trade request has been dispatched, a timeout or transport
+			// failure cannot prove that AISOU did not commit it. AISOU does not
+			// support lookup by request_no or idempotent duplicate replay, so the
+			// only safe outcome is manual reconciliation without an automatic retry.
+			if action == "trade" {
+				return fmt.Errorf("%w: %v", ErrRequestUncertain, err)
+			}
 			return err
 		}
 		traceLog.Infow("integration_trace_sharedstock_response",

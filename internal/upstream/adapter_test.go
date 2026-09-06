@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/dujiao-next/internal/constants"
@@ -17,6 +18,82 @@ type memoryReferenceRegistry struct {
 	next  uint
 	byKey map[string]uint
 	byID  map[uint]string
+}
+
+func TestSharedStockAdapterUsesStableUniqueRequestNumberWithinUpstreamLimit(t *testing.T) {
+	var mu sync.Mutex
+	var requestNumbers []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path != "/shared/commodity/trade" {
+			http.NotFound(w, req)
+			return
+		}
+		if err := req.ParseForm(); err != nil {
+			t.Fatal(err)
+		}
+		mu.Lock()
+		requestNumbers = append(requestNumbers, req.PostForm.Get("request_no"))
+		mu.Unlock()
+		_, _ = fmt.Fprint(w, `{"code":200,"data":{"amount":"37.00","tradeNo":"ORDER-A","secret":"CARD-A"}}`)
+	}))
+	defer server.Close()
+
+	references := newMemoryReferenceRegistry()
+	skuID, _ := references.Resolve(1, siteconnectiondomain.ExternalReferenceKindSKU, "SKU-A")
+	adapter := NewSharedStockAdapter(&siteconnectiondomain.Connection{
+		ID: 1, BaseURL: server.URL, ApiKey: "42", ApiSecret: "secret",
+	}, t.TempDir(), references)
+
+	const firstOrder = "DJ20260906052047400695-01"
+	for _, orderNo := range []string{firstOrder, firstOrder, "DJ20260906052047400695-02"} {
+		if _, err := adapter.CreateOrder(context.Background(), CreateUpstreamOrderReq{
+			SKUID: skuID, Quantity: 1, DownstreamOrderNo: orderNo,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(requestNumbers) != 3 {
+		t.Fatalf("request count = %d", len(requestNumbers))
+	}
+	for _, requestNo := range requestNumbers {
+		if len(requestNo) == 0 || len(requestNo) > 19 {
+			t.Fatalf("request_no must contain 1-19 characters, got %q (%d)", requestNo, len(requestNo))
+		}
+	}
+	if requestNumbers[0] != requestNumbers[1] {
+		t.Fatalf("same order produced unstable request_no values: %q != %q", requestNumbers[0], requestNumbers[1])
+	}
+	if requestNumbers[0] == requestNumbers[2] {
+		t.Fatalf("different orders produced the same request_no: %q", requestNumbers[0])
+	}
+}
+
+func TestSharedStockAdapterRejectsEmptyLocalOrderNumber(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		requests++
+		_, _ = fmt.Fprint(w, `{"code":200,"data":{"tradeNo":"UNEXPECTED"}}`)
+	}))
+	defer server.Close()
+
+	references := newMemoryReferenceRegistry()
+	skuID, _ := references.Resolve(1, siteconnectiondomain.ExternalReferenceKindSKU, "SKU-A")
+	adapter := NewSharedStockAdapter(&siteconnectiondomain.Connection{
+		ID: 1, BaseURL: server.URL, ApiKey: "42", ApiSecret: "secret",
+	}, t.TempDir(), references)
+
+	_, err := adapter.CreateOrder(context.Background(), CreateUpstreamOrderReq{
+		SKUID: skuID, Quantity: 1, DownstreamOrderNo: " ",
+	})
+	if err == nil {
+		t.Fatal("expected empty local order number to be rejected")
+	}
+	if requests != 0 {
+		t.Fatalf("empty local order number reached upstream: %d requests", requests)
+	}
 }
 
 func newMemoryReferenceRegistry() *memoryReferenceRegistry {

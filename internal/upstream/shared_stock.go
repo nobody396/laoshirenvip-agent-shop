@@ -3,6 +3,7 @@ package upstream
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base32"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -155,8 +156,9 @@ func (a *SharedStockAdapter) CreateOrder(ctx context.Context, req CreateUpstream
 	}
 	code, race := decodeSharedKey(key)
 	contact, password := sharedStockOrderLookup(req.DownstreamOrderNo)
+	requestNo := sharedStockRequestNo(req.DownstreamOrderNo)
 	trade, err := a.client.Trade(ctx, sharedstock.TradeRequest{
-		SharedCode: code, Race: race, Quantity: req.Quantity, RequestNo: req.DownstreamOrderNo,
+		SharedCode: code, Race: race, Quantity: req.Quantity, RequestNo: requestNo,
 		Contact: contact, Password: password,
 	})
 	if err != nil {
@@ -180,6 +182,21 @@ func (a *SharedStockAdapter) CreateOrder(ctx context.Context, req CreateUpstream
 		}
 	}
 	return result, nil
+}
+
+// sharedStockRequestNo derives the stable upstream idempotency key from the
+// complete local order number. AISOU accepts at most 19 characters, so hashing
+// avoids the collisions that would be introduced by simply truncating the
+// shared prefix of child order numbers. Eleven digest bytes encode to 18
+// unpadded base32 characters; the leading L identifies our request namespace.
+func sharedStockRequestNo(orderNo string) string {
+	orderNo = strings.TrimSpace(orderNo)
+	if orderNo == "" {
+		return ""
+	}
+	digest := sha256.Sum256([]byte(orderNo))
+	token := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(digest[:11])
+	return "L" + token
 }
 
 // sharedStockOrderLookup supplies the email contact and >=6-character query

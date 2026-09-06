@@ -9,7 +9,9 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestSignMatchesSharedValidationContract(t *testing.T) {
@@ -176,6 +178,64 @@ func TestTradeTreatsNonJSONResponseAsUncertainWithoutLegacyReplay(t *testing.T) 
 	}
 	if requests != 1 {
 		t.Fatalf("uncertain trade was replayed across route families: %d requests", requests)
+	}
+}
+
+func TestTradeTreatsTimeoutAsUncertainWithoutReplay(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		time.Sleep(50 * time.Millisecond)
+		_, _ = fmt.Fprint(w, `{"code":200,"data":{"tradeNo":"TOO-LATE"}}`)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, "42", "secret", WithHTTPClient(&http.Client{Timeout: 10 * time.Millisecond}))
+	_, err := client.Trade(context.Background(), TradeRequest{
+		SharedCode: "ABC", Quantity: 1, RequestNo: "ORDER-TIMEOUT",
+	})
+	if !errors.Is(err, ErrRequestUncertain) {
+		t.Fatalf("expected uncertain trade after timeout, got %v", err)
+	}
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("timed-out trade was replayed: %d requests", got)
+	}
+}
+
+func TestTradeRejectsRequestNumberLongerThanNineteenCharacters(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		_, _ = fmt.Fprint(w, `{"code":200,"data":{"tradeNo":"UNEXPECTED"}}`)
+	}))
+	defer server.Close()
+
+	_, err := NewClient(server.URL, "42", "secret").Trade(context.Background(), TradeRequest{
+		SharedCode: "ABC", Quantity: 1, RequestNo: "12345678901234567890",
+	})
+	if err == nil || !strings.Contains(err.Error(), "request_no") {
+		t.Fatalf("expected request_no validation error, got %v", err)
+	}
+	if requests != 0 {
+		t.Fatalf("invalid request_no reached upstream: %d requests", requests)
+	}
+}
+
+func TestQueryUsesCamelCaseTradeNumber(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		form := mustForm(t, r)
+		if got := form.Get("tradeNo"); got != "UPSTREAM-1" {
+			t.Fatalf("tradeNo = %q", got)
+		}
+		if got := form.Get("trade_no"); got != "" {
+			t.Fatalf("unexpected snake-case trade_no = %q", got)
+		}
+		_, _ = fmt.Fprint(w, `{"code":200,"data":{"tradeNo":"UPSTREAM-1","status":1}}`)
+	}))
+	defer server.Close()
+
+	if _, err := NewClient(server.URL, "42", "secret").Query(context.Background(), "UPSTREAM-1"); err != nil {
+		t.Fatal(err)
 	}
 }
 
