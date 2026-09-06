@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
+	"html"
 	"net/mail"
 	"net/url"
 	"strings"
@@ -135,7 +136,8 @@ func newResellerFieldError(field string) error {
 func normalizeResellerLocalizedText(raw LocalizedTextInput, max int) jsonmap.JSON {
 	out := jsonmap.JSON{}
 	for _, lang := range []string{"zh-CN", "zh-TW", "en-US"} {
-		out[lang] = trimLimit(raw[lang], max)
+		plain := strings.ReplaceAll(html.UnescapeString(raw[lang]), "\u00a0", " ")
+		out[lang] = trimLimit(plain, max)
 	}
 	return out
 }

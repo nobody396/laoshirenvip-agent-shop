@@ -6,10 +6,14 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"mime"
+	"net/http"
 	"net/mail"
 	"net/smtp"
+	"net/url"
 	"strings"
 	"time"
 
@@ -51,12 +55,18 @@ func generateMessageID(from string) string {
 
 // Service 邮件发送服务
 type Service struct {
-	cfg *config.EmailConfig
+	cfg        *config.EmailConfig
+	httpClient *http.Client
 }
 
 // New 创建邮件服务
 func New(cfg *config.EmailConfig) *Service {
-	return &Service{cfg: cfg}
+	return &Service{cfg: cfg, httpClient: &http.Client{
+		Timeout: 12 * time.Second,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return errors.New("verification email relay redirect rejected")
+		},
+	}}
 }
 
 // SetConfig 更新运行时邮件配置
@@ -70,7 +80,46 @@ func (s *Service) SetConfig(cfg *config.EmailConfig) {
 // SendVerifyCode 发送邮箱验证码
 func (s *Service) SendVerifyCode(toEmail, code, purpose, locale string, brand mailbrand.Brand) error {
 	subject, body := buildVerifyCodeContent(code, purpose, locale, brand)
+	if s != nil && s.cfg != nil && (strings.TrimSpace(s.cfg.VerificationRelayURL) != "" || strings.TrimSpace(s.cfg.VerificationRelayToken) != "") {
+		return s.sendVerificationEmailViaRelay(toEmail, purpose, subject, body)
+	}
 	return s.sendTextEmail(toEmail, subject, body, brand)
+}
+
+func (s *Service) sendVerificationEmailViaRelay(toEmail, purpose, subject, body string) error {
+	if s == nil || s.cfg == nil || s.httpClient == nil {
+		return notificationcontract.ErrEmailNotConfigured
+	}
+	relayURL := strings.TrimSpace(s.cfg.VerificationRelayURL)
+	token := strings.TrimSpace(s.cfg.VerificationRelayToken)
+	parsed, err := url.Parse(relayURL)
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || token == "" {
+		return notificationcontract.ErrEmailNotConfigured
+	}
+	if _, err := mail.ParseAddress(toEmail); err != nil {
+		return notificationcontract.ErrInvalidEmail
+	}
+	payload, err := json.Marshal(map[string]string{
+		"to": toEmail, "purpose": strings.ToLower(strings.TrimSpace(purpose)), "subject": subject, "text": body,
+	})
+	if err != nil {
+		return notificationcontract.ErrSendFailed
+	}
+	req, err := http.NewRequest(http.MethodPost, relayURL, bytes.NewReader(payload))
+	if err != nil {
+		return notificationcontract.ErrSendFailed
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return notificationcontract.ErrSendFailed
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return notificationcontract.ErrSendFailed
+	}
+	return nil
 }
 
 // SendOrderStatusEmail 发送订单状态通知

@@ -3,6 +3,9 @@ export type LocalizedText = Record<ResellerLocale, string>
 
 export const resellerLocales: ResellerLocale[] = ['zh-CN', 'zh-TW', 'en-US']
 
+export const decodePlainTextWhitespaceEntities = (value: string) =>
+    value.replace(/(?:&#x20;|&#32;|&nbsp;)/gi, ' ')
+
 export const blankLocalizedText = (): LocalizedText => ({
     'zh-CN': '',
     'zh-TW': '',
@@ -22,7 +25,7 @@ export const getLocalizedText = (
         ...Object.values(value),
     ]
     for (const item of candidates) {
-        if (typeof item === 'string' && item.trim()) return item.trim()
+        if (typeof item === 'string' && item.trim()) return decodePlainTextWhitespaceEntities(item).trim()
     }
     return ''
 }
@@ -37,9 +40,9 @@ export const hasLocalizedText = (
 export const normalizeLocalizedTextForForm = (
     value?: Partial<LocalizedText> | Record<string, unknown> | null,
 ): LocalizedText => ({
-    'zh-CN': String(value?.['zh-CN'] || ''),
-    'zh-TW': String(value?.['zh-TW'] || ''),
-    'en-US': String(value?.['en-US'] || ''),
+    'zh-CN': decodePlainTextWhitespaceEntities(String(value?.['zh-CN'] || '')),
+    'zh-TW': decodePlainTextWhitespaceEntities(String(value?.['zh-TW'] || '')),
+    'en-US': decodePlainTextWhitespaceEntities(String(value?.['en-US'] || '')),
 })
 
 export const normalizeFooterLinksForForm = (

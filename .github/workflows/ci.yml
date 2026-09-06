@@ -145,6 +145,9 @@ jobs:
       - name: Run user frontend tests
         run: (cd frontend/user && pnpm run test)
 
+      - name: Run verification email relay tests
+        run: node --test workers/email-relay/test.mjs
+
       # 两个 build 脚本都以 `vue-tsc -b` 开头，因此这一步同时覆盖了类型检查
       - name: Build frontends
         run: |

@@ -8,6 +8,7 @@ import {
   isResellerSiteSeoConfigured,
   normalizeFooterLinksForForm,
   canEditResellerSiteConfig,
+  decodePlainTextWhitespaceEntities,
 } from '../src/utils/resellerSiteConfig.ts'
 
 test('blank localized text includes all supported storefront locales', () => {
@@ -19,6 +20,11 @@ test('localized text fallback follows current locale then zh-CN then first non-e
   assert.equal(getLocalizedText(value, 'en-US'), 'English')
   assert.equal(getLocalizedText({ 'zh-CN': '简体' }, 'zh-TW'), '简体')
   assert.equal(getLocalizedText({ 'en-US': 'English' }, 'zh-TW'), 'English')
+})
+
+test('plain support notice renders whitespace entities as spaces', () => {
+  assert.equal(decodePlainTextWhitespaceEntities('联系&#x20;客服&#32;处理&nbsp;问题'), '联系 客服 处理 问题')
+  assert.equal(getLocalizedText({ 'zh-CN': '联系&#x20;客服' }, 'zh-CN'), '联系 客服')
 })
 
 test('footer links normalize missing localized names', () => {

@@ -2,8 +2,11 @@ package smtp
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"net/mail"
 	"net/smtp"
 	"os"
@@ -12,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/dujiao-next/internal/config"
+	"github.com/dujiao-next/internal/constants"
 	"github.com/dujiao-next/internal/i18n"
 	notificationcontract "github.com/dujiao-next/internal/modules/notification/contract"
 	settingsmessaging "github.com/dujiao-next/internal/modules/settings/schema/messaging"
@@ -20,6 +24,46 @@ import (
 
 	"github.com/shopspring/decimal"
 )
+
+func TestSendVerifyCodeUsesApprovedHTTPSRelay(t *testing.T) {
+	var got struct {
+		To      string `json:"to"`
+		Purpose string `json:"purpose"`
+		Subject string `json:"subject"`
+		Text    string `json:"text"`
+	}
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer relay-token" {
+			t.Fatalf("unexpected authorization header")
+		}
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Fatalf("decode relay payload: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true,"accepted":true}`))
+	}))
+	defer server.Close()
+
+	service := New(&config.EmailConfig{VerificationRelayURL: server.URL, VerificationRelayToken: "relay-token"})
+	service.httpClient = server.Client()
+	if err := service.SendVerifyCode("buyer@example.com", "123456", constants.VerifyPurposeRegister, i18n.LocaleZH, mailbrand.Brand{SiteName: "测试站"}); err != nil {
+		t.Fatalf("send verification code through relay: %v", err)
+	}
+	if got.To != "buyer@example.com" || got.Purpose != constants.VerifyPurposeRegister {
+		t.Fatalf("unexpected relay payload: %+v", got)
+	}
+	if !strings.Contains(got.Subject, "测试站") || !strings.Contains(got.Text, "123456") {
+		t.Fatalf("relay payload lost branded verification content: %+v", got)
+	}
+}
+
+func TestSendVerifyCodeRelayFailsClosedOnPartialConfiguration(t *testing.T) {
+	service := New(&config.EmailConfig{VerificationRelayURL: "https://relay.example.test/v1/verification-email"})
+	err := service.SendVerifyCode("buyer@example.com", "123456", constants.VerifyPurposeRegister, i18n.LocaleZH, mailbrand.Brand{})
+	if !errors.Is(err, notificationcontract.ErrEmailNotConfigured) {
+		t.Fatalf("expected relay configuration error, got %v", err)
+	}
+}
 
 func TestBuildOrderStatusContent(t *testing.T) {
 	tests := []struct {

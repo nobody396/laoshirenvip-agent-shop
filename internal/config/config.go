@@ -154,16 +154,20 @@ type OrderConfig struct {
 
 // EmailConfig 邮件服务配置
 type EmailConfig struct {
-	Enabled    bool             `mapstructure:"enabled"`
-	Host       string           `mapstructure:"host"`
-	Port       int              `mapstructure:"port"`
-	Username   string           `mapstructure:"username"`
-	Password   string           `mapstructure:"password"`
-	From       string           `mapstructure:"from"`
-	FromName   string           `mapstructure:"from_name"`
-	UseTLS     bool             `mapstructure:"use_tls"`
-	UseSSL     bool             `mapstructure:"use_ssl"`
-	VerifyCode VerifyCodeConfig `mapstructure:"verify_code"`
+	Enabled  bool   `mapstructure:"enabled"`
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+	From     string `mapstructure:"from"`
+	FromName string `mapstructure:"from_name"`
+	UseTLS   bool   `mapstructure:"use_tls"`
+	UseSSL   bool   `mapstructure:"use_ssl"`
+	// VerificationRelayURL and VerificationRelayToken route registration and
+	// password-reset codes through the approved Cloudflare Email binding.
+	VerificationRelayURL   string           `mapstructure:"verification_relay_url"`
+	VerificationRelayToken string           `mapstructure:"verification_relay_token"`
+	VerifyCode             VerifyCodeConfig `mapstructure:"verify_code"`
 }
 
 // VerifyCodeConfig 邮箱验证码配置
