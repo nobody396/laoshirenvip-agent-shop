@@ -20,7 +20,7 @@
       </a>
     </div>
 
-    <div v-if="!appStore.isResellerTenant" class="mt-4 overflow-hidden rounded-2xl border bg-card shadow-sm">
+    <div class="mt-4 overflow-hidden rounded-2xl border bg-card shadow-sm">
       <div class="border-b bg-muted/35 px-5 py-4 sm:px-6">
         <div class="flex items-center gap-2.5">
           <CircleAlert class="h-5 w-5 text-warning" />

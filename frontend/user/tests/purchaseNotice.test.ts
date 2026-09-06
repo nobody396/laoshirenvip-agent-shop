@@ -4,7 +4,7 @@ import test from 'node:test'
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), 'utf8')
 
-test('home purchase notice explains channel, device, delivery, warranty, and tenant support', async () => {
+test('home purchase notice is white-label on both main and reseller sites', async () => {
   const component = await read('../src/components/StorefrontPurchaseNotice.vue')
   const locale = await read('../src/i18n/locales/zh-CN.json')
   for (const required of [
@@ -17,7 +17,7 @@ test('home purchase notice explains channel, device, delivery, warranty, and ten
     assert.ok(locale.includes(required), `missing purchase notice copy: ${required}`)
   }
   assert.match(component, /appStore\.config\?\.contact/)
-  assert.match(component, /!appStore\.isResellerTenant/)
+  assert.doesNotMatch(component, /v-if="!appStore\.isResellerTenant"/)
 })
 
 test('catalog copy is white-label and Claude products include the complete preflight guide', async () => {
