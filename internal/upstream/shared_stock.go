@@ -2,6 +2,7 @@ package upstream
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -153,7 +154,11 @@ func (a *SharedStockAdapter) CreateOrder(ctx context.Context, req CreateUpstream
 		return nil, fmt.Errorf("shared-stock sku reference not found")
 	}
 	code, race := decodeSharedKey(key)
-	trade, err := a.client.Trade(ctx, sharedstock.TradeRequest{SharedCode: code, Race: race, Quantity: req.Quantity, RequestNo: req.DownstreamOrderNo})
+	contact, password := sharedStockOrderLookup(req.DownstreamOrderNo)
+	trade, err := a.client.Trade(ctx, sharedstock.TradeRequest{
+		SharedCode: code, Race: race, Quantity: req.Quantity, RequestNo: req.DownstreamOrderNo,
+		Contact: contact, Password: password,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -175,6 +180,16 @@ func (a *SharedStockAdapter) CreateOrder(ctx context.Context, req CreateUpstream
 		}
 	}
 	return result, nil
+}
+
+// sharedStockOrderLookup supplies the email contact and >=6-character query
+// password required by every currently enabled AISOU product. Values are
+// deterministic per downstream order, so an idempotent retry uses the exact
+// same lookup credentials without exposing a customer address upstream.
+func sharedStockOrderLookup(orderNo string) (string, string) {
+	digest := sha256.Sum256([]byte(strings.TrimSpace(orderNo)))
+	token := fmt.Sprintf("%x", digest[:6])
+	return "order-" + token + "@lsrai.shop", "Ls" + token
 }
 
 func (a *SharedStockAdapter) GetOrder(ctx context.Context, orderID uint) (*UpstreamOrderDetail, error) {

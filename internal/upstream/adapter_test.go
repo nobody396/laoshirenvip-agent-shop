@@ -72,6 +72,16 @@ func TestSharedStockGetProductPreservesCategory(t *testing.T) {
 		case "/shared/commodity/item":
 			_, _ = fmt.Fprint(w, `{"code":200,"data":{"id":23,"code":"SKU-A","name":"Plan","price":"37","stock":8,"status":1}}`)
 		case "/shared/commodity/trade":
+			if err := req.ParseForm(); err != nil {
+				t.Fatal(err)
+			}
+			form := req.PostForm
+			if got := form.Get("contact"); !strings.HasPrefix(got, "order-") || !strings.HasSuffix(got, "@lsrai.shop") {
+				t.Fatalf("unexpected generated contact: %q", got)
+			}
+			if got := form.Get("password"); len(got) < 6 {
+				t.Fatalf("generated password is too short: %q", got)
+			}
 			_, _ = fmt.Fprint(w, `{"code":200,"data":{"amount":"37.00","tradeNo":"ORDER-A","secret":"CARD-A"}}`)
 		default:
 			http.NotFound(w, req)

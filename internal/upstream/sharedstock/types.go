@@ -70,6 +70,8 @@ type TradeRequest struct {
 	Quantity   int
 	RequestNo  string
 	Race       string
+	Contact    string
+	Password   string
 }
 
 type Trade struct {

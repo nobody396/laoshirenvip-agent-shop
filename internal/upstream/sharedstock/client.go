@@ -119,12 +119,19 @@ func (c *Client) Trade(ctx context.Context, input TradeRequest) (*Trade, error) 
 	if input.Quantity < 1 || strings.TrimSpace(input.SharedCode) == "" || strings.TrimSpace(input.RequestNo) == "" {
 		return nil, fmt.Errorf("sharedstock trade: invalid request")
 	}
+	contact := strings.TrimSpace(input.Contact)
+	if contact == "" {
+		contact = input.RequestNo
+	}
 	values := map[string]string{
 		"shared_code": input.SharedCode,
 		"num":         strconv.Itoa(input.Quantity),
-		"contact":     input.RequestNo,
+		"contact":     contact,
 		"device":      "0",
 		"request_no":  input.RequestNo,
+	}
+	if strings.TrimSpace(input.Password) != "" {
+		values["password"] = strings.TrimSpace(input.Password)
 	}
 	if input.Race != "" {
 		values["race"] = input.Race

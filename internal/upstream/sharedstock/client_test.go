@@ -134,6 +134,32 @@ func TestTradeTreatsDuplicateRequestAsUncertain(t *testing.T) {
 	}
 }
 
+func TestTradeSendsExplicitContactAndPassword(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		form := mustForm(t, r)
+		if got := form.Get("contact"); got != "order-test@lsrai.shop" {
+			t.Fatalf("contact = %q", got)
+		}
+		if got := form.Get("password"); got != "Ls123456" {
+			t.Fatalf("password = %q", got)
+		}
+		assertSignedForm(t, form, "42", "secret")
+		_, _ = fmt.Fprint(w, `{"code":200,"data":{"amount":"1.00","tradeNo":"UP-1","secret":"CARD"}}`)
+	}))
+	defer server.Close()
+
+	result, err := NewClient(server.URL, "42", "secret").Trade(context.Background(), TradeRequest{
+		SharedCode: "ABC", Quantity: 1, RequestNo: "ORDER-1",
+		Contact: "order-test@lsrai.shop", Password: "Ls123456",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(result.TradeNo) != "UP-1" {
+		t.Fatalf("unexpected trade: %+v", result)
+	}
+}
+
 func mustForm(t *testing.T, r *http.Request) url.Values {
 	t.Helper()
 	if err := r.ParseForm(); err != nil {
