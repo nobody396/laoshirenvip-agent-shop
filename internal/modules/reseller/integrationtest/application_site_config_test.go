@@ -129,6 +129,41 @@ func TestResellerSiteConfigServiceUpdatesPaymentChannelSelection(t *testing.T) {
 	}
 }
 
+func TestResellerSiteWithoutSavedBrandUsesWhiteLabelDefaults(t *testing.T) {
+	db := openResellerManagementServiceTestDB(t)
+	repo := resellergormstore.New(db)
+	user := seedResellerManagementUser(t, db, "blank-brand@example.test")
+	profile := resellerdomain.Profile{UserID: user.ID, Status: resellerdomain.ProfileStatusActive, SettlementStatus: resellerdomain.SettlementStatusNormal}
+	if err := db.Create(&profile).Error; err != nil {
+		t.Fatalf("create profile failed: %v", err)
+	}
+	svc := NewResellerSiteConfigService(repo)
+	resellerID := profile.ID
+	out, err := svc.ApplyPublicConfigOverlay(context.Background(), ResellerTenantContext("blank.example.test", resellerID, user.ID, "blank.example.test"), map[string]interface{}{
+		"brand":        map[string]interface{}{"site_name": "老实人 AI 伙伴", "site_logo": "/main.png", "site_icon": "/main.ico"},
+		"contact":      map[string]interface{}{"email": "main@example.test"},
+		"seo":          map[string]interface{}{"title": map[string]interface{}{"zh-CN": "总站标题"}},
+		"announcement": map[string]interface{}{"enabled": true},
+	})
+	if err != nil {
+		t.Fatalf("apply overlay failed: %v", err)
+	}
+	brand := resellerSiteConfigTestMap(out["brand"])
+	if brand["site_name"] != "自定义网站" || brand["site_logo"] != "" || brand["site_icon"] != "" {
+		t.Fatalf("blank reseller leaked main brand: %+v", brand)
+	}
+	if contact := resellerSiteConfigTestMap(out["contact"]); len(contact) != 0 {
+		t.Fatalf("blank reseller leaked main contact: %+v", contact)
+	}
+	seo := resellerSiteConfigTestMap(out["seo"])
+	if title := resellerSiteConfigTestMap(seo["title"]); title["zh-CN"] != "自定义网站" {
+		t.Fatalf("blank reseller leaked main SEO: %+v", seo)
+	}
+	if _, exists := out["announcement"]; exists {
+		t.Fatalf("blank reseller leaked main announcement")
+	}
+}
+
 func TestResellerSiteConfigServiceRejectsUnsafeURLs(t *testing.T) {
 	db := openResellerManagementServiceTestDB(t)
 	repo := resellergormstore.New(db)

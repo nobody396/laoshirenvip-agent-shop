@@ -412,8 +412,26 @@ func (s *SiteConfigService) ApplyPublicConfigOverlay(ctx context.Context, tenant
 	if strings.TrimSpace(brandHost) == "" {
 		brandHost = tenant.PrimaryDomain
 	}
+	brand["site_name"] = "自定义网站"
 	brand["site_url"] = mailbrand.ResellerFallback(brandHost).SiteURL
+	brand["site_logo"] = ""
+	brand["site_icon"] = ""
+	brand["site_description"] = map[string]interface{}{"zh-CN": "", "zh-TW": "", "en-US": ""}
 	out["brand"] = brand
+	// A child site must never inherit the main platform's editable identity
+	// before its owner saves a configuration. Start from neutral white-label
+	// defaults, then overlay the reseller's own values below when present.
+	out["contact"] = map[string]interface{}{}
+	out["seo"] = map[string]interface{}{
+		"title":       map[string]interface{}{"zh-CN": "自定义网站", "zh-TW": "自訂網站", "en-US": "Custom Store"},
+		"keywords":    map[string]interface{}{"zh-CN": "", "zh-TW": "", "en-US": ""},
+		"description": map[string]interface{}{"zh-CN": "可自定义品牌、商品价格和客服信息的独立网站。", "zh-TW": "可自訂品牌、商品價格和客服資訊的獨立網站。", "en-US": "An independent storefront with custom branding, pricing, and support."},
+	}
+	delete(out, "announcement")
+	out["footer_links"] = []interface{}{}
+	nav := resellerSiteConfigMap(out["nav_config"])
+	nav["custom_items"] = []interface{}{}
+	out["nav_config"] = nav
 	if s == nil || s.repo == nil {
 		return out, nil
 	}
