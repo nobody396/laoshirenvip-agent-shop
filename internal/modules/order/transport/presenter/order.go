@@ -180,7 +180,7 @@ type OrderItemResp struct {
 func newOrderItemResp(item *orderdomain.OrderItem) OrderItemResp {
 	ft := item.FulfillmentType
 	if ft == "upstream" {
-		ft = "manual"
+		ft = "auto"
 	}
 	return OrderItemResp{
 		Title:                    item.TitleJSON,
@@ -216,7 +216,7 @@ type FulfillmentResp struct {
 func newFulfillmentResp(f *fulfillmentdomain.Fulfillment) FulfillmentResp {
 	typ := f.Type
 	if typ == "upstream" {
-		typ = "manual"
+		typ = "auto"
 	}
 	return FulfillmentResp{
 		Type:             typ,

@@ -99,12 +99,12 @@ func TestOrderDetailOmitsSensitiveFields(t *testing.T) {
 		}
 	}
 
-	// upstream 应被伪装为 manual
+	// 上游自动采购对客户应明确展示为自动交付，不得误导为人工处理。
 	if strings.Contains(jsonStr, `"upstream"`) {
-		t.Error("upstream fulfillment type should be masked as manual")
+		t.Error("upstream fulfillment type should be normalized")
 	}
-	if !strings.Contains(jsonStr, `"manual"`) {
-		t.Error("fulfillment type should be manual after masking")
+	if !strings.Contains(jsonStr, `"auto"`) {
+		t.Error("fulfillment type should be automatic after normalization")
 	}
 }
 
