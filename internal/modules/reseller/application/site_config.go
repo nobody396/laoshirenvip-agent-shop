@@ -589,6 +589,9 @@ func applyResellerSiteConfigToPublicConfig(out map[string]interface{}, cfg *rese
 			contact[key] = value
 		}
 	}
+	if noticeText := resellerSiteConfigMap(cfg.SupportJSON["notice_text"]); len(noticeText) > 0 {
+		contact["notice_text"] = noticeText
+	}
 	out["contact"] = contact
 
 	if len(cfg.SEOJSON) > 0 {

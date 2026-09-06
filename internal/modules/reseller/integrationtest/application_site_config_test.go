@@ -234,6 +234,9 @@ func TestResellerSiteConfigServiceApplyPublicConfigOverlay(t *testing.T) {
 	if _, err := svc.UpdateUserSiteConfig(context.Background(), user.ID, ResellerSiteConfigInput{
 		SiteName: "Overlay Store",
 		Favicon:  "/uploads/reseller/favicon.png",
+		Support: ResellerSupportInput{
+			NoticeText: LocalizedTextInput{"zh-CN": "联系&#x20;客服"},
+		},
 		SEO: ResellerSEOInput{
 			Title: LocalizedTextInput{"zh-CN": "覆盖标题", "en-US": "Overlay Title"},
 		},
@@ -278,8 +281,13 @@ func TestResellerSiteConfigServiceApplyPublicConfigOverlay(t *testing.T) {
 	if _, exists := out["announcement"]; exists {
 		t.Fatalf("disabled reseller announcement should remove the field, got %+v", out["announcement"])
 	}
-	if contact := resellerSiteConfigTestMap(out["contact"]); len(contact) != 0 {
-		t.Fatalf("reseller without support config must not inherit main-site contacts, got %+v", contact)
+	contact := resellerSiteConfigTestMap(out["contact"])
+	noticeText := resellerSiteConfigTestMap(contact["notice_text"])
+	if noticeText["zh-CN"] != "联系 客服" {
+		t.Fatalf("reseller support notice was not normalized and exposed: %+v", contact)
+	}
+	if _, leaked := contact["telegram"]; leaked {
+		t.Fatalf("reseller without a Telegram contact inherited the main-site contact: %+v", contact)
 	}
 	if nav := resellerSiteConfigTestMap(out["nav_config"]); nav["builtin"] == nil {
 		t.Fatalf("saved reseller config should intentionally own nav defaults, got %+v", nav)
