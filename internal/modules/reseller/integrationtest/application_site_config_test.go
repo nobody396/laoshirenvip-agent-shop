@@ -52,6 +52,7 @@ func TestResellerSiteConfigServiceNormalizesAndStoresSafeFields(t *testing.T) {
 			Telegram:   "https://t.me/alice",
 			Email:      "support@example.test",
 			SupportURL: "mailto:support@example.test",
+			NoticeText: LocalizedTextInput{"zh-CN": "请联系自己的客服", "en-US": "Contact our support"},
 		},
 		SEO: ResellerSEOInput{
 			Title:       LocalizedTextInput{"zh-CN": "爱丽丝商店", "zh-TW": "愛麗絲商店", "en-US": "Alice Store"},
@@ -68,6 +69,10 @@ func TestResellerSiteConfigServiceNormalizesAndStoresSafeFields(t *testing.T) {
 	}
 	if row.SupportJSON["telegram"] != "https://t.me/alice" || row.SupportJSON["email"] != "support@example.test" {
 		t.Fatalf("unexpected support json: %+v", row.SupportJSON)
+	}
+	noticeText := row.SupportJSON["notice_text"].(jsonmap.JSON)
+	if noticeText["zh-CN"] != "请联系自己的客服" || noticeText["en-US"] != "Contact our support" {
+		t.Fatalf("unexpected support notice text: %+v", noticeText)
 	}
 	announcementTitle := row.AnnouncementJSON["title"].(jsonmap.JSON)
 	if _, exists := announcementTitle["fr-FR"]; exists {
