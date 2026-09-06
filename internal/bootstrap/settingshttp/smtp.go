@@ -27,7 +27,7 @@ func (a settingsSMTPAdapter) PatchSMTPSetting(patch settingsmessaging.SMTPSettin
 }
 
 func (a settingsSMTPAdapter) ApplyRuntime(setting settingsmessaging.SMTPSetting) {
-	a.cfg.Email = settingsmessaging.SMTPSettingToConfig(setting)
+	a.cfg.Email = settingsmessaging.SMTPSettingToConfig(setting, a.cfg.Email)
 	if a.email != nil {
 		a.email.SetConfig(&a.cfg.Email)
 	}

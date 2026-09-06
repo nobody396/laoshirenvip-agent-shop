@@ -67,7 +67,7 @@ func (c *Container) loadRuntimeSettings() {
 	if err != nil {
 		logger.Warnw("provider_load_smtp_setting_failed", "error", err)
 	} else {
-		c.Config.Email = settingsmessaging.SMTPSettingToConfig(smtpSetting)
+		c.Config.Email = settingsmessaging.SMTPSettingToConfig(smtpSetting, c.Config.Email)
 	}
 
 	captchaSetting, err := c.SettingService.GetCaptchaSetting(c.Config.Captcha)

@@ -146,9 +146,9 @@ func ValidateSMTPSetting(setting SMTPSetting) error {
 }
 
 // SMTPSettingToConfig 将 SMTP 设置转换为运行时配置。
-func SMTPSettingToConfig(setting SMTPSetting) config.EmailConfig {
+func SMTPSettingToConfig(setting SMTPSetting, runtimeBase ...config.EmailConfig) config.EmailConfig {
 	normalized := NormalizeSMTPSetting(setting)
-	return config.EmailConfig{
+	result := config.EmailConfig{
 		Enabled:  normalized.Enabled,
 		Host:     normalized.Host,
 		Port:     normalized.Port,
@@ -165,6 +165,11 @@ func SMTPSettingToConfig(setting SMTPSetting) config.EmailConfig {
 			Length:              normalized.VerifyCode.Length,
 		},
 	}
+	if len(runtimeBase) > 0 {
+		result.VerificationRelayURL = runtimeBase[0].VerificationRelayURL
+		result.VerificationRelayToken = runtimeBase[0].VerificationRelayToken
+	}
+	return result
 }
 
 // EncodeSMTPSetting 将 SMTP 设置编码为 settings 表结构。

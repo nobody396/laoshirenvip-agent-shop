@@ -1,6 +1,20 @@
 package settingsmessaging
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/dujiao-next/internal/config"
+)
+
+func TestSMTPSettingToConfigPreservesRuntimeVerificationRelay(t *testing.T) {
+	result := SMTPSettingToConfig(SMTPSetting{}, config.EmailConfig{
+		VerificationRelayURL:   "https://relay.example.test/v1/verification-email",
+		VerificationRelayToken: "runtime-token",
+	})
+	if result.VerificationRelayURL != "https://relay.example.test/v1/verification-email" || result.VerificationRelayToken != "runtime-token" {
+		t.Fatalf("runtime verification relay was lost: %+v", result)
+	}
+}
 
 func TestOrderEmailTemplateSettingDoesNotExposeCanceledScene(t *testing.T) {
 	encoded := EncodeOrderEmailTemplateSetting(DefaultOrderEmailTemplateSetting())
