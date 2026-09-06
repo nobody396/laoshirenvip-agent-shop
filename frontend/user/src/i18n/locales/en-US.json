@@ -755,6 +755,8 @@
           "empty": "The platform has not configured any payment channels yet",
           "hint": "New child sites enable Alipay only by default. You may select only channels enabled by the platform; credentials, callbacks, refunds, and settlement remain centrally managed. Keep at least one method enabled.",
           "alipay": "Alipay · centrally collected and reconciled",
+          "alipayEnabled": "Alipay",
+          "enabled": "Enabled by default",
           "usdt": "USDT · optional per reseller",
           "absorbFeeTitle": "Reseller absorbs payment fees",
           "absorbFeeEnabled": "Customers pay only your listed price; the actual channel fee is deducted from this order's reseller profit.",

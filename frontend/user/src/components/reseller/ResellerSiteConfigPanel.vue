@@ -349,24 +349,14 @@
                 <p class="text-xs text-muted-foreground">{{ t('personalCenter.reseller.siteConfig.payments.description') }}</p>
               </div>
             </div>
-            <div v-if="availablePaymentChannels.length" class="space-y-2.5">
-              <label
-                v-for="channel in availablePaymentChannels"
-                :key="channel.id"
-                class="flex items-center justify-between gap-4 rounded-xl border bg-muted/20 px-4 py-3"
-              >
-                <span class="min-w-0">
-                  <span class="block font-semibold text-foreground">{{ channel.name }}</span>
-                  <span class="mt-0.5 block text-xs text-muted-foreground">{{ paymentChannelDescription(channel) }}</span>
-                </span>
-                <Switch
-                  :model-value="effectivePaymentChannelIDs.includes(channel.id)"
-                  @update:model-value="togglePaymentChannel(channel.id, $event)"
-                />
-              </label>
-            </div>
-            <div v-else class="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
-              {{ t('personalCenter.reseller.siteConfig.payments.empty') }}
+            <div class="flex items-center justify-between gap-4 rounded-xl border bg-muted/20 px-4 py-3">
+              <span class="min-w-0">
+                <span class="block font-semibold text-foreground">{{ t('personalCenter.reseller.siteConfig.payments.alipayEnabled') }}</span>
+                <span class="mt-0.5 block text-xs text-muted-foreground">{{ t('personalCenter.reseller.siteConfig.payments.alipay') }}</span>
+              </span>
+              <span class="rounded-full border border-success/30 bg-success/10 px-3 py-1 text-xs font-semibold text-success">
+                {{ t('personalCenter.reseller.siteConfig.payments.enabled') }}
+              </span>
             </div>
             <p class="mt-4 rounded-xl bg-secondary/60 p-4 text-xs leading-6 text-muted-foreground">
               {{ t('personalCenter.reseller.siteConfig.payments.hint') }}
@@ -587,40 +577,6 @@ const createBlankForm = (): ResellerSiteConfigPayload => ({
 const form = reactive<any>(createBlankForm())
 
 const canEdit = computed(() => canEditResellerSiteConfig(snapshot.value))
-type PaymentChannelOption = { id: number; name: string; provider_type: string; channel_type: string }
-const availablePaymentChannels = computed<PaymentChannelOption[]>(() => {
-	const raw = appStore.config?.payment_channels
-	if (!Array.isArray(raw)) return []
-	return raw
-		.map((item: any) => ({
-			id: Number(item?.id || 0),
-			name: String(item?.name || item?.channel_type || ''),
-			provider_type: String(item?.provider_type || ''),
-			channel_type: String(item?.channel_type || ''),
-		}))
-		.filter((item) => item.id > 0 && item.name)
-})
-const defaultPaymentChannelIDs = () => availablePaymentChannels.value
-	.filter((channel) => channel.channel_type.toLowerCase() === 'alipay')
-	.map((channel) => channel.id)
-const effectivePaymentChannelIDs = computed<number[]>(() => {
-	const configured = Array.isArray(form.payment_channel_ids) ? form.payment_channel_ids : []
-	return configured.length ? configured : defaultPaymentChannelIDs()
-})
-
-const paymentChannelDescription = (channel: PaymentChannelOption) => {
-	const type = channel.channel_type.toLowerCase()
-	if (type === 'alipay') return t('personalCenter.reseller.siteConfig.payments.alipay')
-	if (type.includes('usdt') || channel.provider_type.toLowerCase().includes('usdt')) return t('personalCenter.reseller.siteConfig.payments.usdt')
-	return channel.provider_type || channel.channel_type
-}
-
-const togglePaymentChannel = (id: number, enabled: boolean) => {
-	const current = new Set<number>(effectivePaymentChannelIDs.value)
-	if (enabled) current.add(id)
-	else if (current.size > 1) current.delete(id)
-	form.payment_channel_ids = Array.from(current)
-}
 const resellerAbsorbsFee = computed({
 	get: () => form.payment_fee_policy !== 'customer_surcharge',
 	set: (enabled: boolean) => {
@@ -676,14 +632,14 @@ const assignForm = (config?: ResellerSiteConfigData) => {
             builtin: { blog: true, notice: true, about: true, ...(config.nav_config?.builtin || {}) },
             custom_items: normalizeFooterLinksForForm(config.nav_config?.custom_items),
         }
-		next.payment_channel_ids = Array.isArray(config.payment_channel_ids) && config.payment_channel_ids.length
+		next.payment_channel_ids = Array.isArray(config.payment_channel_ids)
 			? config.payment_channel_ids.filter((id) => Number(id) > 0).map(Number)
-			: defaultPaymentChannelIDs()
+			: []
 		next.payment_fee_policy = config.payment_fee_policy === 'customer_surcharge'
 			? 'customer_surcharge'
 			: 'merchant_absorbed'
 	} else {
-		next.payment_channel_ids = defaultPaymentChannelIDs()
+		next.payment_channel_ids = []
     }
     Object.assign(form, next)
     baseline.value = JSON.stringify(form)

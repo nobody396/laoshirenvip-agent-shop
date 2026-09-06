@@ -58,10 +58,11 @@ test('site seo readiness ignores empty localized objects', () => {
   )
 })
 
-test('empty child payment selection is presented as the default Alipay channel', async () => {
+test('child payment settings keep Alipay fixed and only expose fee ownership', async () => {
   const source = await readFile(new URL('../src/components/reseller/ResellerSiteConfigPanel.vue', import.meta.url), 'utf8')
-  assert.match(source, /effectivePaymentChannelIDs\.includes\(channel\.id\)/)
-  assert.match(source, /configured\.length \? configured : defaultPaymentChannelIDs\(\)/)
+  assert.match(source, /payments\.alipayEnabled/)
+  assert.match(source, /payments\.enabled/)
+  assert.doesNotMatch(source, /togglePaymentChannel/)
 })
 
 test('child navigation does not expose the unavailable integration-guide switch', async () => {
