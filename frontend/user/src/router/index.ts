@@ -341,6 +341,14 @@ router.beforeEach(async (to, _from, next) => {
         await appStore.loadConfig()
     }
 
+    // Hosted reseller sites are retail storefronts, not downstream API hubs.
+    // Keep the main-platform integration guide unavailable on reseller hosts,
+    // including direct links and the legacy /blog redirect.
+    if (appStore.isResellerTenant && (to.path === '/integration-guide' || to.path === '/blog')) {
+        next('/')
+        return
+    }
+
     if (to.meta.requiresUserAuth) {
         if (!userAuthStore.isAuthenticated) {
             const redirect = encodeURIComponent(to.fullPath)

@@ -22,7 +22,7 @@
             {{ t('notFoundPage.quickLinksTitle') }}
           </p>
           <div class="flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" as-child>
+            <Button v-if="!appStore.isResellerTenant" variant="secondary" size="sm" as-child>
               <RouterLink to="/products">
                 <ShoppingBag class="opacity-70" />
                 {{ t('nav.products') }}
@@ -67,8 +67,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useNotFound } from '../composables/useNotFound'
+import { useAppStore } from '../stores/app'
 
 const { t } = useI18n()
+const appStore = useAppStore()
 
 const { brandSiteName, goBack } = useNotFound()
 </script>

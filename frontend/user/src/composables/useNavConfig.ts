@@ -83,7 +83,12 @@ export const useNavConfig = () => {
     /** 列表模式下首页即商品列表，/products 与首页同页，导航里不再单独列一项 */
     const isListMode = computed(() => appStore.config?.template_mode === 'list')
 
-    const blogEnabled = computed(() => navConfig.value?.builtin?.blog !== false)
+    const integrationGuideEnabled = computed(() =>
+        !appStore.isResellerTenant &&
+        navConfig.value?.builtin?.integrationGuide !== false &&
+        navConfig.value?.builtin?.blog !== false,
+    )
+    const blogEnabled = integrationGuideEnabled
     const noticeEnabled = computed(() => navConfig.value?.builtin?.notice !== false)
     const aboutEnabled = computed(() => navConfig.value?.builtin?.about !== false)
 
@@ -92,6 +97,7 @@ export const useNavConfig = () => {
         const builtin = navConfig.value?.builtin
         const result: NavItem[] = []
         for (const [key, def] of Object.entries(builtinNavDefs)) {
+            if (key === 'integrationGuide' && !integrationGuideEnabled.value) continue
             if (builtin && builtin[key] === false) continue
             result.push({ key, path: def.path, label: t(def.label), icon: def.icon, type: 'route', target: '_self' })
         }
@@ -141,6 +147,7 @@ export const useNavConfig = () => {
     return {
         navConfig,
         isListMode,
+        integrationGuideEnabled,
         blogEnabled,
         noticeEnabled,
         aboutEnabled,

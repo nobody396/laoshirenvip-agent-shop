@@ -380,6 +380,11 @@ func (s *SiteConfigService) ApplyPublicConfigOverlay(ctx context.Context, tenant
 		out["tenant"] = map[string]interface{}{"mode": "main", "host": tenant.Host}
 		return out, nil
 	}
+	// The integration guide documents how an independent downstream card shop
+	// connects to the main platform. A hosted reseller storefront is not another
+	// upstream tier, so never advertise that guide on reseller hosts even when a
+	// legacy/main-site navigation config enabled it.
+	hideIntegrationGuideFromResellerConfig(out)
 	resellerID := *tenant.ResellerID
 	out["tenant"] = map[string]interface{}{
 		"mode":           "reseller",
@@ -414,7 +419,41 @@ func (s *SiteConfigService) ApplyPublicConfigOverlay(ctx context.Context, tenant
 		return out, nil
 	}
 	applyResellerSiteConfigToPublicConfig(out, cfg)
+	hideIntegrationGuideFromResellerConfig(out)
 	return out, nil
+}
+
+func hideIntegrationGuideFromResellerConfig(out map[string]interface{}) {
+	if out == nil {
+		return
+	}
+	nav := resellerSiteConfigMap(out["nav_config"])
+	builtin := resellerSiteConfigMap(nav["builtin"])
+	// `blog` is the historical key used before /blog became the integration
+	// guide; keep both disabled so old and new frontends behave consistently.
+	builtin["blog"] = false
+	builtin["integrationGuide"] = false
+	nav["builtin"] = builtin
+	out["nav_config"] = nav
+}
+
+func resellerSiteConfigMap(raw interface{}) map[string]interface{} {
+	switch value := raw.(type) {
+	case map[string]interface{}:
+		out := make(map[string]interface{}, len(value))
+		for key, item := range value {
+			out[key] = item
+		}
+		return out
+	case jsonmap.JSON:
+		out := make(map[string]interface{}, len(value))
+		for key, item := range value {
+			out[key] = item
+		}
+		return out
+	default:
+		return map[string]interface{}{}
+	}
 }
 
 func clonePublicConfigMap(in map[string]interface{}) map[string]interface{} {

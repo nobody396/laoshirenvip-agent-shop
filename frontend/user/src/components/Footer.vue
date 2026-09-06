@@ -148,7 +148,9 @@ const quickLinks = computed(() => {
     items.push({ path: '/products', label: 'nav.products', icon: LayoutGrid })
   }
   const builtin = navConfig.value?.builtin
-  items.push({ path: '/integration-guide', label: 'nav.integrationGuide', icon: BookOpen })
+  if (!appStore.isResellerTenant && builtin?.integrationGuide !== false && builtin?.blog !== false) {
+    items.push({ path: '/integration-guide', label: 'nav.integrationGuide', icon: BookOpen })
+  }
   if (!builtin || builtin.about !== false) {
     items.push({ path: '/about', label: 'nav.about', icon: Info })
   }

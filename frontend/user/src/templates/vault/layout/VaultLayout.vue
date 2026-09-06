@@ -103,7 +103,7 @@
           <h4 class="mb-3 text-sm font-bold">{{ t('vault.footer.shop') }}</h4>
           <RouterLink v-if="!isListMode" to="/products" class="flex items-center gap-[7px] py-[5px] text-[14.5px] text-muted-foreground hover:text-primary">{{ t('products.allCategories') }}</RouterLink>
           <RouterLink v-if="noticeEnabled" to="/notice" class="flex items-center gap-[7px] py-[5px] text-[14.5px] text-muted-foreground hover:text-primary">{{ t('nav.notice') }}</RouterLink>
-          <RouterLink to="/integration-guide" class="flex items-center gap-[7px] py-[5px] text-[14.5px] text-muted-foreground hover:text-primary">{{ t('nav.integrationGuide') }}</RouterLink>
+          <RouterLink v-if="integrationGuideEnabled" to="/integration-guide" class="flex items-center gap-[7px] py-[5px] text-[14.5px] text-muted-foreground hover:text-primary">{{ t('nav.integrationGuide') }}</RouterLink>
           <RouterLink to="/me" class="flex items-center gap-[7px] py-[5px] text-[14.5px] text-muted-foreground hover:text-primary">{{ t('navbar.personalCenter') }}</RouterLink>
         </div>
         <div>
@@ -183,7 +183,7 @@ const brandDescription = computed(() => {
   return ''
 })
 
-const { isListMode, noticeEnabled, aboutEnabled, secondaryNavItems } = useNavConfig()
+const { isListMode, integrationGuideEnabled, noticeEnabled, aboutEnabled, secondaryNavItems } = useNavConfig()
 
 const menuItems = computed<NavItem[]>(() => {
   const items: NavItem[] = []

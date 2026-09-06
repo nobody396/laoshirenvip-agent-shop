@@ -10,7 +10,7 @@
       <div class="mt-7 rounded-md border bg-secondary p-5 text-left">
         <p class="mb-3 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{{ t('notFoundPage.quickLinksTitle') }}</p>
         <div class="flex flex-wrap gap-2">
-          <Button as-child variant="outline" size="sm" class="rounded-full">
+          <Button v-if="!appStore.isResellerTenant" as-child variant="outline" size="sm" class="rounded-full">
             <RouterLink to="/products"><ShoppingBag /> {{ t('nav.products') }}</RouterLink>
           </Button>
           <Button as-child variant="outline" size="sm" class="rounded-full">
@@ -41,8 +41,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useNotFound } from '../../composables/useNotFound'
+import { useAppStore } from '../../stores/app'
 
 const { t } = useI18n()
+const appStore = useAppStore()
 
 const { brandSiteName, goBack } = useNotFound()
 </script>

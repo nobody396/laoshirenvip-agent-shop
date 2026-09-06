@@ -213,6 +213,8 @@ func TestResellerSiteConfigServiceApplyPublicConfigOverlay(t *testing.T) {
 	}
 	if nav := resellerSiteConfigTestMap(out["nav_config"]); nav["builtin"] == nil {
 		t.Fatalf("saved reseller config should intentionally own nav defaults, got %+v", nav)
+	} else if builtin := resellerSiteConfigTestMap(nav["builtin"]); builtin["integrationGuide"] != false || builtin["blog"] != false {
+		t.Fatalf("reseller navigation must hide the main-site integration guide, got %+v", builtin)
 	}
 	tenantPayload := out["tenant"].(map[string]interface{})
 	if tenantPayload["mode"] != "reseller" || tenantPayload["host"] != "shop.example.test" {
