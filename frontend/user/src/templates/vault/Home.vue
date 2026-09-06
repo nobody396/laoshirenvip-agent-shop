@@ -2,6 +2,7 @@
   <div>
     <!-- 站长配置的横幅轮播（两种模式共用，顶部展示） -->
     <VaultBannerHero />
+    <StorefrontPurchaseNotice />
 
     <!-- ==================== 列表模式 ==================== -->
     <template v-if="isListMode">
@@ -184,6 +185,7 @@ import VaultCategorySidebar from './components/VaultCategorySidebar.vue'
 import VaultBannerHero from './components/VaultBannerHero.vue'
 import ProductQuickBuy from '../../components/ProductQuickBuy.vue'
 import AnnouncementModal from '../../components/AnnouncementModal.vue'
+import StorefrontPurchaseNotice from '../../components/StorefrontPurchaseNotice.vue'
 import { useAnnouncement, type HomeAnnouncement } from '../../composables/useAnnouncement'
 
 const route = useRoute()

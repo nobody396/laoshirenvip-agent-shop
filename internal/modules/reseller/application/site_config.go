@@ -557,10 +557,9 @@ func applyResellerSiteConfigToPublicConfig(out map[string]interface{}, cfg *rese
 	}
 	out["brand"] = brand
 
-	contact, _ := out["contact"].(map[string]interface{})
-	if contact == nil {
-		contact = map[string]interface{}{}
-	}
+	// A reseller site owns its support identity. Start from an empty map so an
+	// unconfigured child never leaks the main platform's contact details.
+	contact := map[string]interface{}{}
 	for _, key := range []string{"telegram", "whatsapp", "email", "support_url"} {
 		if value, ok := cfg.SupportJSON[key].(string); ok && strings.TrimSpace(value) != "" {
 			contact[key] = value

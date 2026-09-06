@@ -118,6 +118,21 @@
       "cta": "Browse Products",
       "badge": "Next Gen Digital Store"
     },
+    "purchaseNotice": {
+      "deliveryTitle": "Automatic delivery, 24 hours a day.",
+      "deliveryText": "Order directly. Contact support if you need help; every issue will be handled. If there is no immediate reply, support is resting—please be patient. Thank you for understanding.",
+      "contactSupport": "Contact support",
+      "guideTitle": "Recharge guide · Read before ordering",
+      "guideSubtitle": "Confirm the channel, device compatibility, redemption steps, and warranty before payment.",
+      "channelTitle": "Philippines vs. iOS",
+      "channelText": "Only the recharge channel differs. Membership benefits and day-to-day usage are identical after a successful recharge.",
+      "deviceTitle": "Device compatibility",
+      "deviceText": "There is no device restriction. Android, Apple devices, and computers can all use the subscription after recharge.",
+      "usageTitle": "How to redeem",
+      "usageText": "Your order automatically delivers a CDK and a redemption URL. Open the URL, enter the CDK, and follow the on-page guide; it usually takes about three minutes.",
+      "warrantyTitle": "30-day warranty",
+      "warrantyText": "All products include a 30-day warranty. Contact support if you encounter a problem."
+    },
     "stats": {
       "activeUsers": "Active Users",
       "premiumProducts": "Premium Products",

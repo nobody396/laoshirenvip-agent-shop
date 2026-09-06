@@ -118,6 +118,21 @@
       "cta": "浏览商品",
       "badge": "新一代数字商店"
     },
+    "purchaseNotice": {
+      "deliveryTitle": "24 小时自动交付。",
+      "deliveryText": "直接下单即可；有问题请联系客服，所有问题都会处理。没回复就是在休息，请不要着急，感谢理解。",
+      "contactSupport": "联系客服",
+      "guideTitle": "充值必看 · 下单前必看",
+      "guideSubtitle": "付款前请先确认渠道、设备、使用方式和质保规则。",
+      "channelTitle": "菲区和 iOS 有什么区别？",
+      "channelText": "两者只是我们为你充值的渠道不同，充值后的会员权益和实际使用没有任何区别。",
+      "deviceTitle": "设备有限制吗？",
+      "deviceText": "没有。无论你使用安卓设备、苹果设备还是电脑，充值成功后都可以正常使用。",
+      "usageTitle": "下单后怎么使用？",
+      "usageText": "订单会自动交付 CDK 卡密和使用网址。打开网址并使用卡密，按页面教程操作即可，全程约 3 分钟。",
+      "warrantyTitle": "质保多久？",
+      "warrantyText": "所有商品均提供 30 天质保；遇到问题直接联系客服处理即可。"
+    },
     "stats": {
       "activeUsers": "活跃用户",
       "premiumProducts": "精选商品",

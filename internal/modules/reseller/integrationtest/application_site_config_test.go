@@ -213,6 +213,7 @@ func TestResellerSiteConfigServiceApplyPublicConfigOverlay(t *testing.T) {
 		},
 		"announcement": map[string]interface{}{"enabled": true},
 		"nav_config":   map[string]interface{}{"builtin": map[string]interface{}{"blog": false}},
+		"contact":      map[string]interface{}{"telegram": "https://t.me/main-platform"},
 	}
 	tenant := ResellerTenantContext("shop.example.test", resellerID, user.ID, "shop.example.test")
 	out, err := svc.ApplyPublicConfigOverlay(context.Background(), tenant, base)
@@ -236,6 +237,9 @@ func TestResellerSiteConfigServiceApplyPublicConfigOverlay(t *testing.T) {
 	}
 	if _, exists := out["announcement"]; exists {
 		t.Fatalf("disabled reseller announcement should remove the field, got %+v", out["announcement"])
+	}
+	if contact := resellerSiteConfigTestMap(out["contact"]); len(contact) != 0 {
+		t.Fatalf("reseller without support config must not inherit main-site contacts, got %+v", contact)
 	}
 	if nav := resellerSiteConfigTestMap(out["nav_config"]); nav["builtin"] == nil {
 		t.Fatalf("saved reseller config should intentionally own nav defaults, got %+v", nav)

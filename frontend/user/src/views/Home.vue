@@ -56,8 +56,10 @@
         </div>
       </section>
 
+      <StorefrontPurchaseNotice :header-offset="!showHeroSection" />
+
       <!-- Main: Left Categories + Right Product List -->
-      <section class="relative z-10 pb-6" :class="showHeroSection ? 'pt-6' : 'pt-24'">
+      <section class="relative z-10 pb-6 pt-6">
         <div class="container mx-auto px-4">
           <div class="flex flex-col lg:flex-row gap-6">
 
@@ -260,7 +262,9 @@
       </div>
     </section>
 
-    <section id="featured" class="relative z-10 pb-14" :class="showHeroSection ? 'pt-14' : 'pt-32 md:pt-36'">
+    <StorefrontPurchaseNotice :header-offset="!showHeroSection" />
+
+    <section id="featured" class="relative z-10 pb-14 pt-10">
       <div class="container mx-auto px-4">
         <div class="mb-8 flex items-end justify-between gap-4">
           <div>
@@ -367,6 +371,7 @@ import CategorySidebar from '../components/CategorySidebar.vue'
 import PaginationNav from '../components/PaginationNav.vue'
 import EmptyState from '../components/EmptyState.vue'
 import AnnouncementModal from '../components/AnnouncementModal.vue'
+import StorefrontPurchaseNotice from '../components/StorefrontPurchaseNotice.vue'
 import { useAnnouncement, type HomeAnnouncement } from '../composables/useAnnouncement'
 
 const router = useRouter()
