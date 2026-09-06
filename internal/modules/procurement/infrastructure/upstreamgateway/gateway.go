@@ -2,10 +2,12 @@ package upstreamgateway
 
 import (
 	"context"
+	"errors"
 
 	procurementcontract "github.com/dujiao-next/internal/modules/procurement/contract"
 	siteconnectiondomain "github.com/dujiao-next/internal/modules/siteconnection/domain"
 	"github.com/dujiao-next/internal/upstream"
+	"github.com/dujiao-next/internal/upstream/sharedstock"
 )
 
 type Provider interface {
@@ -33,6 +35,9 @@ func (g *Gateway) Open(connectionID uint) (procurementcontract.UpstreamConnectio
 	}
 	adapter, err := g.provider.GetAdapter(connection)
 	if err != nil {
+		if errors.Is(err, sharedstock.ErrRequestUncertain) {
+			return nil, procurementcontract.ErrRequestUncertain
+		}
 		return nil, err
 	}
 	return &session{connection: connection, adapter: adapter}, nil

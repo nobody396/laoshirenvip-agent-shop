@@ -199,6 +199,12 @@ func (c *Client) request(ctx context.Context, action string, values map[string]s
 		}
 		if err := json.Unmarshal(data, &envelope); err != nil {
 			invalidJSON = fmt.Errorf("sharedstock invalid JSON: %w", err)
+			// A trade may have been committed before an upstream bug renders an
+			// HTML error page. Never fall back to a second route or retry it as a
+			// definitive failure; preserve the request number for reconciliation.
+			if action == "trade" {
+				return fmt.Errorf("%w: %v", ErrRequestUncertain, invalidJSON)
+			}
 			if index < len(paths)-1 {
 				continue
 			}

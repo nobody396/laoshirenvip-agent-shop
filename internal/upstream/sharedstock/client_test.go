@@ -160,6 +160,25 @@ func TestTradeSendsExplicitContactAndPassword(t *testing.T) {
 	}
 }
 
+func TestTradeTreatsNonJSONResponseAsUncertainWithoutLegacyReplay(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		_, _ = fmt.Fprint(w, `<html><title>页面没有找到</title></html>`)
+	}))
+	defer server.Close()
+
+	_, err := NewClient(server.URL, "42", "secret").Trade(context.Background(), TradeRequest{
+		SharedCode: "ABC", Quantity: 1, RequestNo: "ORDER-UNCERTAIN",
+	})
+	if !errors.Is(err, ErrRequestUncertain) {
+		t.Fatalf("expected uncertain trade, got %v", err)
+	}
+	if requests != 1 {
+		t.Fatalf("uncertain trade was replayed across route families: %d requests", requests)
+	}
+}
+
 func mustForm(t *testing.T, r *http.Request) url.Values {
 	t.Helper()
 	if err := r.ParseForm(); err != nil {

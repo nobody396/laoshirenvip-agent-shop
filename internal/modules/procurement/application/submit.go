@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -85,6 +86,9 @@ func (s *Service) SubmitToUpstream(procurementOrderID uint) error {
 
 	resp, err := connection.CreateOrder(ctx, req)
 	if err != nil {
+		if errors.Is(err, procurementcontract.ErrRequestUncertain) {
+			return s.markSubmitUncertain(procOrder, "upstream request outcome is uncertain")
+		}
 		return s.handleSubmitFailure(procOrder, connection, fmt.Sprintf("upstream request error: %v", err), true)
 	}
 
@@ -135,6 +139,26 @@ func (s *Service) SubmitToUpstream(procurementOrderID uint) error {
 		_ = s.queue.EnqueuePoll(procOrder.ID, 30*time.Second)
 	}
 
+	return nil
+}
+
+func (s *Service) markSubmitUncertain(procOrder *procurementdomain.Order, errMsg string) error {
+	now := time.Now()
+	if err := s.procRepo.UpdateStatus(procOrder.ID, constants.ProcurementStatusUncertain, map[string]interface{}{
+		"next_retry_at": nil,
+		"error_message": errMsg,
+		"updated_at":    now,
+	}); err != nil {
+		return fmt.Errorf("update procurement status (uncertain): %w", err)
+	}
+	logger.Warnw("procurement_submit_uncertain",
+		"procurement_order_id", procOrder.ID,
+		"local_order_no", procOrder.LocalOrderNo,
+		"error", errMsg,
+	)
+	s.notifyProcurementFailure(procOrder, errMsg)
+	// Returning nil is deliberate: the queue must not replay an outcome that
+	// may already have charged the upstream account.
 	return nil
 }
 

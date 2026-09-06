@@ -415,6 +415,7 @@ const (
 	ProcurementStatusAccepted          = "accepted"
 	ProcurementStatusRejected          = "rejected"
 	ProcurementStatusFailed            = "failed"
+	ProcurementStatusUncertain         = "uncertain"
 	ProcurementStatusPartiallyRefunded = "partially_refunded"
 	ProcurementStatusFulfilled         = "fulfilled"
 	ProcurementStatusCompleted         = "completed"
