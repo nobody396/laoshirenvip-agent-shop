@@ -16,6 +16,7 @@ import (
 	userdomain "github.com/dujiao-next/internal/modules/identity/user/domain"
 
 	"github.com/dujiao-next/internal/constants"
+	"github.com/dujiao-next/internal/shared/jsonmap"
 	"github.com/dujiao-next/internal/shared/jsonslice"
 	"github.com/dujiao-next/internal/shared/money"
 
@@ -107,6 +108,36 @@ func TestResellerChannelsDefaultToAlipayAndAllowExplicitOptIn(t *testing.T) {
 	}
 	if got := fmt.Sprint(channels[0]["fee_rate"]); got != "4.00" {
 		t.Fatalf("child site fee rate = %s, want 4.00", got)
+	}
+}
+
+func TestResellerOnlyChannelIsHiddenFromMainAndAvailableToSelectedChild(t *testing.T) {
+	_, settingService, db := setupAvailableChannelService(t)
+	store := paymentgormstore.NewChannelStore(db)
+	channel := createAvailableChannelFixture(t, db, paymentdomain.PaymentChannel{
+		Name: "验收子站支付宝", ProviderType: constants.PaymentProviderEpay,
+		ChannelType: constants.PaymentChannelTypeAlipay, IsActive: true,
+		ConfigJSON: jsonmap.JSON{"reseller_only": true},
+	})
+	mainService := paymentapp.NewPaymentService(paymentapp.PaymentServiceOptions{ChannelStore: store, SettingService: settingService})
+	mainChannels, err := mainService.GetAvailableChannels(paymentapp.AvailablePaymentChannelFilter{PaymentType: constants.PaymentTypeOrder})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := collectAvailableChannelIDs(t, mainChannels); len(got) != 0 {
+		t.Fatalf("main storefront leaked reseller-only channel: %v", got)
+	}
+	resellerID := uint(8)
+	childService := paymentapp.NewPaymentService(paymentapp.PaymentServiceOptions{
+		ChannelStore: store, SettingService: settingService,
+		ResellerChannels: fixedResellerChannels{ids: []uint{channel.ID}},
+	})
+	childChannels, err := childService.GetAvailableChannels(paymentapp.AvailablePaymentChannelFilter{PaymentType: constants.PaymentTypeOrder, ResellerID: &resellerID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := collectAvailableChannelIDs(t, childChannels); !reflect.DeepEqual(got, []uint{channel.ID}) {
+		t.Fatalf("selected child channel=%v want %d", got, channel.ID)
 	}
 }
 

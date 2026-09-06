@@ -24,6 +24,7 @@
 | API path | `/api/pay/create` | 同左 |
 | fee rate | `7.00` | `4.00` |
 | fixed fee | `0.00` | `0.00` |
+| reseller only | `true` | `true` |
 | notify URL | `https://lsrai.shop/api/v1/payments/callback` | 同左 |
 | return URL | `https://lsrai.shop/pay` | 同左 |
 

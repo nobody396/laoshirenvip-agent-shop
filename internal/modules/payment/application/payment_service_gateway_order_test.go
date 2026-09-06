@@ -1323,6 +1323,20 @@ func TestCreateResellerOrderPaymentRejectsFeeAboveResellerMargin(t *testing.T) {
 	}
 }
 
+func TestCreateMainOrderRejectsResellerOnlyChannel(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	channel, order := createFeePolicyOrderFixture(t, db, "Reseller Only Gateway", "DJ-MAIN-RESELLER-ONLY")
+	channel.ConfigJSON = jsonmap.JSON{"reseller_only": true}
+	if err := db.Save(channel).Error; err != nil {
+		t.Fatalf("mark channel reseller-only: %v", err)
+	}
+	registerTestGateway(t, svc, channel.ProviderType, channel.ChannelType, emptyProviderRefProvider{})
+	_, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: context.Background()})
+	if !errors.Is(err, ErrPaymentChannelNotAllowedForReseller) {
+		t.Fatalf("main order reseller-only channel error = %v", err)
+	}
+}
+
 func TestCreateOrderPaymentSupersedesLegacyFeeLinkByDefault(t *testing.T) {
 	svc, db := setupPaymentServiceWalletTest(t)
 	channel, order := createFeePolicyOrderFixture(t, db, "Legacy Replacement Gateway", "DJ-LEGACY-REPLACE")

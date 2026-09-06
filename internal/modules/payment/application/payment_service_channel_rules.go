@@ -224,6 +224,9 @@ func (s *PaymentService) GetAvailableChannels(filter AvailablePaymentChannelFilt
 		return nil, err
 	}
 	for _, channel := range channels {
+		if channelResellerOnly(channel) && !resellerFeeAbsorbed {
+			continue
+		}
 		if filter.ResellerID != nil && !resellerChannelAllowed(channel, resellerAllowed) {
 			continue
 		}
@@ -254,6 +257,24 @@ func (s *PaymentService) GetAvailableChannels(filter AvailablePaymentChannelFilt
 		available = append(available, item)
 	}
 	return available, nil
+}
+
+func channelResellerOnly(channel paymentdomain.PaymentChannel) bool {
+	if channel.ConfigJSON == nil {
+		return false
+	}
+	switch value := channel.ConfigJSON["reseller_only"].(type) {
+	case bool:
+		return value
+	case string:
+		return strings.EqualFold(strings.TrimSpace(value), "true") || strings.TrimSpace(value) == "1"
+	case float64:
+		return value == 1
+	case int:
+		return value == 1
+	default:
+		return false
+	}
 }
 
 func (s *PaymentService) resolveResellerAllowedChannelIDs(resellerID *uint) (map[uint]struct{}, error) {

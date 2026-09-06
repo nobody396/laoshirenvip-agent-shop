@@ -118,6 +118,9 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 				if !resolvedChannel.IsActive {
 					return ErrPaymentChannelInactive
 				}
+				if channelResellerOnly(*resolvedChannel) && (lockedOrder.ResellerID == nil || *lockedOrder.ResellerID == 0) {
+					return ErrPaymentChannelNotAllowedForReseller
+				}
 				if tenant, ok := resellercontract.TenantFromContext(input.Context); ok && tenant.ResellerID != nil {
 					selected, selectErr := s.resolveResellerAllowedChannelIDs(tenant.ResellerID)
 					if selectErr != nil {
