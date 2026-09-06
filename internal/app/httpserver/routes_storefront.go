@@ -19,6 +19,7 @@ import (
 	ordertransport "github.com/dujiao-next/internal/modules/order/transport/http"
 	paymenttransport "github.com/dujiao-next/internal/modules/payment/transport/http"
 	paymentcallbacktransport "github.com/dujiao-next/internal/modules/payment/transport/http/callback"
+	resellerpublictls "github.com/dujiao-next/internal/modules/reseller/transport/http/publictls"
 	resellertransport "github.com/dujiao-next/internal/modules/reseller/transport/http/user"
 	publicconfigtransport "github.com/dujiao-next/internal/modules/settings/transport/http/public"
 	wallettransport "github.com/dujiao-next/internal/modules/wallet/transport/http"
@@ -34,6 +35,7 @@ func registerStorefrontRoutes(
 	publicContentHandler *contenttransport.PublicHandler,
 	publicCatalogHandler *producthttp.PublicHandler,
 	publicCategoryHandler *categoryhttp.PublicHandler,
+	publicResellerTLSHandler *resellerpublictls.Handler,
 	userResellerHandler *resellertransport.UserHandler,
 	userResellerProductSettingHandler *resellertransport.UserProductSettingHandler,
 	userResellerFinanceHandler *resellertransport.UserFinanceHandler,
@@ -79,6 +81,7 @@ func registerStorefrontRoutes(
 		captchatransport.RegisterPublicRoutes(public, captchatransport.NewPublicHandler(c.CaptchaService))
 		affiliatetransport.RegisterPublicRoutes(public, affiliateHandler)
 		memberleveltransport.RegisterPublicRoutes(public, publicMemberLevelHandler)
+		resellerpublictls.RegisterRoutes(public, publicResellerTLSHandler)
 	}
 
 	// 游客接口

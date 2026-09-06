@@ -43,6 +43,11 @@ export function useAbout() {
   const servicesTitle = computed(() => resolveLocalizedText(aboutConfig.value?.services?.title))
   const contactTitle = computed(() => resolveLocalizedText(aboutConfig.value?.contact?.title))
   const contactText = computed(() => resolveLocalizedText(aboutConfig.value?.contact?.text))
+  const contactEmailHref = computed(() => {
+    const email = String(contactConfig.value?.email || '').trim().replace(/^mailto:/i, '')
+    return email ? `mailto:${email}` : ''
+  })
+  const contactSupportURL = computed(() => String(contactConfig.value?.support_url || '').trim())
 
   const serviceItems = computed(() => {
     const raw = aboutConfig.value?.services?.items
@@ -57,7 +62,10 @@ export function useAbout() {
 
   const hasIntroduction = computed(() => introductionText.value !== '')
   const hasServices = computed(() => servicesTitle.value !== '' || serviceItems.value.length > 0)
-  const hasContactLinks = computed(() => !!(contactConfig.value?.telegram || contactConfig.value?.whatsapp))
+  const hasContactLinks = computed(() => !!(
+    contactConfig.value?.telegram || contactConfig.value?.whatsapp ||
+    contactEmailHref.value || contactSupportURL.value
+  ))
   const hasContact = computed(() => contactTitle.value !== '' || contactText.value !== '' || hasContactLinks.value)
 
   onMounted(async () => {
@@ -74,6 +82,8 @@ export function useAbout() {
     servicesTitle,
     contactTitle,
     contactText,
+    contactEmailHref,
+    contactSupportURL,
     serviceItems,
     hasIntroduction,
     hasServices,

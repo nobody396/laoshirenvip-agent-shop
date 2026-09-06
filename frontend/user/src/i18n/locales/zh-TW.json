@@ -1465,6 +1465,13 @@
       "customEmptyDescription": "暫無自訂域名。你可以在上方提交一個已經準備解析的域名。",
       "submitCustomDesc": "提交自己的品牌域名，平台核驗後可設為主域名。",
       "submitDisabledDesc": "目前分銷商身份尚未啟用，暫不能提交自訂域名。",
+      "dnsTitle": "提交前先配置 DNS",
+      "dnsDescription": "一級域名和二級域名都支援。請先在域名服務商新增下面的解析記錄，再提交完整域名等待平台審核。",
+      "dnsType": "記錄類型",
+      "dnsName": "主機記錄",
+      "dnsNameValue": "一級域名填 {'@'}；二級域名填前綴",
+      "dnsValue": "記錄值",
+      "dnsProxyHint": "TTL 選擇自動。如果使用 Cloudflare，審核通過前請先設為「僅 DNS」（灰色雲朵）；平台審核通過後會自動申請 HTTPS 證書。",
       "tableDomain": "域名",
       "tableStatus": "狀態",
       "tableVerification": "核驗",
@@ -1472,7 +1479,7 @@
       "tableActions": "操作",
       "visit": "造訪",
       "verifyTitle": "域名驗證",
-      "verifyDesc": "自訂域名提交後進入待審核狀態：請先將該域名解析（CNAME/A 記錄）指向平台，再等待平台人工核驗，通過後即生效。"
+      "verifyDesc": "提交後進入待審核狀態。管理員審核通過後，系統會授權並自動申請 HTTPS 證書；首次造訪可能需要等待約 1 分鐘。"
     },
     "site": {
       "title": "店鋪設定",

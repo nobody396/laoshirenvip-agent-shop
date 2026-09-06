@@ -60,6 +60,16 @@
               </svg>
               <span class="font-bold">WhatsApp</span>
             </a>
+            <a v-if="contactEmailHref" :href="contactEmailHref"
+              class="group flex items-center justify-center space-x-3 bg-secondary border text-muted-foreground px-6 py-4 rounded-xl transition-colors hover:text-foreground">
+              <Mail class="h-6 w-6 text-primary" />
+              <span class="font-bold">Email</span>
+            </a>
+            <a v-if="contactSupportURL" :href="contactSupportURL" target="_blank" rel="noopener noreferrer"
+              class="group flex items-center justify-center space-x-3 bg-secondary border text-muted-foreground px-6 py-4 rounded-xl transition-colors hover:text-foreground">
+              <LifeBuoy class="h-6 w-6 text-primary" />
+              <span class="font-bold">Support</span>
+            </a>
           </div>
         </div>
       </Card>
@@ -68,12 +78,12 @@
 </template>
 
 <script setup lang="ts">
-import { Check } from 'lucide-vue-next'
+import { Check, LifeBuoy, Mail } from 'lucide-vue-next'
 import { Card } from '@/components/ui/card'
 import { useAbout } from '../composables/useAbout'
 
 const {
-  contactConfig, heroTitle, heroSubtitle, introductionText, servicesTitle, contactTitle, contactText,
+  contactConfig, contactEmailHref, contactSupportURL, heroTitle, heroSubtitle, introductionText, servicesTitle, contactTitle, contactText,
   serviceItems, hasIntroduction, hasServices, hasContactLinks, hasContact,
 } = useAbout()
 </script>

@@ -1418,6 +1418,13 @@
       "customEmptyDescription": "暂无自定义域名。你可以在上方提交一个已经准备解析的域名。",
       "submitCustomDesc": "提交自己的品牌域名，平台核验后可设为主域名。",
       "submitDisabledDesc": "当前分销商身份尚未启用，暂不能提交自定义域名。",
+      "dnsTitle": "提交前先配置 DNS",
+      "dnsDescription": "一级域名和二级域名都支持。请先在域名服务商添加下面的解析记录，再提交完整域名等待平台审核。",
+      "dnsType": "记录类型",
+      "dnsName": "主机记录",
+      "dnsNameValue": "一级域名填 {'@'}；二级域名填前缀",
+      "dnsValue": "记录值",
+      "dnsProxyHint": "TTL 选择自动。如果使用 Cloudflare，审核通过前请先设为“仅 DNS”（灰色云朵）；平台审核通过后会自动申请 HTTPS 证书。",
       "tableDomain": "域名",
       "tableStatus": "状态",
       "tableVerification": "核验",
@@ -1425,7 +1432,7 @@
       "tableActions": "操作",
       "visit": "访问",
       "verifyTitle": "域名验证",
-      "verifyDesc": "自定义域名提交后进入待审核状态：请先将该域名解析（CNAME/A 记录）指向平台，再等待平台人工核验，通过后即生效。"
+      "verifyDesc": "提交后进入待审核状态。管理员审核通过后，系统会授权并自动申请 HTTPS 证书；首次访问可能需要等待约 1 分钟。"
     },
     "site": {
       "title": "店铺设置",

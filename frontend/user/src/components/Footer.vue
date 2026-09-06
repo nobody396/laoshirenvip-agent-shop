@@ -70,6 +70,16 @@
               </svg>
               <span>WhatsApp</span>
             </a>
+            <a v-if="contactEmailHref" :href="contactEmailHref"
+              class="flex items-center space-x-3 text-sm hover:text-gray-900 dark:hover:text-white transition-colors p-3 rounded-lg bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-100 dark:border-white/5 hover:border-gray-200 dark:hover:border-white/10">
+              <Mail class="h-5 w-5 text-primary" />
+              <span>Email</span>
+            </a>
+            <a v-if="contactSupportURL" :href="contactSupportURL" target="_blank" rel="noopener noreferrer"
+              class="flex items-center space-x-3 text-sm hover:text-gray-900 dark:hover:text-white transition-colors p-3 rounded-lg bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-100 dark:border-white/5 hover:border-gray-200 dark:hover:border-white/10">
+              <LifeBuoy class="h-5 w-5 text-primary" />
+              <span>Support</span>
+            </a>
           </div>
         </div>
       </div>
@@ -104,7 +114,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Home, LayoutGrid, BookOpen, Info } from 'lucide-vue-next'
+import { BookOpen, Home, Info, LayoutGrid, LifeBuoy, Mail } from 'lucide-vue-next'
 import { useAppStore } from '../stores/app'
 import { getImageUrl } from '../utils/image'
 import { getLocalizedText } from '../utils/resellerSiteConfig'
@@ -113,6 +123,11 @@ const { t } = useI18n()
 const appStore = useAppStore()
 
 const config = computed(() => appStore.config)
+const contactEmailHref = computed(() => {
+  const email = String(config.value?.contact?.email || '').trim().replace(/^mailto:/i, '')
+  return email ? `mailto:${email}` : ''
+})
+const contactSupportURL = computed(() => String(config.value?.contact?.support_url || '').trim())
 
 const brandSiteName = computed(() => {
   const siteName = config.value?.brand?.site_name

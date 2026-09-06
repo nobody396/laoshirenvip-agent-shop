@@ -1465,6 +1465,13 @@
       "customEmptyDescription": "No custom domains yet. Submit a domain with DNS ready above.",
       "submitCustomDesc": "Submit your own branded domain. It can become primary after verification.",
       "submitDisabledDesc": "Your reseller profile is not active yet, so custom domains cannot be submitted.",
+      "dnsTitle": "Configure DNS before submitting",
+      "dnsDescription": "Root domains and subdomains are both supported. Add the DNS record below at your registrar, then submit the full hostname for review.",
+      "dnsType": "Record type",
+      "dnsName": "Host / name",
+      "dnsNameValue": "Use {'@'} for root; prefix for subdomain",
+      "dnsValue": "Value",
+      "dnsProxyHint": "Use Auto TTL. If you use Cloudflare, keep the record DNS-only (gray cloud) until approval. The platform automatically obtains HTTPS after approval.",
       "tableDomain": "Domain",
       "tableStatus": "Status",
       "tableVerification": "Verification",
@@ -1472,7 +1479,7 @@
       "tableActions": "Actions",
       "visit": "Visit",
       "verifyTitle": "Domain verification",
-      "verifyDesc": "A custom domain enters pending review after submission: first point its DNS (CNAME/A record) to the platform, then wait for manual review by the platform — it goes live once verified."
+      "verifyDesc": "The domain enters pending review after submission. Once approved, the platform authorizes it and obtains HTTPS automatically; the first visit can take about one minute."
     },
     "site": {
       "title": "Store Settings",

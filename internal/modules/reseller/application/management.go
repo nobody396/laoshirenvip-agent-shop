@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"net"
 	"strings"
 	"time"
 
@@ -379,7 +380,44 @@ func (s *ManagementService) SubmitUserCustomDomain(userID uint, rawDomain string
 }
 
 func (s *ManagementService) ApproveDomain(ctx context.Context, adminID, domainID uint) (*resellerdomain.Domain, error) {
+	row, err := s.store.GetDomainByID(domainID)
+	if err != nil {
+		return nil, err
+	}
+	if row == nil {
+		return nil, productcontract.ErrNotFound
+	}
+	if row.Type == resellerdomain.DomainTypeCustom && len(s.cfg.CustomDomainOriginIPs) > 0 {
+		if err := verifyCustomDomainOrigin(ctx, row.Domain, s.cfg.CustomDomainOriginIPs); err != nil {
+			return nil, err
+		}
+	}
 	return s.updateDomainStatus(ctx, adminID, domainID, resellerdomain.DomainStatusActive)
+}
+
+func verifyCustomDomainOrigin(ctx context.Context, host string, allowedRaw []string) error {
+	allowed := make(map[string]struct{}, len(allowedRaw))
+	for _, value := range allowedRaw {
+		ip := net.ParseIP(strings.TrimSpace(value))
+		if ip != nil {
+			allowed[ip.String()] = struct{}{}
+		}
+	}
+	if len(allowed) == 0 {
+		return resellercontract.ErrDomainDNSNotReady
+	}
+	lookupCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	addresses, err := net.DefaultResolver.LookupIPAddr(lookupCtx, resellercontract.NormalizeHost(host))
+	if err != nil {
+		return resellercontract.ErrDomainDNSNotReady
+	}
+	for _, address := range addresses {
+		if _, ok := allowed[address.IP.String()]; ok {
+			return nil
+		}
+	}
+	return resellercontract.ErrDomainDNSNotReady
 }
 
 func (s *ManagementService) DisableDomain(ctx context.Context, adminID, domainID uint) (*resellerdomain.Domain, error) {

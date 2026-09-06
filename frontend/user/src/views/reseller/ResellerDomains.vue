@@ -122,6 +122,32 @@
             </div>
 
             <div>
+              <div class="mb-4 overflow-hidden rounded-lg border border-primary/20 bg-primary/5">
+                <div class="border-b border-primary/15 px-4 py-3">
+                  <h4 class="text-sm font-bold text-foreground">{{ t('resellerConsole.domains.dnsTitle') }}</h4>
+                  <p class="mt-1 text-xs leading-relaxed text-muted-foreground">{{ t('resellerConsole.domains.dnsDescription') }}</p>
+                </div>
+                <div class="grid gap-px bg-border sm:grid-cols-4">
+                  <div class="bg-card px-4 py-3">
+                    <div class="text-[11px] font-semibold uppercase text-muted-foreground">{{ t('resellerConsole.domains.dnsType') }}</div>
+                    <div class="mt-1 font-mono text-sm font-bold text-foreground">A</div>
+                  </div>
+                  <div class="bg-card px-4 py-3">
+                    <div class="text-[11px] font-semibold uppercase text-muted-foreground">{{ t('resellerConsole.domains.dnsName') }}</div>
+                    <div class="mt-1 font-mono text-sm font-bold text-foreground">{{ t('resellerConsole.domains.dnsNameValue') }}</div>
+                  </div>
+                  <div class="bg-card px-4 py-3 sm:col-span-2">
+                    <div class="text-[11px] font-semibold uppercase text-muted-foreground">{{ t('resellerConsole.domains.dnsValue') }}</div>
+                    <div class="mt-1 flex flex-wrap items-center gap-2">
+                      <code class="font-mono text-sm font-bold text-foreground">187.53.134.185</code>
+                      <ResellerCopyButton value="187.53.134.185" :label="t('resellerConsole.common.copy')" />
+                    </div>
+                  </div>
+                </div>
+                <p class="border-t border-primary/15 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+                  {{ t('resellerConsole.domains.dnsProxyHint') }}
+                </p>
+              </div>
               <form v-if="canSubmitDomain" class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]" @submit.prevent="submitDomain">
                 <Input
                   v-model.trim="domainForm.domain"

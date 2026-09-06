@@ -8,16 +8,19 @@
           {{ t('home.purchaseNotice.deliveryText') }}
         </p>
       </div>
-      <a
-        v-if="supportHref"
-        :href="supportHref"
-        :target="supportExternal ? '_blank' : undefined"
-        rel="noopener noreferrer"
-        class="inline-flex shrink-0 items-center gap-1.5 self-start font-semibold text-primary hover:underline sm:self-auto"
-      >
-        {{ t('home.purchaseNotice.contactSupport') }}
-        <ExternalLink class="h-3.5 w-3.5" />
-      </a>
+      <div v-if="supportLinks.length" class="flex shrink-0 flex-wrap items-center gap-3 self-start sm:self-auto">
+        <a
+          v-for="link in supportLinks"
+          :key="link.href"
+          :href="link.href"
+          :target="link.external ? '_blank' : undefined"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1.5 font-semibold text-primary hover:underline"
+        >
+          {{ link.label }}
+          <ExternalLink class="h-3.5 w-3.5" />
+        </a>
+      </div>
     </div>
 
     <div class="mt-4 overflow-hidden rounded-2xl border bg-card shadow-sm">
@@ -57,13 +60,14 @@ const guideItems = computed(() => [
   { icon: ShieldCheck, title: t('home.purchaseNotice.warrantyTitle'), text: t('home.purchaseNotice.warrantyText') },
 ])
 
-const supportHref = computed(() => {
+const supportLinks = computed(() => {
   const contact = appStore.config?.contact || {}
-  const direct = String(contact.support_url || contact.telegram || contact.whatsapp || '').trim()
-  if (direct) return direct
   const email = String(contact.email || '').trim().replace(/^mailto:/i, '')
-  return email ? `mailto:${email}` : ''
+  return [
+    { label: 'Telegram', href: String(contact.telegram || '').trim() },
+    { label: 'WhatsApp', href: String(contact.whatsapp || '').trim() },
+    { label: 'Email', href: email ? `mailto:${email}` : '' },
+    { label: t('home.purchaseNotice.contactSupport'), href: String(contact.support_url || '').trim() },
+  ].filter((item) => item.href).map((item) => ({ ...item, external: /^https?:\/\//i.test(item.href) }))
 })
-
-const supportExternal = computed(() => /^https?:\/\//i.test(supportHref.value))
 </script>

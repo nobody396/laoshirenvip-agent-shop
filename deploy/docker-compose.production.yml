@@ -5,12 +5,22 @@ services:
       # display the channel but cannot sign live EPay requests.
       ZHENCHUAN_EPAY_MERCHANT_ID: ${ZHENCHUAN_EPAY_MERCHANT_ID:?required}
       ZHENCHUAN_EPAY_MERCHANT_KEY_MD5: ${ZHENCHUAN_EPAY_MERCHANT_KEY_MD5:?required}
+      # Keep the currently accepted production confirmation window while the
+      # separate one-day change remains paused for owner acceptance.
+      RESELLER_SETTLEMENT_CONFIRM_DAYS: "7"
 
   proxy:
+    image: caddy:2.10-alpine
     ports: !override
       - "80:80"
       - "443:443"
     volumes: !override
-      - ./nginx.production.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./tls/origin.pem:/etc/nginx/tls/origin.pem:ro
-      - ./tls/origin-key.pem:/etc/nginx/tls/origin-key.pem:ro
+      - ./Caddyfile.production:/etc/caddy/Caddyfile:ro
+      - ./tls/origin.pem:/etc/caddy/tls/origin.pem:ro
+      - ./tls/origin-key.pem:/etc/caddy/tls/origin-key.pem:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:

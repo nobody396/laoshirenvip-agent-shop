@@ -1,0 +1,31 @@
+{
+	admin off
+
+	# Only domains that have already passed the reseller admin review may ask
+	# Caddy to obtain a public certificate. This prevents arbitrary SNI values
+	# from consuming ACME issuance quotas.
+	on_demand_tls {
+		ask http://app:8080/api/v1/public/reseller-domain/tls-allow?domain={host}
+	}
+}
+
+# EdgeOne reaches the platform-owned domain with the existing private origin
+# certificate. Public visitors receive the EdgeOne-managed certificate.
+lsrai.shop, *.lsrai.shop {
+	tls /etc/caddy/tls/origin.pem /etc/caddy/tls/origin-key.pem
+	reverse_proxy app:8080
+}
+
+# Approved customer-owned root domains and subdomains receive free public
+# certificates on demand. Caddy preserves the original Host header so the app
+# can resolve the correct reseller tenant.
+https:// {
+	tls {
+		on_demand
+	}
+	reverse_proxy app:8080
+}
+
+http:// {
+	redir https://{host}{uri} 308
+}

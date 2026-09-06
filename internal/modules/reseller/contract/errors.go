@@ -21,6 +21,8 @@ var (
 	ErrSubdomainBaseMissing = errors.New("reseller subdomain base missing")
 	// ErrDomainMainHostNotAllowed 表示域名命中主站 Host 保留区。
 	ErrDomainMainHostNotAllowed = errors.New("reseller domain main host not allowed")
+	// ErrDomainDNSNotReady 表示自定义域名尚未解析到平台入口。
+	ErrDomainDNSNotReady = errors.New("reseller domain dns not ready")
 	// ErrSiteConfigInvalid 表示站点配置校验失败。
 	ErrSiteConfigInvalid = errors.New("reseller site config invalid")
 	// ErrSiteConfigNotFound 表示站点配置不存在。

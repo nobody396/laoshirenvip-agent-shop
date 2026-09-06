@@ -24,6 +24,8 @@ func respondAdminManagementError(c *gin.Context, err error) {
 		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
 	case errors.Is(err, resellercontract.ErrSubdomainBaseMissing):
 		ginutil.RespondError(c, response.CodeBadRequest, "error.reseller_subdomain_base_missing", nil)
+	case errors.Is(err, resellercontract.ErrDomainDNSNotReady):
+		ginutil.RespondError(c, response.CodeBadRequest, "error.reseller_domain_dns_not_ready", nil)
 	default:
 		ginutil.RespondError(c, response.CodeInternal, "error.save_failed", err)
 	}

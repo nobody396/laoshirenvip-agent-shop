@@ -3,10 +3,12 @@ package resellerbootstrap
 import (
 	"github.com/dujiao-next/internal/app/container"
 	adminhttp "github.com/dujiao-next/internal/modules/reseller/transport/http/admin"
+	publictlshttp "github.com/dujiao-next/internal/modules/reseller/transport/http/publictls"
 	userhttp "github.com/dujiao-next/internal/modules/reseller/transport/http/user"
 )
 
 type Handlers struct {
+	PublicTLS           *publictlshttp.Handler
 	User                *userhttp.UserHandler
 	UserProductSetting  *userhttp.UserProductSettingHandler
 	UserFinance         *userhttp.UserFinanceHandler
@@ -21,6 +23,7 @@ type Handlers struct {
 
 func New(c *container.Container) Handlers {
 	return Handlers{
+		PublicTLS: publictlshttp.NewHandler(c.ResellerStore),
 		User: userhttp.NewUserHandler(
 			c.ResellerManagementService,
 			c.ResellerSiteConfigService,

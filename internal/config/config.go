@@ -297,7 +297,10 @@ type ResellerConfig struct {
 	MainHosts            []string `mapstructure:"main_hosts"`
 	TrustedForwardedHost bool     `mapstructure:"trusted_forwarded_host"`
 	SubdomainBase        string   `mapstructure:"subdomain_base"`
-	SelfApplyEnabled     bool     `mapstructure:"self_apply_enabled"`
+	// CustomDomainOriginIPs are the public ingress addresses a customer-owned
+	// hostname must resolve to before an administrator can approve it.
+	CustomDomainOriginIPs []string `mapstructure:"custom_domain_origin_ips"`
+	SelfApplyEnabled      bool     `mapstructure:"self_apply_enabled"`
 	// SettlementConfirmDays 分销利润入账后转为可提现的确认天数（0 表示即时到账）。
 	SettlementConfirmDays int `mapstructure:"settlement_confirm_days"`
 }
@@ -426,6 +429,7 @@ func Load() *Config {
 	viper.SetDefault("reseller.main_hosts", []string{"localhost", "127.0.0.1", "::1"})
 	viper.SetDefault("reseller.trusted_forwarded_host", false)
 	viper.SetDefault("reseller.subdomain_base", "")
+	viper.SetDefault("reseller.custom_domain_origin_ips", []string{})
 	viper.SetDefault("reseller.self_apply_enabled", true)
 	viper.SetDefault("reseller.settlement_confirm_days", 1)
 

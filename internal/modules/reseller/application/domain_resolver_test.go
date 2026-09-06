@@ -6,10 +6,20 @@ import (
 	"net/http"
 	"testing"
 
+	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
 	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
 
 	"github.com/dujiao-next/internal/config"
 )
+
+func TestVerifyCustomDomainOrigin(t *testing.T) {
+	if err := verifyCustomDomainOrigin(context.Background(), "localhost", []string{"127.0.0.1", "::1"}); err != nil {
+		t.Fatalf("localhost should match configured ingress: %v", err)
+	}
+	if err := verifyCustomDomainOrigin(context.Background(), "localhost", []string{"192.0.2.99"}); !errors.Is(err, resellercontract.ErrDomainDNSNotReady) {
+		t.Fatalf("mismatched ingress error=%v want ErrDomainDNSNotReady", err)
+	}
+}
 
 type resellerResolverRepoStub struct {
 	domain *resellerdomain.Domain

@@ -17,7 +17,26 @@ test('home purchase notice is white-label on both main and reseller sites', asyn
     assert.ok(locale.includes(required), `missing purchase notice copy: ${required}`)
   }
   assert.match(component, /appStore\.config\?\.contact/)
+  assert.match(component, /contact\.telegram/)
+  assert.match(component, /contact\.whatsapp/)
+  assert.match(component, /contact\.email/)
+  assert.match(component, /contact\.support_url/)
+  assert.match(component, /v-for="link in supportLinks"/)
   assert.doesNotMatch(component, /v-if="!appStore\.isResellerTenant"/)
+})
+
+test('all storefront layouts render every configured support channel', async () => {
+  const sources = await Promise.all([
+    read('../src/components/Footer.vue'),
+    read('../src/views/About.vue'),
+    read('../src/templates/vault/About.vue'),
+    read('../src/templates/vault/layout/VaultLayout.vue'),
+  ])
+  for (const source of sources) {
+    for (const required of ['telegram', 'whatsapp', 'Email', 'Support']) {
+      assert.ok(source.includes(required), `support surface missing ${required}`)
+    }
+  }
 })
 
 test('catalog copy is white-label and Claude products include the complete preflight guide', async () => {
