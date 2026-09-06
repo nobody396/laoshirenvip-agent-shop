@@ -4,8 +4,11 @@
       <div class="flex items-start gap-2.5">
         <Clock3 class="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         <p class="leading-6 text-foreground">
-          <strong>{{ t('home.purchaseNotice.deliveryTitle') }}</strong>
-          {{ t('home.purchaseNotice.deliveryText') }}
+          <template v-if="customNoticeText">{{ customNoticeText }}</template>
+          <template v-else>
+            <strong>{{ t('home.purchaseNotice.deliveryTitle') }}</strong>
+            {{ t('home.purchaseNotice.deliveryText') }}
+          </template>
         </p>
       </div>
       <div v-if="supportLinks.length" class="flex shrink-0 flex-wrap items-center gap-3 self-start sm:self-auto">
@@ -47,11 +50,17 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CircleAlert, Clock3, ExternalLink, KeyRound, ShieldCheck, Smartphone, WalletCards } from 'lucide-vue-next'
 import { useAppStore } from '../stores/app'
+import { getLocalizedText } from '../utils/resellerSiteConfig'
 
 withDefaults(defineProps<{ headerOffset?: boolean }>(), { headerOffset: false })
 
 const { t } = useI18n()
 const appStore = useAppStore()
+
+const customNoticeText = computed(() => getLocalizedText(
+  appStore.config?.contact?.notice_text,
+  appStore.locale,
+))
 
 const guideItems = computed(() => [
   { icon: WalletCards, title: t('home.purchaseNotice.channelTitle'), text: t('home.purchaseNotice.channelText') },

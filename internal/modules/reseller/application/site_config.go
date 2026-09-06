@@ -32,10 +32,11 @@ type ResellerAnnouncementInput struct {
 }
 
 type ResellerSupportInput struct {
-	Telegram   string `json:"telegram"`
-	WhatsApp   string `json:"whatsapp"`
-	Email      string `json:"email"`
-	SupportURL string `json:"support_url"`
+	Telegram   string             `json:"telegram"`
+	WhatsApp   string             `json:"whatsapp"`
+	Email      string             `json:"email"`
+	SupportURL string             `json:"support_url"`
+	NoticeText LocalizedTextInput `json:"notice_text"`
 }
 
 type ResellerSEOInput struct {
@@ -200,7 +201,10 @@ func NormalizeResellerSupport(input ResellerSupportInput) (jsonmap.JSON, error) 
 	if err != nil {
 		return nil, newResellerFieldError("support_url")
 	}
-	return jsonmap.JSON{"telegram": telegram, "whatsapp": whatsApp, "email": email, "support_url": supportURL}, nil
+	return jsonmap.JSON{
+		"telegram": telegram, "whatsapp": whatsApp, "email": email, "support_url": supportURL,
+		"notice_text": normalizeResellerLocalizedText(input.NoticeText, 500),
+	}, nil
 }
 
 func normalizeResellerAnnouncement(input ResellerAnnouncementInput) jsonmap.JSON {

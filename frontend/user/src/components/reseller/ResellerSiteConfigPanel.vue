@@ -110,6 +110,20 @@
             <p class="mt-1.5 font-mono text-xs text-muted-foreground/80">{{ item.hint }}</p>
           </label>
         </div>
+        <div class="mt-5 border-t pt-5">
+          <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h4 class="text-sm font-bold text-foreground">{{ t('personalCenter.reseller.siteConfig.fields.supportNotice') }}</h4>
+              <p class="mt-1 text-xs text-muted-foreground">{{ t('personalCenter.reseller.siteConfig.fields.supportNoticeHint') }}</p>
+            </div>
+            <ResellerLocaleTabs v-model="activeLocale" :labels="localeLabels" />
+          </div>
+          <Textarea
+            v-model.trim="form.support!.notice_text[activeLocale]"
+            rows="3"
+            :placeholder="t('personalCenter.reseller.siteConfig.fields.supportNoticePlaceholder')"
+          />
+        </div>
       </section>
         </div>
 
@@ -558,6 +572,7 @@ const createBlankForm = (): ResellerSiteConfigPayload => ({
         whatsapp: '',
         email: '',
         support_url: '',
+		notice_text: blankLocalizedText(),
     },
     seo: {
         title: blankLocalizedText(),
@@ -620,6 +635,7 @@ const assignForm = (config?: ResellerSiteConfigData) => {
             whatsapp: config.support?.whatsapp || '',
             email: config.support?.email || '',
             support_url: config.support?.support_url || '',
+			notice_text: normalizeLocalizedTextForForm(config.support?.notice_text),
         }
         next.seo = {
             title: normalizeLocalizedTextForForm(config.seo?.title),
