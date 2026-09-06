@@ -151,6 +151,8 @@ func TestSharedStockRedeemURLsMatchPublishedUpstreamProductGuides(t *testing.T) 
 		"72CA8BC21CF70BBD": "https://aiee.fun/",
 		"2DF0B5724CBFF6BF": "https://aiee.fun/",
 		"D024411F1D93A771": "https://vip.sxzfd.com/",
+		"78C3E37DEFD17831": "https://vip.sxzfd.com/",
+		"620851B24E7F85D0": "https://vip.sxzfd.com/",
 		"15D9367883563482": "https://vip.sxzfd.com/claude",
 		"D17577D14C0B63F9": "https://vip.sxzfd.com/claude",
 		"3818E383895D6D12": "https://quickplus.vip/public/grok/",
@@ -162,7 +164,7 @@ func TestSharedStockRedeemURLsMatchPublishedUpstreamProductGuides(t *testing.T) 
 			t.Fatalf("redeem URL for %s = %q, want %q", code, got, expected)
 		}
 	}
-	for _, undocumented := range []string{"F286772962B67D84", "78C3E37DEFD17831", "620851B24E7F85D0"} {
+	for _, undocumented := range []string{"F286772962B67D84"} {
 		if got := sharedStockRedeemURL(undocumented); got != "" {
 			t.Fatalf("undocumented SKU %s must not use guessed URL %q", undocumented, got)
 		}
