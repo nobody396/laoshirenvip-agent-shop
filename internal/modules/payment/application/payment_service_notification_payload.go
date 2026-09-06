@@ -46,6 +46,7 @@ func (s *PaymentService) buildOrderNotificationPayload(order *orderdomain.Order,
 		"manual_item_count":         fmt.Sprintf("%d", counts.Manual),
 		"upstream_item_count":       fmt.Sprintf("%d", counts.Upstream),
 		"payment_channel":           paymentChannel,
+		"storefront_label":          notificationStorefrontLabel(order, locale),
 	}
 	if payment != nil {
 		payload["payment_id"] = fmt.Sprintf("%d", payment.ID)
@@ -57,6 +58,31 @@ func (s *PaymentService) buildOrderNotificationPayload(order *orderdomain.Order,
 		payload["channel_type"] = channelType
 	}
 	return payload
+}
+
+func notificationStorefrontLabel(order *orderdomain.Order, locale string) string {
+	if order != nil && order.ResellerID != nil {
+		domain := strings.TrimSpace(order.ResellerDomain)
+		if domain == "" {
+			domain = fmt.Sprintf("R#%d", *order.ResellerID)
+		}
+		switch settingsmessaging.NormalizeNotificationLocale(locale) {
+		case constants.LocaleEnUS:
+			return "Reseller site · " + domain
+		case constants.LocaleZhTW:
+			return "代理子站 · " + domain
+		default:
+			return "代理子站 · " + domain
+		}
+	}
+	switch settingsmessaging.NormalizeNotificationLocale(locale) {
+	case constants.LocaleEnUS:
+		return "Main storefront"
+	case constants.LocaleZhTW:
+		return "總站"
+	default:
+		return "总站"
+	}
 }
 
 func (s *PaymentService) buildWalletRechargeNotificationPayload(recharge *walletdomain.RechargeOrder, payment *paymentdomain.Payment) jsonmap.JSON {

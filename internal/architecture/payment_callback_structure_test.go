@@ -32,7 +32,7 @@ func TestPaymentCallbackImplementationIsSplitByResponsibility(t *testing.T) {
 			"buildOrderNotificationPayload", "buildWalletRechargeNotificationPayload",
 			"buildManualFulfillmentNotificationPayload", "notificationTemplateLocale",
 			"resolveNotificationCustomer", "resolveUserNotificationIdentity",
-			"notificationPaymentChannel", "notificationPayloadString",
+			"notificationPaymentChannel", "notificationPayloadString", "notificationStorefrontLabel",
 		},
 	}
 

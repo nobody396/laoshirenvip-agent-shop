@@ -112,6 +112,22 @@ func TestSenderRejectsInvalidConfiguration(t *testing.T) {
 	}
 }
 
+func TestSenderResolvesSecretReferenceFromRuntime(t *testing.T) {
+	var credentials [2]string
+	sender := newSender(func(appID, appSecret string) messageClient {
+		credentials = [2]string{appID, appSecret}
+		return &fakeMessageClient{}
+	})
+	sender.runtimeAppSecret = " runtime-secret "
+
+	if err := sender.SendMessage(context.Background(), "cli_demo", "env:GMSHOP_FEISHU_APP_SECRET", "chat_id", "oc_demo", "order paid"); err != nil {
+		t.Fatalf("send with runtime secret reference: %v", err)
+	}
+	if credentials != [2]string{"cli_demo", "runtime-secret"} {
+		t.Fatalf("unexpected resolved credentials: %#v", credentials)
+	}
+}
+
 func TestSenderReturnsClientError(t *testing.T) {
 	wantErr := errors.New("feishu unavailable")
 	sender := newSender(func(_, _ string) messageClient { return &fakeMessageClient{err: wantErr} })

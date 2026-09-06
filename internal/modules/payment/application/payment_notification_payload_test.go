@@ -108,6 +108,9 @@ func TestBuildOrderNotificationPayloadIncludesCustomerAndItemSummary(t *testing.
 	}
 
 	payload := svc.buildOrderNotificationPayload(order, payment)
+	if got := fmt.Sprintf("%v", payload["storefront_label"]); got != "Main storefront" {
+		t.Fatalf("storefront_label want Main storefront got %s", got)
+	}
 
 	if got := fmt.Sprintf("%v", payload["customer_email"]); got != "member@example.com" {
 		t.Fatalf("customer_email want member@example.com got %s", got)
@@ -138,6 +141,23 @@ func TestBuildOrderNotificationPayloadIncludesCustomerAndItemSummary(t *testing.
 	deliverySummary := fmt.Sprintf("%v", payload["delivery_summary"])
 	if deliverySummary != "Total 2 items, auto 1, manual 1, upstream 0" {
 		t.Fatalf("unexpected delivery_summary: %s", deliverySummary)
+	}
+}
+
+func TestBuildOrderNotificationPayloadIdentifiesResellerStorefront(t *testing.T) {
+	resellerID := uint(15)
+	svc := &PaymentService{}
+	order := &orderdomain.Order{
+		ID:             1500,
+		OrderNo:        "DJ202609070001",
+		Currency:       "CNY",
+		Status:         constants.OrderStatusPaid,
+		ResellerID:     &resellerID,
+		ResellerDomain: "ai.lsrai.shop",
+	}
+	payload := svc.buildOrderNotificationPayload(order, nil)
+	if got := fmt.Sprintf("%v", payload["storefront_label"]); got != "代理子站 · ai.lsrai.shop" {
+		t.Fatalf("unexpected reseller storefront label: %s", got)
 	}
 }
 
@@ -362,7 +382,7 @@ func TestNotificationCenterDefaultSettingIncludesRichOrderVariables(t *testing.T
 	setting := settingsmessaging.NotificationCenterDefaultSetting()
 
 	orderBody := setting.Templates.OrderPaidSuccess.ZHCN.Body
-	if !strings.Contains(orderBody, "{{customer_email}}") || !strings.Contains(orderBody, "{{items_summary}}") {
+	if !strings.Contains(orderBody, "{{storefront_label}}") || !strings.Contains(orderBody, "{{customer_email}}") || !strings.Contains(orderBody, "{{items_summary}}") {
 		t.Fatalf("order paid template should include rich variables, got: %s", orderBody)
 	}
 

@@ -57,7 +57,7 @@ func (c *Container) initIntegrationServices() {
 		c.DashboardService,
 		c.NotificationLogService,
 		telegramNotifyService,
-		notificationfeishu.New(),
+		notificationfeishu.New(c.Config.Notification.FeishuAppSecret),
 	)
 	c.ApiCredentialService = apicredentialapp.NewService(c.ApiCredentialRepo)
 	c.SiteConnectionService = siteconnectionapp.NewService(

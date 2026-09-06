@@ -29,10 +29,17 @@ type Config struct {
 	CORS         CORSConfig         `mapstructure:"cors"`
 	Security     SecurityConfig     `mapstructure:"security"`
 	Email        EmailConfig        `mapstructure:"email"`
+	Notification NotificationConfig `mapstructure:"notification"`
 	Order        OrderConfig        `mapstructure:"order"`
 	Captcha      CaptchaConfig      `mapstructure:"captcha"`
 	Web          WebConfig          `mapstructure:"web"`
 	Reseller     ResellerConfig     `mapstructure:"reseller"`
+}
+
+// NotificationConfig holds runtime-only notification credentials. Persistent
+// settings store only an env reference, never the secret value itself.
+type NotificationConfig struct {
+	FeishuAppSecret string `mapstructure:"feishu_app_secret"`
 }
 
 // AppConfig 应用级配置

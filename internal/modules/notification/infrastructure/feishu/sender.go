@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	feishuBaseURL        = "https://open.feishu.cn"
-	feishuRequestTimeout = 10 * time.Second
+	feishuBaseURL          = "https://open.feishu.cn"
+	feishuRequestTimeout   = 10 * time.Second
+	feishuRuntimeSecretRef = "env:GMSHOP_FEISHU_APP_SECRET"
 )
 
 type messageClient interface {
@@ -28,18 +29,23 @@ type clientFactory func(appID, appSecret string) messageClient
 // Sender 使用飞书官方 SDK 通过自建应用机器人发送通知。
 // 它会复用当前凭据对应的 SDK Client，从而复用 SDK 内置的 tenant token 缓存。
 type Sender struct {
-	mu        sync.Mutex
-	appID     string
-	appSecret string
-	client    messageClient
-	factory   clientFactory
+	mu               sync.Mutex
+	appID            string
+	appSecret        string
+	runtimeAppSecret string
+	client           messageClient
+	factory          clientFactory
 }
 
 var _ contract.FeishuSender = (*Sender)(nil)
 
 // New 创建飞书机器人通知发送器。
-func New() *Sender {
-	return newSender(newSDKMessageClient)
+func New(runtimeAppSecret ...string) *Sender {
+	sender := newSender(newSDKMessageClient)
+	if len(runtimeAppSecret) > 0 {
+		sender.runtimeAppSecret = strings.TrimSpace(runtimeAppSecret[0])
+	}
+	return sender
 }
 
 func newSDKMessageClient(appID, appSecret string) messageClient {
@@ -78,6 +84,9 @@ func newSender(factory clientFactory) *Sender {
 func (s *Sender) SendMessage(ctx context.Context, appID, appSecret, receiveIDType, receiveID, message string) error {
 	appID = strings.TrimSpace(appID)
 	appSecret = strings.TrimSpace(appSecret)
+	if appSecret == feishuRuntimeSecretRef {
+		appSecret = strings.TrimSpace(s.runtimeAppSecret)
+	}
 	receiveIDType = strings.ToLower(strings.TrimSpace(receiveIDType))
 	receiveID = strings.TrimSpace(receiveID)
 	message = strings.TrimSpace(message)
