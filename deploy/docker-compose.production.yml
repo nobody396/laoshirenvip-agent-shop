@@ -1,4 +1,11 @@
 services:
+  app:
+    environment:
+      # Production must fail closed instead of starting a checkout that can
+      # display the channel but cannot sign live EPay requests.
+      ZHENCHUAN_EPAY_MERCHANT_ID: ${ZHENCHUAN_EPAY_MERCHANT_ID:?required}
+      ZHENCHUAN_EPAY_MERCHANT_KEY_MD5: ${ZHENCHUAN_EPAY_MERCHANT_KEY_MD5:?required}
+
   proxy:
     ports: !override
       - "80:80"
