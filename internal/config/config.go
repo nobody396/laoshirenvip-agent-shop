@@ -427,7 +427,7 @@ func Load() *Config {
 	viper.SetDefault("reseller.trusted_forwarded_host", false)
 	viper.SetDefault("reseller.subdomain_base", "")
 	viper.SetDefault("reseller.self_apply_enabled", true)
-	viper.SetDefault("reseller.settlement_confirm_days", 7)
+	viper.SetDefault("reseller.settlement_confirm_days", 1)
 
 	// 环境变量支持
 	viper.AutomaticEnv()                                   // 自动读取环境变量
