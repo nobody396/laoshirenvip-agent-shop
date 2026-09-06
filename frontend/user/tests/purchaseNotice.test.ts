@@ -37,11 +37,19 @@ test('catalog copy is white-label and Claude products include the complete prefl
     const content = product.content['zh-CN'] || ''
     assert.ok(description.includes('不懂防封策略的请勿购买'))
     for (const required of [
-      '情况一：当前订阅尚未到期',
-      '情况二：Billing 中存在欠费或退款记录',
-      '情况三：组织 ID 被隐性封禁',
+      '情况一：当前订阅尚未结束',
+      '情况二：Billing 存在欠费或退款记录',
+      '情况三：组织已被禁用，但仍可登录',
+      '正常情况（示例）',
+      '异常情况（不可充值）',
+      'https://ip-check.leeguoo.com/',
+      'https://claude.ai/',
+      'https://claude.ai/upgrade?from=menu',
       '/uploads/agent-products/claude-subscription-active.png',
+      '/uploads/agent-products/claude-message-normal.png',
       '/uploads/agent-products/claude-org-blocked-chat.png',
+      '/uploads/agent-products/claude-upgrade-plans-normal.png',
+      '/uploads/agent-products/claude-upgrade-checkout-normal.png',
       '/uploads/agent-products/claude-org-blocked-upgrade.png',
     ]) {
       assert.ok(content.includes(required), `${product.title['zh-CN']} missing: ${required}`)
