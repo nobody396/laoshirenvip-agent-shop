@@ -258,7 +258,7 @@ func TestAdminResellerManagementApproveDomain(t *testing.T) {
 	if err := db.First(&loaded, domain.ID).Error; err != nil {
 		t.Fatalf("load domain failed: %v", err)
 	}
-	if loaded.Status != resellerdomain.DomainStatusActive || loaded.VerificationStatus != resellerdomain.DomainVerificationVerified || loaded.VerifiedAt == nil {
+	if loaded.Status != resellerdomain.DomainStatusActive || loaded.VerificationStatus != resellerdomain.DomainVerificationVerified || loaded.VerifiedAt == nil || !loaded.IsPrimary {
 		t.Fatalf("unexpected approved domain: %+v", loaded)
 	}
 }

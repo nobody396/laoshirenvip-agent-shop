@@ -310,6 +310,47 @@ func TestResellerManagementSubmitCustomDomainRequiresActiveProfile(t *testing.T)
 	}
 }
 
+func TestApproveCustomDomainPromotesItToPrimary(t *testing.T) {
+	db := openResellerManagementServiceTestDB(t)
+	user := seedResellerManagementUser(t, db, "custom-primary@example.test")
+	profile := resellerdomain.Profile{UserID: user.ID, Status: resellerdomain.ProfileStatusActive, SettlementStatus: resellerdomain.SettlementStatusNormal}
+	if err := db.Create(&profile).Error; err != nil {
+		t.Fatalf("create profile: %v", err)
+	}
+	now := time.Now()
+	systemDomain := resellerdomain.Domain{
+		ResellerID: profile.ID, Domain: "agent.shop.example.test", Type: resellerdomain.DomainTypeSubdomain,
+		VerificationStatus: resellerdomain.DomainVerificationVerified, Status: resellerdomain.DomainStatusActive,
+		IsPrimary: true, VerifiedAt: &now,
+	}
+	customDomain := resellerdomain.Domain{
+		ResellerID: profile.ID, Domain: "shop.customer.test", Type: resellerdomain.DomainTypeCustom,
+		VerificationStatus: resellerdomain.DomainVerificationPending, Status: resellerdomain.DomainStatusPendingReview,
+	}
+	if err := db.Create(&systemDomain).Error; err != nil {
+		t.Fatalf("create system domain: %v", err)
+	}
+	if err := db.Create(&customDomain).Error; err != nil {
+		t.Fatalf("create custom domain: %v", err)
+	}
+
+	svc := newResellerManagementServiceForTest(db)
+	approved, err := svc.ApproveDomain(context.Background(), 9, customDomain.ID)
+	if err != nil {
+		t.Fatalf("ApproveDomain: %v", err)
+	}
+	if !approved.IsPrimary || approved.Status != resellerdomain.DomainStatusActive || approved.VerificationStatus != resellerdomain.DomainVerificationVerified {
+		t.Fatalf("custom domain was not promoted: %+v", approved)
+	}
+	var old resellerdomain.Domain
+	if err := db.First(&old, systemDomain.ID).Error; err != nil {
+		t.Fatalf("reload old primary: %v", err)
+	}
+	if old.IsPrimary {
+		t.Fatalf("system domain remained primary after custom-domain approval: %+v", old)
+	}
+}
+
 func TestResellerManagementSubmitAndApproveCustomDomain(t *testing.T) {
 	db := openResellerManagementServiceTestDB(t)
 	user := seedResellerManagementUser(t, db, "domain-approve@example.test")

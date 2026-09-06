@@ -708,7 +708,22 @@ func (s *ManagementService) updateDomainStatus(ctx context.Context, adminID, dom
 			domain.Status = resellerdomain.DomainStatusActive
 			domain.VerificationStatus = resellerdomain.DomainVerificationVerified
 			domain.VerifiedAt = &now
-			if !hasActiveVerifiedPrimary(domains, domain.ID) {
+			if domain.Type == resellerdomain.DomainTypeCustom {
+				// A customer-owned domain is the reseller's intended branded
+				// entrance. Approval is the final operator action, so promote it
+				// atomically instead of requiring a second "set primary" click.
+				for i := range domains {
+					candidate := domains[i]
+					if candidate.ID == domain.ID || !candidate.IsPrimary {
+						continue
+					}
+					candidate.IsPrimary = false
+					if err := repoTx.UpdateDomain(&candidate); err != nil {
+						return err
+					}
+				}
+				domain.IsPrimary = true
+			} else if !hasActiveVerifiedPrimary(domains, domain.ID) {
 				domain.IsPrimary = true
 			}
 		case resellerdomain.DomainStatusDisabled:
