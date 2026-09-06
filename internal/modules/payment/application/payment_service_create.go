@@ -236,7 +236,19 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 			fixedFee = channel.FixedFee.Decimal.Round(2)
 		}
 
-		paymentAmount, feeAmount, feePolicy := calculatePaymentAmounts(onlineAmount, feeRate, fixedFee, feeConfig.CustomerFeeEnabled)
+		// 主站继续遵循全局手续费开关；托管子站始终让客户支付代理设置的
+		// 整数售价，再从代理差价中扣渠道手续费。这样平台供货价不会被
+		// 子站支付渠道侵蚀，客户也不会在结账页看到额外的小数手续费。
+		customerFeeEnabled := feeConfig.CustomerFeeEnabled
+		if lockedOrder.ResellerID != nil && *lockedOrder.ResellerID > 0 {
+			customerFeeEnabled = false
+		}
+		paymentAmount, feeAmount, feePolicy := calculatePaymentAmounts(onlineAmount, feeRate, fixedFee, customerFeeEnabled)
+		if lockedOrder.ResellerID != nil && *lockedOrder.ResellerID > 0 &&
+			feePolicy == constants.PaymentFeePolicyMerchantAbsorbed &&
+			feeAmount.GreaterThan(lockedOrder.ResellerProfitAmount.Decimal.Round(2)) {
+			return ErrResellerProfitInsufficientForFee
+		}
 		payment = &paymentdomain.Payment{
 			OrderID:         lockedOrder.ID,
 			ChannelID:       channel.ID,

@@ -87,6 +87,27 @@ func TestResellerChannelsDefaultToAlipayAndAllowExplicitOptIn(t *testing.T) {
 	if got := collectAvailableChannelIDs(t, channels); !reflect.DeepEqual(got, []uint{alipay.ID, usdt.ID}) {
 		t.Fatalf("explicit child site channels=%v", got)
 	}
+
+	if _, err := settingService.Update(constants.SettingKeyPaymentConfig, map[string]interface{}{
+		constants.SettingFieldCustomerFeeEnabled: true,
+	}); err != nil {
+		t.Fatalf("enable main-site customer surcharge: %v", err)
+	}
+	if err := db.Model(&paymentdomain.PaymentChannel{}).Where("id = ?", alipay.ID).Update("fee_rate", "4.00").Error; err != nil {
+		t.Fatalf("set hosted channel fee: %v", err)
+	}
+	channels, err = defaultService.GetAvailableChannels(paymentapp.AvailablePaymentChannelFilter{
+		PaymentType: constants.PaymentTypeOrder, ResellerID: &resellerID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(channels) != 1 || channels[0]["fee_policy"] != constants.PaymentFeePolicyMerchantAbsorbed {
+		t.Fatalf("child site must expose merchant-absorbed fee policy, got %+v", channels)
+	}
+	if got := fmt.Sprint(channels[0]["fee_rate"]); got != "4.00" {
+		t.Fatalf("child site fee rate = %s, want 4.00", got)
+	}
 }
 
 func TestGetAvailableChannelsFilters(t *testing.T) {

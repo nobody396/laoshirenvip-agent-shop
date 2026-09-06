@@ -217,6 +217,7 @@ func (s *PaymentService) GetAvailableChannels(filter AvailablePaymentChannelFilt
 		return nil, err
 	}
 	customerFeeEnabled := s.settingService != nil && s.settingService.GetPaymentFeeConfig().CustomerFeeEnabled
+	resellerFeeAbsorbed := filter.ResellerID != nil && *filter.ResellerID > 0
 	available := make([]map[string]interface{}, 0, len(channels))
 	resellerAllowed, err := s.resolveResellerAllowedChannelIDs(filter.ResellerID)
 	if err != nil {
@@ -238,8 +239,12 @@ func (s *PaymentService) GetAvailableChannels(filter AvailablePaymentChannelFilt
 			"interaction_mode": channel.InteractionMode, "min_amount": channel.MinAmount,
 			"max_amount": channel.MaxAmount, "hide_amount_out_range": channel.HideAmountOutRange,
 		}
-		if customerFeeEnabled {
-			item["fee_policy"] = constants.PaymentFeePolicyCustomerSurcharge
+		if customerFeeEnabled || resellerFeeAbsorbed {
+			feePolicy := constants.PaymentFeePolicyCustomerSurcharge
+			if resellerFeeAbsorbed {
+				feePolicy = constants.PaymentFeePolicyMerchantAbsorbed
+			}
+			item["fee_policy"] = feePolicy
 			item["fee_rate"] = channel.FeeRate
 			item["fixed_fee"] = channel.FixedFee
 		}

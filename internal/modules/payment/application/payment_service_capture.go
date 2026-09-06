@@ -44,10 +44,6 @@ func (s *PaymentService) CapturePayment(input CapturePaymentInput) (*paymentdoma
 		return nil, ErrPaymentChannelNotFound
 	}
 
-	providerType := strings.ToLower(strings.TrimSpace(channel.ProviderType))
-	if providerType != constants.PaymentProviderOfficial {
-		return nil, ErrPaymentProviderNotSupported
-	}
 	if strings.TrimSpace(payment.ProviderRef) == "" {
 		return nil, ErrPaymentInvalid
 	}
@@ -59,9 +55,8 @@ func (s *PaymentService) CapturePayment(input CapturePaymentInput) (*paymentdoma
 }
 
 // captureViaRegistry 通过 PaymentProviderRegistry 路由调用 QueryPayment。
-// stripe + paypal + wechat 实现了 paymentcontract.GatewayCapturer 接口,其它 channel
-// (alipay / epay / epusdt / bepusdt / tokenpay / okpay) 仅实现 webhook 回调,
-// type assertion 失败时返回 ErrPaymentProviderNotSupported。
+// Providers that implement GatewayCapturer can reconcile a missed callback;
+// callback-only adapters fail closed through the type assertion below.
 func (s *PaymentService) captureViaRegistry(input CapturePaymentInput, payment *paymentdomain.Payment, channel *paymentdomain.PaymentChannel) (*paymentdomain.Payment, error) {
 	logger.Infow("payment_capture_via_registry",
 		"payment_id", payment.ID,

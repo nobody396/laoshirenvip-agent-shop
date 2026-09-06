@@ -13,6 +13,7 @@ import (
 
 	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
 
+	"github.com/dujiao-next/internal/constants"
 	"github.com/dujiao-next/internal/logger"
 	"github.com/dujiao-next/internal/shared/jsonmap"
 	"github.com/dujiao-next/internal/shared/money"
@@ -55,7 +56,18 @@ func (s *AccountingLedgerService) PostOrderProfit(store resellercontract.Account
 	if !snapshot.ProfitEligible {
 		return nil
 	}
-	profit := snapshot.ProfitAmount.Decimal.Round(2)
+	grossProfit := snapshot.ProfitAmount.Decimal.Round(2)
+	if grossProfit.LessThanOrEqual(decimal.Zero) {
+		return nil
+	}
+	paymentFee := decimal.Zero
+	if payment != nil && payment.FeePolicy == constants.PaymentFeePolicyMerchantAbsorbed {
+		paymentFee = payment.FeeAmount.Decimal.Round(2)
+		if paymentFee.LessThan(decimal.Zero) {
+			paymentFee = decimal.Zero
+		}
+	}
+	profit := grossProfit.Sub(paymentFee).Round(2)
 	if profit.LessThanOrEqual(decimal.Zero) {
 		return nil
 	}
@@ -65,6 +77,9 @@ func (s *AccountingLedgerService) PostOrderProfit(store resellercontract.Account
 	metadata := jsonmap.JSON{
 		"order_no":            order.OrderNo,
 		"reseller_domain":     snapshot.Domain,
+		"gross_profit_amount": grossProfit.StringFixed(2),
+		"payment_fee_amount":  paymentFee.StringFixed(2),
+		"net_profit_amount":   profit.StringFixed(2),
 		"wallet_paid_amount":  order.WalletPaidAmount.String(),
 		"online_paid_amount":  order.OnlinePaidAmount.String(),
 		"snapshot_id":         snapshot.ID,
@@ -75,6 +90,9 @@ func (s *AccountingLedgerService) PostOrderProfit(store resellercontract.Account
 		metadata["payment_channel_id"] = payment.ChannelID
 		metadata["payment_amount"] = payment.Amount.String()
 		metadata["payment_status"] = payment.Status
+		metadata["payment_fee_policy"] = payment.FeePolicy
+		metadata["payment_fee_rate"] = payment.FeeRate.String()
+		metadata["payment_fixed_fee"] = payment.FixedFee.String()
 	}
 	entry := &resellerdomain.LedgerEntry{
 		ResellerID:     snapshot.ResellerID,

@@ -30,6 +30,35 @@ func TestMaskBuyerEmail(t *testing.T) {
 	}
 }
 
+func TestBuildOrderListItemUsesNetProfitLedgerAndFeeSnapshot(t *testing.T) {
+	row := resellercontract.OrderSnapshotRow{
+		Snapshot: resellerdomain.OrderSnapshot{
+			Currency:     "CNY",
+			BaseAmount:   money.FromDecimal(decimal.NewFromInt(100)),
+			ProfitAmount: money.FromDecimal(decimal.NewFromInt(50)),
+		},
+		Order: orderdomain.Order{
+			OrderNo:     "DJ-NET-PROFIT",
+			Status:      constants.OrderStatusPaid,
+			TotalAmount: money.FromDecimal(decimal.NewFromInt(150)),
+		},
+		LedgerEntries: []resellerdomain.LedgerEntry{{
+			Type:   resellerdomain.LedgerTypeOrderProfit,
+			Amount: money.FromDecimal(decimal.NewFromInt(44)),
+			MetadataJSON: map[string]interface{}{
+				"gross_profit_amount": "50.00",
+				"payment_fee_amount":  "6.00",
+				"net_profit_amount":   "44.00",
+			},
+		}},
+	}
+
+	got := buildOrderListItem(row)
+	if got.GrossProfitAmount.StringFixed(2) != "50.00" || got.PaymentFeeAmount.StringFixed(2) != "6.00" || got.ProfitAmount.StringFixed(2) != "44.00" {
+		t.Fatalf("unexpected reseller profit breakdown: gross=%s fee=%s net=%s", got.GrossProfitAmount.StringFixed(2), got.PaymentFeeAmount.StringFixed(2), got.ProfitAmount.StringFixed(2))
+	}
+}
+
 func TestOrderQueryServiceRejectsInactiveProfile(t *testing.T) {
 	svc := NewOrderQueryService(orderQueryStoreStub{profile: &resellerdomain.Profile{
 		ID:     1,

@@ -137,7 +137,7 @@ func (h *AdminSiteConfigHandler) UpdateSiteConfig(c *gin.Context) {
 		"reseller_id":    resellerID,
 		"config_id":      row.ID,
 		"site_name":      row.SiteName,
-		"changed_fields": []string{"site_name", "logo", "favicon", "announcement", "support", "seo", "footer_links", "nav_config"},
+		"changed_fields": []string{"site_name", "logo", "favicon", "announcement", "support", "seo", "footer_links", "nav_config", "payment_channel_ids"},
 		"source":         "admin",
 	})
 	response.Success(c, dto.NewAdminResellerSiteConfigResp(row))

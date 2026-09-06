@@ -29,6 +29,7 @@ var (
 	ErrPaymentUpdateFailed                 = errors.New("payment update failed")
 	ErrPaymentStatusInvalid                = errors.New("payment status invalid")
 	ErrPaymentAmountMismatch               = errors.New("payment amount mismatch")
+	ErrResellerProfitInsufficientForFee    = errors.New("reseller profit insufficient for payment fee")
 	ErrPaymentCurrencyMismatch             = errors.New("payment currency mismatch")
 	ErrPaymentChannelNotFound              = errors.New("payment channel not found")
 	ErrPaymentChannelInactive              = errors.New("payment channel inactive")

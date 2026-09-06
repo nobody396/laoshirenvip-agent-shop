@@ -31,18 +31,20 @@ type OrderListInput struct {
 
 // OrderListItem 分销商视角订单列表项。
 type OrderListItem struct {
-	OrderNo      string
-	Status       string
-	Currency     string
-	TotalAmount  money.Amount
-	BaseAmount   money.Amount
-	ProfitAmount money.Amount
-	ProfitStatus string
-	Domain       string
-	BuyerLabel   string
-	ItemsCount   int
-	CreatedAt    time.Time
-	PaidAt       *time.Time
+	OrderNo           string
+	Status            string
+	Currency          string
+	TotalAmount       money.Amount
+	BaseAmount        money.Amount
+	GrossProfitAmount money.Amount
+	PaymentFeeAmount  money.Amount
+	ProfitAmount      money.Amount
+	ProfitStatus      string
+	Domain            string
+	BuyerLabel        string
+	ItemsCount        int
+	CreatedAt         time.Time
+	PaidAt            *time.Time
 }
 
 // OrderItemDetail 分销商视角订单明细行。

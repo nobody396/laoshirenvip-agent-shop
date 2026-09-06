@@ -2,6 +2,7 @@ package epay
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -60,7 +61,31 @@ func TestCreatePaymentV2HandlesDoubleEncodedJSON(t *testing.T) {
 			t.Fatalf("Accept-Encoding = %s, want identity", got)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte("\"{\\\"code\\\":0,\\\"msg\\\":\\\"success\\\",\\\"trade_no\\\":\\\"T20260322002\\\",\\\"pay_type\\\":\\\"qrcode\\\",\\\"pay_info\\\":\\\"https://pay.example.com/v2-qr\\\"}\""))
+		signedFields := map[string]string{
+			"code": "0", "msg": "success", "trade_no": "T20260322002",
+			"pay_type": "qrcode", "pay_info": "https://pay.example.com/v2-qr",
+			"timestamp": "1721206072",
+		}
+		sign, err := signRSA(buildSignContent(signedFields), privateKeyPEM)
+		if err != nil {
+			t.Fatalf("sign v2 response: %v", err)
+		}
+		payload := map[string]interface{}{}
+		for key, value := range signedFields {
+			payload[key] = value
+		}
+		payload["code"] = 0
+		payload["sign"] = sign
+		payload["sign_type"] = epaySignTypeRSA
+		encoded, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatalf("marshal v2 response: %v", err)
+		}
+		doubleEncoded, err := json.Marshal(string(encoded))
+		if err != nil {
+			t.Fatalf("double encode v2 response: %v", err)
+		}
+		_, _ = w.Write(doubleEncoded)
 	}))
 	defer server.Close()
 
@@ -99,5 +124,30 @@ func TestCreatePaymentV2HandlesDoubleEncodedJSON(t *testing.T) {
 	}
 	if result.Raw == nil || result.Raw["code"] != float64(0) {
 		t.Fatalf("raw response should be decoded into object, got %#v", result.Raw)
+	}
+}
+
+func TestCreatePaymentV2RejectsUnsignedResponse(t *testing.T) {
+	privateKeyPEM, publicKeyPEM := generateEpayRSAKeyPair(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":0,"msg":"success","trade_no":"T-UNSIGNED","pay_type":"qrcode","pay_info":"https://pay.example/qr","timestamp":"1721206072"}`))
+	}))
+	defer server.Close()
+
+	cfg := &Config{
+		GatewayURL: server.URL, EpayVersion: VersionV2, MerchantID: "1002",
+		PrivateKey: privateKeyPEM, PublicKey: publicKeyPEM,
+		NotifyURL: "https://shop.example/api/v1/payments/callback/epay",
+		ReturnURL: "https://shop.example/pay", SignType: epaySignTypeRSA,
+	}
+	cfg.Normalize()
+	_, err := CreatePayment(context.Background(), cfg, CreateInput{
+		OrderNo: "DJP-V2-UNSIGNED", Amount: "1.00", Subject: "验签测试",
+		ChannelType: constants.PaymentChannelTypeAlipay, ClientIP: "127.0.0.1",
+		NotifyURL: cfg.NotifyURL, ReturnURL: cfg.ReturnURL,
+	})
+	if err != ErrSignatureInvalid {
+		t.Fatalf("unsigned v2 response error = %v, want ErrSignatureInvalid", err)
 	}
 }

@@ -37,6 +37,7 @@ var (
 	ErrWalletOnlyPaymentRequired           = errors.New("wallet only payment required")
 	ErrPaymentStatusInvalid                = errors.New("payment status invalid")
 	ErrPaymentAmountMismatch               = errors.New("payment amount mismatch")
+	ErrResellerProfitInsufficientForFee    = errors.New("reseller profit insufficient for payment fee")
 )
 
 // CreatePaymentInput 创建支付输入。
@@ -366,6 +367,7 @@ var paymentCreateErrorRules = concatMappedErrors(
 		{target: ErrPaymentChannelNotAllowedForProduct, code: response.CodeBadRequest, key: "error.payment_channel_not_allowed_for_product"},
 		{target: ErrPaymentChannelNotAllowedForRecharge, code: response.CodeBadRequest, key: "error.payment_channel_not_allowed_for_recharge"},
 		{target: ErrWalletOnlyPaymentRequired, code: response.CodeBadRequest, key: "error.wallet_only_payment_required"},
+		{target: ErrResellerProfitInsufficientForFee, code: response.CodeBadRequest, key: "error.reseller_fee_exceeds_profit"},
 	},
 )
 

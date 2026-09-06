@@ -35,6 +35,7 @@ const (
 	epaySignTypeMD5 = "MD5"
 
 	epayAPIPathV2    = "/api/pay/create"
+	epayQueryPathV2  = "/api/pay/query"
 	epayAPIPathV1    = "/mapi.php"
 	epaySubmitPathV2 = "/api/pay/submit"
 	epaySubmitPathV1 = "/submit.php"
@@ -89,6 +90,19 @@ type CreateResult struct {
 	TradeNo string
 	PayType string
 	Raw     map[string]interface{}
+}
+
+// QueryResult is the signed V2 order fact used to reconcile a missed callback.
+type QueryResult struct {
+	Code        int
+	Message     string
+	TradeNo     string
+	OutTradeNo  string
+	PayType     string
+	Status      int
+	Money       string
+	RefundMoney string
+	Raw         map[string]interface{}
 }
 
 // ParseConfig 解析配置
@@ -187,6 +201,70 @@ func BuildRedirectURL(cfg *Config, input CreateInput) (*CreateResult, error) {
 	}
 }
 
+// QueryPayment queries a V2 order by the platform trade number. V1 deliberately
+// remains callback-only because its public query endpoint puts the merchant key
+// in the URL and does not provide signed response facts.
+func QueryPayment(ctx context.Context, cfg *Config, tradeNo string) (*QueryResult, error) {
+	if cfg == nil || cfg.EpayVersion != VersionV2 || strings.TrimSpace(cfg.MerchantID) == "" ||
+		strings.TrimSpace(cfg.PrivateKey) == "" || strings.TrimSpace(cfg.PublicKey) == "" || strings.TrimSpace(tradeNo) == "" {
+		return nil, ErrConfigInvalid
+	}
+	params := map[string]string{
+		"pid":       strings.TrimSpace(cfg.MerchantID),
+		"trade_no":  strings.TrimSpace(tradeNo),
+		"timestamp": strconv.FormatInt(time.Now().Unix(), 10),
+	}
+	sign, err := signRSA(buildSignContent(params), cfg.PrivateKey)
+	if err != nil {
+		return nil, ErrSignatureGenerate
+	}
+	params["sign"] = sign
+	params["sign_type"] = epaySignTypeRSA
+	respBytes, err := postForm(ctx, buildEndpoint(cfg.GatewayURL, epayQueryPathV2), params)
+	if err != nil {
+		return nil, ErrRequestFailed
+	}
+	respBytes, err = normalizeResponseBody(respBytes)
+	if err != nil {
+		return nil, ErrResponseInvalid
+	}
+	var raw map[string]interface{}
+	if err := json.Unmarshal(respBytes, &raw); err != nil {
+		return nil, ErrResponseInvalid
+	}
+	if err := verifyV2Response(cfg, raw); err != nil {
+		return nil, err
+	}
+	var response struct {
+		Code        int    `json:"code"`
+		Msg         string `json:"msg"`
+		TradeNo     string `json:"trade_no"`
+		OutTradeNo  string `json:"out_trade_no"`
+		Type        string `json:"type"`
+		Status      int    `json:"status"`
+		Money       string `json:"money"`
+		RefundMoney string `json:"refundmoney"`
+	}
+	if err := json.Unmarshal(respBytes, &response); err != nil {
+		return nil, ErrResponseInvalid
+	}
+	if response.Code != 0 {
+		return nil, fmt.Errorf("%w: %s", ErrResponseInvalid, response.Msg)
+	}
+	if strings.TrimSpace(response.TradeNo) == "" || strings.TrimSpace(response.OutTradeNo) == "" || strings.TrimSpace(response.Money) == "" {
+		return nil, ErrResponseInvalid
+	}
+	if strings.TrimSpace(response.TradeNo) != strings.TrimSpace(tradeNo) {
+		return nil, ErrResponseInvalid
+	}
+	return &QueryResult{
+		Code: response.Code, Message: strings.TrimSpace(response.Msg),
+		TradeNo: strings.TrimSpace(response.TradeNo), OutTradeNo: strings.TrimSpace(response.OutTradeNo),
+		PayType: strings.TrimSpace(response.Type), Status: response.Status,
+		Money: strings.TrimSpace(response.Money), RefundMoney: strings.TrimSpace(response.RefundMoney), Raw: raw,
+	}, nil
+}
+
 func (c *Config) Normalize() {
 	c.EpayVersion = strings.ToLower(strings.TrimSpace(c.EpayVersion))
 	c.SignType = strings.TrimSpace(c.SignType)
@@ -244,7 +322,9 @@ func createV1(ctx context.Context, cfg *Config, input CreateInput, payType strin
 	}
 
 	var raw map[string]interface{}
-	_ = json.Unmarshal(respBytes, &raw)
+	if err := json.Unmarshal(respBytes, &raw); err != nil {
+		return nil, ErrResponseInvalid
+	}
 	var resp struct {
 		Code      int    `json:"code"`
 		Msg       string `json:"msg"`
@@ -269,6 +349,35 @@ func createV1(ctx context.Context, cfg *Config, input CreateInput, payType strin
 		result.PayURL = strings.TrimSpace(resp.URLScheme)
 	}
 	return result, nil
+}
+
+// verifyV2Response verifies every scalar field returned by the gateway. V2
+// explicitly signs responses with the platform key; accepting an unsigned
+// create response would let a network intermediary replace the QR or redirect
+// target even though the outbound request itself was signed.
+func verifyV2Response(cfg *Config, raw map[string]interface{}) error {
+	if cfg == nil || len(raw) == 0 {
+		return ErrResponseInvalid
+	}
+	sign := strings.TrimSpace(fmt.Sprint(raw["sign"]))
+	if sign == "" || strings.TrimSpace(fmt.Sprint(raw["timestamp"])) == "" {
+		return ErrSignatureInvalid
+	}
+	params := make(map[string]string, len(raw))
+	for key, value := range raw {
+		if key == "sign" || key == "sign_type" || value == nil {
+			continue
+		}
+		switch value.(type) {
+		case []interface{}, map[string]interface{}:
+			continue
+		}
+		text := strings.TrimSpace(fmt.Sprint(value))
+		if text != "" {
+			params[key] = text
+		}
+	}
+	return verifyRSA(buildSignContent(params), sign, cfg.PublicKey)
 }
 
 func buildRedirectV1(cfg *Config, input CreateInput, payType string) (*CreateResult, error) {
@@ -371,7 +480,12 @@ func createV2(ctx context.Context, cfg *Config, input CreateInput, payType strin
 	}
 
 	var raw map[string]interface{}
-	_ = json.Unmarshal(respBytes, &raw)
+	if err := json.Unmarshal(respBytes, &raw); err != nil {
+		return nil, ErrResponseInvalid
+	}
+	if err := verifyV2Response(cfg, raw); err != nil {
+		return nil, err
+	}
 	var resp struct {
 		Code    int    `json:"code"`
 		Msg     string `json:"msg"`

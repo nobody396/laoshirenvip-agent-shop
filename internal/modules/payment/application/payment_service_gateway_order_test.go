@@ -1255,6 +1255,74 @@ func TestCreateOrderPaymentSnapshotsCustomerSurchargeCompatibilityMode(t *testin
 	}
 }
 
+func TestCreateResellerOrderPaymentKeepsListedPriceAndChargesFeeToResellerMargin(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	if _, err := svc.settingService.Update(constants.SettingKeyPaymentConfig, map[string]interface{}{
+		constants.SettingFieldCustomerFeeEnabled: true,
+	}); err != nil {
+		t.Fatalf("enable main-site customer surcharge: %v", err)
+	}
+	channel, order := createFeePolicyOrderFixture(t, db, "Hosted Reseller Gateway", "DJ-RESELLER-ABSORBS-FEE")
+	channel.FeeRate = money.FromDecimal(decimal.RequireFromString("4.00"))
+	channel.FixedFee = money.FromDecimal(decimal.Zero)
+	if err := db.Save(channel).Error; err != nil {
+		t.Fatalf("update hosted reseller fee: %v", err)
+	}
+	resellerID := uint(19)
+	order.ResellerID = &resellerID
+	order.ResellerProfitAmount = money.FromDecimal(decimal.NewFromInt(50))
+	if err := db.Save(order).Error; err != nil {
+		t.Fatalf("mark order as reseller sale: %v", err)
+	}
+
+	var gatewayAmount money.Amount
+	registerTestGateway(t, svc, channel.ProviderType, channel.ChannelType, emptyProviderRefProvider{onCreate: func(input paymentcontract.GatewayCreateInput) {
+		gatewayAmount = input.Amount
+	}})
+	result, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: context.Background()})
+	if err != nil {
+		t.Fatalf("create hosted reseller payment: %v", err)
+	}
+	if got := gatewayAmount.StringFixed(2); got != "100.00" {
+		t.Fatalf("customer must pay listed price 100.00, got %s", got)
+	}
+	if result.Payment.FeePolicy != constants.PaymentFeePolicyMerchantAbsorbed {
+		t.Fatalf("hosted reseller policy = %s, want merchant_absorbed", result.Payment.FeePolicy)
+	}
+	if got := result.Payment.FeeAmount.StringFixed(2); got != "4.00" {
+		t.Fatalf("hosted reseller fee = %s, want 4.00", got)
+	}
+}
+
+func TestCreateResellerOrderPaymentRejectsFeeAboveResellerMargin(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	channel, order := createFeePolicyOrderFixture(t, db, "Loss Making Reseller Gateway", "DJ-RESELLER-FEE-LOSS")
+	channel.FeeRate = money.FromDecimal(decimal.RequireFromString("4.00"))
+	channel.FixedFee = money.FromDecimal(decimal.Zero)
+	if err := db.Save(channel).Error; err != nil {
+		t.Fatalf("update hosted reseller fee: %v", err)
+	}
+	resellerID := uint(23)
+	order.ResellerID = &resellerID
+	order.ResellerProfitAmount = money.FromDecimal(decimal.NewFromInt(3))
+	if err := db.Save(order).Error; err != nil {
+		t.Fatalf("mark order as loss-making reseller sale: %v", err)
+	}
+	registerTestGateway(t, svc, channel.ProviderType, channel.ChannelType, emptyProviderRefProvider{})
+
+	_, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: context.Background()})
+	if !errors.Is(err, ErrResellerProfitInsufficientForFee) {
+		t.Fatalf("loss-making reseller payment error = %v, want ErrResellerProfitInsufficientForFee", err)
+	}
+	var count int64
+	if err := db.Model(&paymentdomain.Payment{}).Where("order_id = ?", order.ID).Count(&count).Error; err != nil {
+		t.Fatalf("count rejected payments: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("loss-making reseller payment persisted %d rows", count)
+	}
+}
+
 func TestCreateOrderPaymentSupersedesLegacyFeeLinkByDefault(t *testing.T) {
 	svc, db := setupPaymentServiceWalletTest(t)
 	channel, order := createFeePolicyOrderFixture(t, db, "Legacy Replacement Gateway", "DJ-LEGACY-REPLACE")

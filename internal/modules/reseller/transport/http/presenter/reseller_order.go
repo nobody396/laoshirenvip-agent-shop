@@ -9,18 +9,20 @@ import (
 )
 
 type ResellerOrderResp struct {
-	OrderNo      string       `json:"order_no"`
-	Status       string       `json:"status"`
-	Currency     string       `json:"currency"`
-	TotalAmount  money.Amount `json:"total_amount"`
-	BaseAmount   money.Amount `json:"base_amount"`
-	ProfitAmount money.Amount `json:"profit_amount"`
-	ProfitStatus string       `json:"profit_status"`
-	Domain       string       `json:"domain"`
-	BuyerLabel   string       `json:"buyer_label"`
-	ItemsCount   int          `json:"items_count"`
-	CreatedAt    time.Time    `json:"created_at"`
-	PaidAt       *time.Time   `json:"paid_at,omitempty"`
+	OrderNo           string       `json:"order_no"`
+	Status            string       `json:"status"`
+	Currency          string       `json:"currency"`
+	TotalAmount       money.Amount `json:"total_amount"`
+	BaseAmount        money.Amount `json:"base_amount"`
+	GrossProfitAmount money.Amount `json:"gross_profit_amount"`
+	PaymentFeeAmount  money.Amount `json:"payment_fee_amount"`
+	ProfitAmount      money.Amount `json:"profit_amount"`
+	ProfitStatus      string       `json:"profit_status"`
+	Domain            string       `json:"domain"`
+	BuyerLabel        string       `json:"buyer_label"`
+	ItemsCount        int          `json:"items_count"`
+	CreatedAt         time.Time    `json:"created_at"`
+	PaidAt            *time.Time   `json:"paid_at,omitempty"`
 }
 
 type ResellerOrderItemResp struct {
@@ -49,18 +51,20 @@ type ResellerOrderStatsResp struct {
 
 func NewResellerOrderResp(row resellermodule.OrderListItem) ResellerOrderResp {
 	return ResellerOrderResp{
-		OrderNo:      row.OrderNo,
-		Status:       row.Status,
-		Currency:     row.Currency,
-		TotalAmount:  row.TotalAmount,
-		BaseAmount:   row.BaseAmount,
-		ProfitAmount: row.ProfitAmount,
-		ProfitStatus: row.ProfitStatus,
-		Domain:       row.Domain,
-		BuyerLabel:   row.BuyerLabel,
-		ItemsCount:   row.ItemsCount,
-		CreatedAt:    row.CreatedAt,
-		PaidAt:       row.PaidAt,
+		OrderNo:           row.OrderNo,
+		Status:            row.Status,
+		Currency:          row.Currency,
+		TotalAmount:       row.TotalAmount,
+		BaseAmount:        row.BaseAmount,
+		GrossProfitAmount: row.GrossProfitAmount,
+		PaymentFeeAmount:  row.PaymentFeeAmount,
+		ProfitAmount:      row.ProfitAmount,
+		ProfitStatus:      row.ProfitStatus,
+		Domain:            row.Domain,
+		BuyerLabel:        row.BuyerLabel,
+		ItemsCount:        row.ItemsCount,
+		CreatedAt:         row.CreatedAt,
+		PaidAt:            row.PaidAt,
 	}
 }
 

@@ -79,6 +79,30 @@ func TestResellerSiteConfigServiceNormalizesAndStoresSafeFields(t *testing.T) {
 	}
 }
 
+func TestResellerSiteConfigServiceUpdatesPaymentChannelSelection(t *testing.T) {
+	db := openResellerManagementServiceTestDB(t)
+	repo := resellergormstore.New(db)
+	user := seedResellerManagementUser(t, db, "site-config-channel-update@example.test")
+	profile := resellerdomain.Profile{UserID: user.ID, Status: resellerdomain.ProfileStatusActive, SettlementStatus: resellerdomain.SettlementStatusNormal}
+	if err := db.Create(&profile).Error; err != nil {
+		t.Fatalf("create profile failed: %v", err)
+	}
+	svc := NewResellerSiteConfigService(repo)
+	if _, err := svc.UpdateUserSiteConfig(context.Background(), user.ID, ResellerSiteConfigInput{SiteName: "Channel Store", PaymentChannelIDs: []uint{2}}); err != nil {
+		t.Fatalf("create channel selection: %v", err)
+	}
+	if _, err := svc.UpdateUserSiteConfig(context.Background(), user.ID, ResellerSiteConfigInput{SiteName: "Channel Store", PaymentChannelIDs: []uint{7}}); err != nil {
+		t.Fatalf("update channel selection: %v", err)
+	}
+	row, err := repo.GetSiteConfigByResellerID(profile.ID)
+	if err != nil {
+		t.Fatalf("reload site config: %v", err)
+	}
+	if row == nil || len(row.PaymentChannelIDs) != 1 || row.PaymentChannelIDs[0] != 7 {
+		t.Fatalf("payment channel selection was not replaced: %+v", row)
+	}
+}
+
 func TestResellerSiteConfigServiceRejectsUnsafeURLs(t *testing.T) {
 	db := openResellerManagementServiceTestDB(t)
 	repo := resellergormstore.New(db)

@@ -422,6 +422,8 @@ export interface ResellerOrderData {
     currency: string
     total_amount: string
     base_amount: string
+    gross_profit_amount: string
+    payment_fee_amount: string
     profit_amount: string
     profit_status: 'credited' | 'pending' | 'unavailable' | string
     domain: string

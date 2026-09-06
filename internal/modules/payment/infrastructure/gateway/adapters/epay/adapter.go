@@ -18,9 +18,8 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// epayAdapter 是 epay 网关的 paymentcontract.GatewayProvider + paymentcontract.GatewayCallbackVerifier 实现。
-// epay 没有主动查询 API，callback 是同步 form POST（不是 JSON webhook），
-// 所以**不**实现 paymentcontract.GatewayCapturer 和 paymentcontract.GatewayWebhooker。
+// epayAdapter implements V1/V2 creation and callback verification. V2 also
+// supports signed active order queries so a missed callback can be reconciled.
 type epayAdapter struct{}
 
 // NewEpayAdapter 实例化 epay adapter。
@@ -30,6 +29,7 @@ func NewEpayAdapter() paymentcontract.GatewayProvider { return &epayAdapter{} }
 var (
 	_ paymentcontract.GatewayProvider         = (*epayAdapter)(nil)
 	_ paymentcontract.GatewayCallbackVerifier = (*epayAdapter)(nil)
+	_ paymentcontract.GatewayCapturer         = (*epayAdapter)(nil)
 )
 
 // Type 返回 provider 标识。
@@ -54,11 +54,45 @@ func (a *epayAdapter) parseConfig(raw jsonmap.JSON) (*epay.Config, error) {
 // 入口先校验 channelType（如果非空）是否被 epay 支持，
 // 然后调用 parseConfig 验证配置完整性。
 func (a *epayAdapter) ValidateConfig(raw jsonmap.JSON, channelType string) error {
-	if channelType != "" && !epay.IsSupportedChannelType(channelType) {
+	normalized := strings.ToLower(strings.TrimSpace(channelType))
+	if normalized != "" && normalized != constants.PaymentInteractionQR && normalized != constants.PaymentInteractionRedirect && !epay.IsSupportedChannelType(normalized) {
 		return fmt.Errorf("%w: epay channel_type %s", paymentcontract.ErrGatewayUnsupportedChannel, channelType)
 	}
 	_, err := a.parseConfig(raw)
 	return err
+}
+
+// QueryPayment reconciles V2 orders through the signed /api/pay/query API.
+func (a *epayAdapter) QueryPayment(ctx context.Context, raw jsonmap.JSON, providerRef string) (*paymentcontract.GatewayQueryResult, error) {
+	cfg, err := a.parseConfig(raw)
+	if err != nil {
+		return nil, err
+	}
+	result, err := epay.QueryPayment(ctx, cfg, providerRef)
+	if err != nil {
+		return nil, mapEpayError(err)
+	}
+	amount := money.Amount{}
+	if parsed, parseErr := decimal.NewFromString(strings.TrimSpace(result.Money)); parseErr == nil {
+		amount = money.FromDecimal(parsed)
+	}
+	status := constants.PaymentStatusFailed
+	switch result.Status {
+	case 0, 3, 4:
+		status = constants.PaymentStatusPending
+	case 1:
+		status = constants.PaymentStatusSuccess
+	case 2:
+		// A refunded provider order must never newly fulfill a local pending order.
+		status = constants.PaymentStatusFailed
+	}
+	return &paymentcontract.GatewayQueryResult{
+		ProviderRef: result.TradeNo,
+		Status:      status,
+		Amount:      amount,
+		Currency:    constants.SiteCurrencyDefault,
+		Payload:     jsonmap.JSON(result.Raw),
+	}, nil
 }
 
 // CreatePayment 创建支付。双 mode dispatch：

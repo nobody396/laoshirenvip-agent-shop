@@ -69,6 +69,7 @@ type ResellerSiteConfigForm = {
   nav_config: {
     builtin: Record<string, boolean>
   }
+  payment_channel_ids: number[]
 }
 
 const { t, locale } = useI18n()
@@ -145,6 +146,7 @@ const createBlankForm = (): ResellerSiteConfigForm => ({
       about: true,
     },
   },
+  payment_channel_ids: [],
 })
 
 const form = reactive<ResellerSiteConfigForm>(createBlankForm())
@@ -196,6 +198,7 @@ const normalizeConfigForForm = (row: AdminResellerSiteConfig): ResellerSiteConfi
     },
     footer_links: normalizeFooterLinksForForm(row.footer_links),
     nav_config: { builtin },
+    payment_channel_ids: Array.isArray(row.payment_channel_ids) ? row.payment_channel_ids.map(Number).filter((id) => id > 0) : [],
   }
 }
 
@@ -235,6 +238,7 @@ const buildPayload = (): AdminResellerSiteConfigPayload => ({
     },
     custom_items: [],
   },
+  payment_channel_ids: [...form.payment_channel_ids],
 })
 
 const fetchRows = async (page = 1, options: ListFetchOptions = {}) => {

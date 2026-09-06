@@ -129,8 +129,16 @@
               <dt class="text-muted-foreground">{{ t('resellerConsole.orders.baseAmount') }}</dt>
               <dd class="font-mono text-foreground/80">{{ formatResellerConsoleAmount(detail.base_amount, detail.currency) }}</dd>
             </div>
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-muted-foreground">{{ t('resellerConsole.orders.grossProfitAmount') }}</dt>
+              <dd class="font-mono text-foreground/80">{{ formatResellerConsoleAmount(detail.gross_profit_amount, detail.currency) }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <dt class="text-muted-foreground">{{ t('resellerConsole.orders.paymentFeeAmount') }}</dt>
+              <dd class="font-mono text-destructive">-{{ formatResellerConsoleAmount(detail.payment_fee_amount, detail.currency) }}</dd>
+            </div>
             <div class="flex items-center justify-between gap-3 border-t pt-3">
-              <dt class="font-semibold text-foreground">{{ t('resellerConsole.orders.profitAmount') }}</dt>
+              <dt class="font-semibold text-foreground">{{ t('resellerConsole.orders.netProfitAmount') }}</dt>
               <dd class="font-mono text-base font-black text-success">{{ formatResellerConsoleAmount(detail.profit_amount, detail.currency) }}</dd>
             </div>
             <div class="flex items-center justify-between gap-3">

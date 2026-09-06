@@ -894,6 +894,7 @@ export interface AdminResellerSiteConfigPayload {
       enabled?: boolean
     }>
   }
+  payment_channel_ids?: number[]
 }
 
 export interface AdminResellerSiteConfig extends Required<Pick<AdminResellerSiteConfigPayload, 'announcement' | 'support' | 'seo' | 'nav_config'>> {
@@ -906,6 +907,7 @@ export interface AdminResellerSiteConfig extends Required<Pick<AdminResellerSite
     name?: AdminResellerLocalizedText
     url?: string
   }>
+  payment_channel_ids: number[]
   profile?: AdminResellerProfileRef
   created_at: string
   updated_at: string

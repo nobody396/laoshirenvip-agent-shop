@@ -14,6 +14,7 @@ import (
 
 	"github.com/dujiao-next/internal/constants"
 	"github.com/dujiao-next/internal/shared/jsonmap"
+	"github.com/dujiao-next/internal/shared/money"
 	"github.com/shopspring/decimal"
 )
 
@@ -136,20 +137,43 @@ func orderSnapshotFilter(resellerID uint, input resellercontract.OrderListInput)
 func buildOrderListItem(row resellercontract.OrderSnapshotRow) resellercontract.OrderListItem {
 	order := row.Order
 	snapshot := row.Snapshot
+	grossProfit, paymentFee, netProfit := resellerProfitBreakdown(snapshot, row.LedgerEntries)
 	return resellercontract.OrderListItem{
-		OrderNo:      order.OrderNo,
-		Status:       order.Status,
-		Currency:     snapshot.Currency,
-		TotalAmount:  order.TotalAmount,
-		BaseAmount:   snapshot.BaseAmount,
-		ProfitAmount: snapshot.ProfitAmount,
-		ProfitStatus: neutralProfitStatus(snapshot, order, row.LedgerEntries),
-		Domain:       snapshot.Domain,
-		BuyerLabel:   maskBuyerLabel(order, row.BuyerEmail),
-		ItemsCount:   len(row.Items),
-		CreatedAt:    order.CreatedAt,
-		PaidAt:       order.PaidAt,
+		OrderNo:           order.OrderNo,
+		Status:            order.Status,
+		Currency:          snapshot.Currency,
+		TotalAmount:       order.TotalAmount,
+		BaseAmount:        snapshot.BaseAmount,
+		GrossProfitAmount: grossProfit,
+		PaymentFeeAmount:  paymentFee,
+		ProfitAmount:      netProfit,
+		ProfitStatus:      neutralProfitStatus(snapshot, order, row.LedgerEntries),
+		Domain:            snapshot.Domain,
+		BuyerLabel:        maskBuyerLabel(order, row.BuyerEmail),
+		ItemsCount:        len(row.Items),
+		CreatedAt:         order.CreatedAt,
+		PaidAt:            order.PaidAt,
 	}
+}
+
+func resellerProfitBreakdown(snapshot resellerdomain.OrderSnapshot, ledgerEntries []resellerdomain.LedgerEntry) (money.Amount, money.Amount, money.Amount) {
+	gross := snapshot.ProfitAmount.Decimal.Round(2)
+	fee := decimal.Zero
+	net := gross
+	for _, entry := range ledgerEntries {
+		if entry.Type != resellerdomain.LedgerTypeOrderProfit {
+			continue
+		}
+		if parsed := decimalFromSnapshotValue(entry.MetadataJSON["gross_profit_amount"]); parsed.GreaterThanOrEqual(decimal.Zero) && entry.MetadataJSON["gross_profit_amount"] != nil {
+			gross = parsed
+		}
+		if parsed := decimalFromSnapshotValue(entry.MetadataJSON["payment_fee_amount"]); parsed.GreaterThanOrEqual(decimal.Zero) {
+			fee = parsed
+		}
+		net = entry.Amount.Decimal.Round(2)
+		break
+	}
+	return money.FromDecimal(gross), money.FromDecimal(fee), money.FromDecimal(net)
 }
 
 func neutralProfitStatus(snapshot resellerdomain.OrderSnapshot, order orderdomain.Order, ledgerEntries []resellerdomain.LedgerEntry) string {
