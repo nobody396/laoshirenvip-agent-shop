@@ -470,7 +470,9 @@ const snapshot = ref<ResellerSiteConfigSnapshotData | null>(null)
 const activeLocale = ref<ResellerLocale>('zh-CN')
 const activeSection = ref('brand')
 const baseline = ref('')
-const builtinNavKeys = ['blog', 'notice', 'about']
+// Hosted child sites deliberately hide the main-platform integration guide;
+// do not expose the legacy "blog" switch that cannot affect their header.
+const builtinNavKeys = ['notice', 'about']
 
 const localeLabels: Record<string, string> = { 'zh-CN': '简体', 'zh-TW': '繁體', 'en-US': 'EN' }
 

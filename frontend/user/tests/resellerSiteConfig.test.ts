@@ -63,3 +63,8 @@ test('empty child payment selection is presented as the default Alipay channel',
   assert.match(source, /effectivePaymentChannelIDs\.includes\(channel\.id\)/)
   assert.match(source, /configured\.length \? configured : defaultPaymentChannelIDs\(\)/)
 })
+
+test('child navigation does not expose the unavailable integration-guide switch', async () => {
+  const source = await readFile(new URL('../src/components/reseller/ResellerSiteConfigPanel.vue', import.meta.url), 'utf8')
+  assert.match(source, /builtinNavKeys = \['notice', 'about'\]/)
+})
