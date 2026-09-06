@@ -1,5 +1,6 @@
 import { computed, ref, type Ref } from 'vue'
 import DOMPurify from 'dompurify'
+import { fulfillmentDeliveryLineURL } from '../utils/fulfillmentDelivery'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '../stores/app'
 import { orderStatusVariant, orderStatusLabel } from '../utils/status'
@@ -323,6 +324,7 @@ export function useOrderDisplayHelpers(order: Ref<any>) {
     formatItemPaidAmount,
     manualSubmissionRows,
     fulfillmentDeliveryLines,
+    fulfillmentDeliveryLineURL,
     instructionBlocks,
     // 发货复制态
     fulfillmentCopied,

@@ -96,6 +96,55 @@ func TestSharedStockAdapterRejectsEmptyLocalOrderNumber(t *testing.T) {
 	}
 }
 
+func TestSharedStockAdapterPackagesCredentialURLAndUsageMethod(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path != "/shared/commodity/trade" {
+			http.NotFound(w, req)
+			return
+		}
+		_, _ = fmt.Fprint(w, `{"code":200,"data":{"url":"https://redeem.example/activate","amount":"115.00","tradeNo":"AISOU-1","secret":"PLUS-CDK-123"}}`)
+	}))
+	defer server.Close()
+
+	references := newMemoryReferenceRegistry()
+	skuID, _ := references.Resolve(1, siteconnectiondomain.ExternalReferenceKindSKU, "PLUS-PH")
+	adapter := NewSharedStockAdapter(&siteconnectiondomain.Connection{
+		ID: 1, BaseURL: server.URL, ApiKey: "42", ApiSecret: "secret",
+	}, t.TempDir(), references)
+
+	created, err := adapter.CreateOrder(context.Background(), CreateUpstreamOrderReq{
+		SKUID: skuID, Quantity: 1, DownstreamOrderNo: "DJ20260906052047400695-01",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.Fulfillment == nil {
+		t.Fatal("expected immediate fulfillment")
+	}
+	if got := created.Fulfillment.Payload; got != "PLUS-CDK-123\nhttps://redeem.example/activate" {
+		t.Fatalf("raw supplier payload changed: %q", got)
+	}
+	data := created.Fulfillment.DeliveryData
+	if got := data["note"]; got != "使用方法：复制 CDK 卡密，打开充值网址，按页面提示提交即可。" {
+		t.Fatalf("usage method = %#v", got)
+	}
+	entries, ok := data["entries"].([]map[string]string)
+	if !ok {
+		t.Fatalf("entries type = %T", data["entries"])
+	}
+	wantEntries := []map[string]string{
+		{"key": "CDK 卡密", "value": "PLUS-CDK-123"},
+		{"key": "充值网址", "value": "https://redeem.example/activate"},
+	}
+	if fmt.Sprint(entries) != fmt.Sprint(wantEntries) {
+		t.Fatalf("entries = %#v, want %#v", entries, wantEntries)
+	}
+	cards, ok := data["cards"].([]string)
+	if !ok || len(cards) != 1 || cards[0] != created.Fulfillment.Payload {
+		t.Fatalf("single-item delivery must remain one card: %#v", data["cards"])
+	}
+}
+
 func newMemoryReferenceRegistry() *memoryReferenceRegistry {
 	return &memoryReferenceRegistry{next: 1, byKey: map[string]uint{}, byID: map[uint]string{}}
 }

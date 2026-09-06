@@ -334,7 +334,10 @@
                   </div>
                   <div v-else-if="fulfillmentDeliveryLines(child.fulfillment).length"
                     class="mt-3 border rounded-xl p-4 text-sm text-muted-foreground space-y-1 break-all overflow-hidden">
-                    <div v-for="(line, index) in fulfillmentDeliveryLines(child.fulfillment)" :key="`child-fulfillment-${child.id}-${index}`">{{ line }}</div>
+                    <div v-for="(line, index) in fulfillmentDeliveryLines(child.fulfillment)" :key="`child-fulfillment-${child.id}-${index}`">
+                      <a v-if="fulfillmentDeliveryLineURL(line)" :href="fulfillmentDeliveryLineURL(line)" target="_blank" rel="noopener noreferrer" class="text-primary underline underline-offset-2">{{ line }}</a>
+                      <span v-else>{{ line }}</span>
+                    </div>
                   </div>
                   <div v-else-if="child.fulfillment.payload"
                     class="mt-3 border rounded-xl p-4 text-sm text-muted-foreground whitespace-pre-wrap break-all overflow-hidden">
@@ -393,7 +396,10 @@
           </div>
           <div v-else-if="fulfillmentDeliveryLines(order.fulfillment).length"
             class="mt-4 border rounded-xl p-4 text-sm text-muted-foreground space-y-1 break-all overflow-hidden">
-            <div v-for="(line, index) in fulfillmentDeliveryLines(order.fulfillment)" :key="`fulfillment-${order.order_no || 'order'}-${index}`">{{ line }}</div>
+            <div v-for="(line, index) in fulfillmentDeliveryLines(order.fulfillment)" :key="`fulfillment-${order.order_no || 'order'}-${index}`">
+              <a v-if="fulfillmentDeliveryLineURL(line)" :href="fulfillmentDeliveryLineURL(line)" target="_blank" rel="noopener noreferrer" class="text-primary underline underline-offset-2">{{ line }}</a>
+              <span v-else>{{ line }}</span>
+            </div>
           </div>
           <div v-else
             class="mt-4 border rounded-xl p-4 text-sm text-muted-foreground whitespace-pre-wrap break-all overflow-hidden">
@@ -436,7 +442,7 @@ const {
   refundReasonText, showRefundRecordsCard, refundRecords, showTimeCard,
   orderItemImage, orderItemSkuText, manualSubmissionRows,
   hasItemDiscount, formatItemDiscountTotal, formatItemPaidAmount, resolvedChildStatus,
-  fulfillmentDeliveryLines, instructionBlocks, isFulfillmentTruncated,
+  fulfillmentDeliveryLines, fulfillmentDeliveryLineURL, instructionBlocks, isFulfillmentTruncated,
   fulfillmentCopied, handleCopyFulfillment,
 } = useGuestOrderDetail()
 </script>

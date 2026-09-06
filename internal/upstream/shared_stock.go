@@ -175,10 +175,11 @@ func (a *SharedStockAdapter) CreateOrder(ctx context.Context, req CreateUpstream
 	result := &CreateUpstreamOrderResp{OK: true, OrderID: orderID, OrderNo: rawOrderID, Status: "accepted", Amount: string(trade.Amount), Currency: "CNY"}
 	if strings.TrimSpace(trade.Secret) != "" {
 		now := time.Now()
+		payload := sharedStockDeliveryPayload(trade.Secret, trade.URL)
 		result.Status = "delivered"
 		result.Fulfillment = &UpstreamFulfillment{
-			Type: "auto", Status: "delivered", Payload: trade.Secret,
-			DeliveryData: jsonmap.JSON{"cards": splitCards(trade.Secret)}, DeliveredAt: &now,
+			Type: "auto", Status: "delivered", Payload: payload,
+			DeliveryData: sharedStockDeliveryData(payload, req.Quantity), DeliveredAt: &now,
 		}
 	}
 	return result, nil
@@ -225,7 +226,7 @@ func (a *SharedStockAdapter) GetOrder(ctx context.Context, orderID uint) (*Upstr
 	if strings.TrimSpace(result.Secret) != "" {
 		now := time.Now()
 		detail.Status = "delivered"
-		detail.Fulfillment = &UpstreamFulfillment{Type: "auto", Status: "delivered", Payload: result.Secret, DeliveryData: jsonmap.JSON{"cards": splitCards(result.Secret)}, DeliveredAt: &now}
+		detail.Fulfillment = &UpstreamFulfillment{Type: "auto", Status: "delivered", Payload: result.Secret, DeliveryData: sharedStockDeliveryData(result.Secret, 1), DeliveredAt: &now}
 	}
 	return detail, nil
 }
@@ -307,6 +308,91 @@ func splitCards(value string) []string {
 		}
 	}
 	return result
+}
+
+func sharedStockDeliveryData(value string, quantity int) jsonmap.JSON {
+	payload := strings.TrimSpace(value)
+	cards := splitCards(payload)
+	// SharedStock returns one product's complete delivery in secret. For a
+	// single-item order, a CDK and its redemption URL may occupy separate lines
+	// but must remain one delivery card, matching GMShop's proven behaviour.
+	if quantity <= 1 && payload != "" {
+		cards = []string{payload}
+	}
+
+	data := jsonmap.JSON{"cards": cards}
+	entries, hasCredential, hasURL := sharedStockDeliveryEntries(payload)
+	if len(entries) > 0 {
+		data["entries"] = entries
+	}
+	switch {
+	case hasCredential && hasURL:
+		data["note"] = "使用方法：复制 CDK 卡密，打开充值网址，按页面提示提交即可。"
+	case hasCredential:
+		data["note"] = "使用方法：复制 CDK 卡密；如订单未显示充值网址，请联系客服处理。"
+	case hasURL:
+		data["note"] = "使用方法：打开充值网址，按页面提示提交即可。"
+	}
+	return data
+}
+
+func sharedStockDeliveryPayload(secret string, returnedURLs ...string) string {
+	parts := splitCards(secret)
+	seen := make(map[string]struct{}, len(parts)+len(returnedURLs))
+	for _, part := range parts {
+		seen[part] = struct{}{}
+	}
+	for _, rawURL := range returnedURLs {
+		link := standaloneHTTPURL(rawURL)
+		if link == "" {
+			continue
+		}
+		if _, exists := seen[link]; exists {
+			continue
+		}
+		seen[link] = struct{}{}
+		parts = append(parts, link)
+	}
+	return strings.Join(parts, "\n")
+}
+
+func sharedStockDeliveryEntries(value string) ([]map[string]string, bool, bool) {
+	lines := splitCards(value)
+	credentials := make([]string, 0, len(lines))
+	urls := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if link := standaloneHTTPURL(line); link != "" {
+			urls = append(urls, link)
+			continue
+		}
+		credentials = append(credentials, line)
+	}
+
+	entries := make([]map[string]string, 0, len(credentials)+len(urls))
+	for index, credential := range credentials {
+		key := "CDK 卡密"
+		if len(credentials) > 1 {
+			key = fmt.Sprintf("CDK 卡密 %d", index+1)
+		}
+		entries = append(entries, map[string]string{"key": key, "value": credential})
+	}
+	for index, link := range urls {
+		key := "充值网址"
+		if len(urls) > 1 {
+			key = fmt.Sprintf("充值网址 %d", index+1)
+		}
+		entries = append(entries, map[string]string{"key": key, "value": link})
+	}
+	return entries, len(credentials) > 0, len(urls) > 0
+}
+
+func standaloneHTTPURL(value string) string {
+	candidate := strings.TrimSpace(value)
+	parsed, err := url.ParseRequestURI(candidate)
+	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return ""
+	}
+	return candidate
 }
 func sharedVariants(raw json.RawMessage) map[string]string {
 	result := map[string]string{}

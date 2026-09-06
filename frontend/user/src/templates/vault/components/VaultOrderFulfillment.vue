@@ -37,7 +37,10 @@
       <pre class="mt-1 max-h-[260px] overflow-y-auto whitespace-pre-wrap break-all rounded-sm border bg-secondary p-3 font-mono text-[12.5px] text-muted-foreground">{{ fulfillment.payload }}</pre>
     </template>
     <div v-else-if="fulfillmentDeliveryLines(fulfillment).length" class="mt-1 grid gap-0.5 rounded-sm border bg-secondary p-3 font-mono text-[12.5px] text-muted-foreground">
-      <div v-for="(line, index) in fulfillmentDeliveryLines(fulfillment)" :key="index" class="whitespace-pre-wrap break-all">{{ line }}</div>
+      <div v-for="(line, index) in fulfillmentDeliveryLines(fulfillment)" :key="index" class="whitespace-pre-wrap break-all">
+        <a v-if="fulfillmentDeliveryLineURL(line)" :href="fulfillmentDeliveryLineURL(line)" target="_blank" rel="noopener noreferrer" class="text-primary underline underline-offset-2">{{ line }}</a>
+        <span v-else>{{ line }}</span>
+      </div>
     </div>
     <pre v-else class="mt-1 whitespace-pre-wrap break-all rounded-sm border bg-secondary p-3 font-mono text-[12.5px] text-muted-foreground">{{ fulfillment.payload }}</pre>
 
@@ -72,7 +75,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const {
-  isFulfillmentTruncated, fulfillmentDeliveryLines, instructionBlocks,
+  isFulfillmentTruncated, fulfillmentDeliveryLines, fulfillmentDeliveryLineURL, instructionBlocks,
   fulfillmentTypeLabelText, fulfillmentStatusLabelText, fulfillmentCopied, handleCopyFulfillment,
 } = useOrderDisplayHelpers(ref<any>(null))
 </script>
