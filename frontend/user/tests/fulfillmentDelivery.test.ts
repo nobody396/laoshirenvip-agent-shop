@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { fulfillmentDeliveryLineURL } from '../src/utils/fulfillmentDelivery.ts'
+import { fulfillmentTypeLabel } from '../src/utils/fulfillment.ts'
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), 'utf8')
 
@@ -24,4 +25,9 @@ test('every order detail variant renders safe delivery URLs as links', async () 
     assert.match(source, /fulfillmentDeliveryLineURL\(line\)/, `${path} does not link delivery URLs`)
     assert.match(source, /rel="noopener noreferrer"/, `${path} does not isolate external links`)
   }
+})
+
+test('supplier-backed fulfillment is labelled as automatic delivery', () => {
+  const t = (key: string) => key.endsWith('.auto') ? '自动交付' : '人工交付'
+  assert.equal(fulfillmentTypeLabel(t, 'upstream'), '自动交付')
 })

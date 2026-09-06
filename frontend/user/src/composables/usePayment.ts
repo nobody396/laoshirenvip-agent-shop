@@ -1,5 +1,5 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { NavigationFailureType, isNavigationFailure, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { guestOrderAPI, paymentAPI, userOrderAPI, walletAPI } from '../api'
 import { useAppStore } from '../stores/app'
@@ -1051,18 +1051,9 @@ export function usePayment() {
     const resolvedOrderNo = String(order.value?.order_no || orderNoQuery.value || '').trim()
     if (!resolvedOrderNo) return
 
-    const target = isGuest.value
-      ? { name: 'guest-order-detail', params: { order_no: resolvedOrderNo } }
-      : { name: 'order-detail', params: { order_no: resolvedOrderNo } }
     const fallbackPath = isGuest.value
       ? `/guest/orders/${encodeURIComponent(resolvedOrderNo)}`
       : `/orders/${encodeURIComponent(resolvedOrderNo)}`
-    const resolvedTarget = router.resolve(target)
-    if (!resolvedTarget.matched.length) {
-      window.location.assign(fallbackPath)
-      return
-    }
-
     redirected.value = true
     redirecting.value = true
 
@@ -1071,22 +1062,11 @@ export function usePayment() {
       redirectTimer.value = null
     }
 
-    redirectTimer.value = window.setTimeout(async () => {
-      try {
-        const failure = await router.push(target)
-        if (failure && !isNavigationFailure(failure, NavigationFailureType.duplicated)) {
-          resetRedirectState()
-          window.location.assign(fallbackPath)
-        }
-      } catch (_err) {
-        resetRedirectState()
-        window.location.assign(fallbackPath)
-      } finally {
-        if (redirectTimer.value !== null) {
-          window.clearTimeout(redirectTimer.value)
-          redirectTimer.value = null
-        }
-      }
+    redirectTimer.value = window.setTimeout(() => {
+      // A payment provider may return through a new document/tab. Use a full
+      // same-origin navigation so the order page rehydrates persisted auth
+      // before its route guard runs instead of relying on stale Pinia state.
+      window.location.assign(fallbackPath)
     }, 600)
   }
 

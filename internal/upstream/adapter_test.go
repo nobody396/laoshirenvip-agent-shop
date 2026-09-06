@@ -102,12 +102,12 @@ func TestSharedStockAdapterPackagesCredentialURLAndUsageMethod(t *testing.T) {
 			http.NotFound(w, req)
 			return
 		}
-		_, _ = fmt.Fprint(w, `{"code":200,"data":{"url":"https://redeem.example/activate","amount":"115.00","tradeNo":"AISOU-1","secret":"PLUS-CDK-123"}}`)
+		_, _ = fmt.Fprint(w, `{"code":200,"data":{"url":null,"amount":"115.00","tradeNo":"AISOU-1","secret":"PLUS-CDK-123"}}`)
 	}))
 	defer server.Close()
 
 	references := newMemoryReferenceRegistry()
-	skuID, _ := references.Resolve(1, siteconnectiondomain.ExternalReferenceKindSKU, "PLUS-PH")
+	skuID, _ := references.Resolve(1, siteconnectiondomain.ExternalReferenceKindSKU, "D37C0FB7EC7A21F6")
 	adapter := NewSharedStockAdapter(&siteconnectiondomain.Connection{
 		ID: 1, BaseURL: server.URL, ApiKey: "42", ApiSecret: "secret",
 	}, t.TempDir(), references)
@@ -121,7 +121,7 @@ func TestSharedStockAdapterPackagesCredentialURLAndUsageMethod(t *testing.T) {
 	if created.Fulfillment == nil {
 		t.Fatal("expected immediate fulfillment")
 	}
-	if got := created.Fulfillment.Payload; got != "PLUS-CDK-123\nhttps://redeem.example/activate" {
+	if got := created.Fulfillment.Payload; got != "PLUS-CDK-123\nhttps://aiee.fun/" {
 		t.Fatalf("raw supplier payload changed: %q", got)
 	}
 	data := created.Fulfillment.DeliveryData
@@ -134,7 +134,7 @@ func TestSharedStockAdapterPackagesCredentialURLAndUsageMethod(t *testing.T) {
 	}
 	wantEntries := []map[string]string{
 		{"key": "CDK 卡密", "value": "PLUS-CDK-123"},
-		{"key": "充值网址", "value": "https://redeem.example/activate"},
+		{"key": "充值网址", "value": "https://aiee.fun/"},
 	}
 	if fmt.Sprint(entries) != fmt.Sprint(wantEntries) {
 		t.Fatalf("entries = %#v, want %#v", entries, wantEntries)
@@ -142,6 +142,30 @@ func TestSharedStockAdapterPackagesCredentialURLAndUsageMethod(t *testing.T) {
 	cards, ok := data["cards"].([]string)
 	if !ok || len(cards) != 1 || cards[0] != created.Fulfillment.Payload {
 		t.Fatalf("single-item delivery must remain one card: %#v", data["cards"])
+	}
+}
+
+func TestSharedStockRedeemURLsMatchPublishedUpstreamProductGuides(t *testing.T) {
+	want := map[string]string{
+		"D37C0FB7EC7A21F6": "https://aiee.fun/",
+		"72CA8BC21CF70BBD": "https://aiee.fun/",
+		"2DF0B5724CBFF6BF": "https://aiee.fun/",
+		"D024411F1D93A771": "https://vip.sxzfd.com/",
+		"15D9367883563482": "https://vip.sxzfd.com/claude",
+		"D17577D14C0B63F9": "https://vip.sxzfd.com/claude",
+		"3818E383895D6D12": "https://quickplus.vip/public/grok/",
+		"E68B2D302E19E8D4": "https://quickplus.vip/public/x_plus/",
+		"024E86D71C074B4E": "https://quickplus.vip/public/x/",
+	}
+	for code, expected := range want {
+		if got := sharedStockRedeemURL(code); got != expected {
+			t.Fatalf("redeem URL for %s = %q, want %q", code, got, expected)
+		}
+	}
+	for _, undocumented := range []string{"F286772962B67D84", "78C3E37DEFD17831", "620851B24E7F85D0"} {
+		if got := sharedStockRedeemURL(undocumented); got != "" {
+			t.Fatalf("undocumented SKU %s must not use guessed URL %q", undocumented, got)
+		}
 	}
 }
 

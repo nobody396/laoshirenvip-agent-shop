@@ -8,7 +8,7 @@ export const fulfillmentTypeLabel = (t: TranslateFn, type?: string, scope: Fulfi
   const map: Record<string, string> = {
     manual: t(`${baseKey}.manual`),
     auto: t(`${baseKey}.auto`),
-    upstream: t(`${baseKey}.manual`),
+    upstream: t(`${baseKey}.auto`),
   }
   return map[type] || type
 }

@@ -175,7 +175,7 @@ func (a *SharedStockAdapter) CreateOrder(ctx context.Context, req CreateUpstream
 	result := &CreateUpstreamOrderResp{OK: true, OrderID: orderID, OrderNo: rawOrderID, Status: "accepted", Amount: string(trade.Amount), Currency: "CNY"}
 	if strings.TrimSpace(trade.Secret) != "" {
 		now := time.Now()
-		payload := sharedStockDeliveryPayload(trade.Secret, trade.URL)
+		payload := sharedStockDeliveryPayload(trade.Secret, trade.URL, sharedStockRedeemURL(code))
 		result.Status = "delivered"
 		result.Fulfillment = &UpstreamFulfillment{
 			Type: "auto", Status: "delivered", Payload: payload,
@@ -354,6 +354,24 @@ func sharedStockDeliveryPayload(secret string, returnedURLs ...string) string {
 		parts = append(parts, link)
 	}
 	return strings.Join(parts, "\n")
+}
+
+// sharedStockRedeemURL fills the redemption address only when AISOU's own
+// product description publishes a stable URL. The trade endpoint may return
+// url:null even though the CDK requires that page; never guess URLs for SKUs
+// whose upstream documentation does not identify one.
+func sharedStockRedeemURL(code string) string {
+	return map[string]string{
+		"D37C0FB7EC7A21F6": "https://aiee.fun/",                  // ChatGPT Plus 菲律宾
+		"72CA8BC21CF70BBD": "https://aiee.fun/",                  // ChatGPT Pro 20X 菲律宾
+		"2DF0B5724CBFF6BF": "https://aiee.fun/",                  // Codex 点数
+		"D024411F1D93A771": "https://vip.sxzfd.com/",             // ChatGPT Plus iOS
+		"15D9367883563482": "https://vip.sxzfd.com/claude",       // Claude Pro
+		"D17577D14C0B63F9": "https://vip.sxzfd.com/claude",       // Claude Max 5X
+		"3818E383895D6D12": "https://quickplus.vip/public/grok/", // SuperGrok
+		"E68B2D302E19E8D4": "https://quickplus.vip/public/x_plus/",
+		"024E86D71C074B4E": "https://quickplus.vip/public/x/",
+	}[strings.TrimSpace(code)]
 }
 
 func sharedStockDeliveryEntries(value string) ([]map[string]string, bool, bool) {

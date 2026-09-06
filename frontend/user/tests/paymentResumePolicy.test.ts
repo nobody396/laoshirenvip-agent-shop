@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import {
   getCachedPaymentRestorePolicy,
   getPaymentResetPolicy,
@@ -86,4 +87,10 @@ test('redirect-style payments auto open unless a customer fee needs confirmation
 test('automatic cashier navigation uses the current tab to avoid popup blocking', () => {
   assert.equal(resolvePaymentLinkNavigationTarget(true), 'current-tab')
   assert.equal(resolvePaymentLinkNavigationTarget(false), 'new-window')
+})
+
+test('successful payment reloads the order detail so persisted auth is rehydrated', async () => {
+  const source = await readFile(new URL('../src/composables/usePayment.ts', import.meta.url), 'utf8')
+  assert.doesNotMatch(source, /router\.push\(target\)/)
+  assert.match(source, /window\.location\.assign\(fallbackPath\)/)
 })
