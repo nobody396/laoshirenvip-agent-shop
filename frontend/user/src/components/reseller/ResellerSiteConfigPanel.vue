@@ -360,7 +360,7 @@
                   <span class="mt-0.5 block text-xs text-muted-foreground">{{ paymentChannelDescription(channel) }}</span>
                 </span>
                 <Switch
-                  :model-value="form.payment_channel_ids.includes(channel.id)"
+                  :model-value="effectivePaymentChannelIDs.includes(channel.id)"
                   @update:model-value="togglePaymentChannel(channel.id, $event)"
                 />
               </label>
@@ -601,6 +601,10 @@ const availablePaymentChannels = computed<PaymentChannelOption[]>(() => {
 const defaultPaymentChannelIDs = () => availablePaymentChannels.value
 	.filter((channel) => channel.channel_type.toLowerCase() === 'alipay')
 	.map((channel) => channel.id)
+const effectivePaymentChannelIDs = computed<number[]>(() => {
+	const configured = Array.isArray(form.payment_channel_ids) ? form.payment_channel_ids : []
+	return configured.length ? configured : defaultPaymentChannelIDs()
+})
 
 const paymentChannelDescription = (channel: PaymentChannelOption) => {
 	const type = channel.channel_type.toLowerCase()
@@ -610,7 +614,7 @@ const paymentChannelDescription = (channel: PaymentChannelOption) => {
 }
 
 const togglePaymentChannel = (id: number, enabled: boolean) => {
-	const current = new Set<number>(form.payment_channel_ids || [])
+	const current = new Set<number>(effectivePaymentChannelIDs.value)
 	if (enabled) current.add(id)
 	else if (current.size > 1) current.delete(id)
 	form.payment_channel_ids = Array.from(current)

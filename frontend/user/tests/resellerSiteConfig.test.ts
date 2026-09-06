@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import {
   blankLocalizedText,
   hasLocalizedText,
@@ -55,4 +56,10 @@ test('site seo readiness ignores empty localized objects', () => {
     }),
     true,
   )
+})
+
+test('empty child payment selection is presented as the default Alipay channel', async () => {
+  const source = await readFile(new URL('../src/components/reseller/ResellerSiteConfigPanel.vue', import.meta.url), 'utf8')
+  assert.match(source, /effectivePaymentChannelIDs\.includes\(channel\.id\)/)
+  assert.match(source, /configured\.length \? configured : defaultPaymentChannelIDs\(\)/)
 })
