@@ -82,6 +82,27 @@ func TestResellerManagementApplyCreatesPendingAndReapplyRejected(t *testing.T) {
 	}
 }
 
+func TestResellerManagementSavesOneAlipayPayoutAccount(t *testing.T) {
+	db := openResellerManagementServiceTestDB(t)
+	user := seedResellerManagementUser(t, db, "payout-reseller@example.test")
+	profile := resellerdomain.Profile{UserID: user.ID, Status: resellerdomain.ProfileStatusActive, SettlementStatus: resellerdomain.SettlementStatusNormal}
+	if err := db.Create(&profile).Error; err != nil {
+		t.Fatalf("create profile failed: %v", err)
+	}
+	svc := newResellerManagementServiceForTest(db)
+
+	updated, err := svc.UpdateUserPayoutAlipayAccount(user.ID, "  alipay@example.com  ")
+	if err != nil {
+		t.Fatalf("save payout account failed: %v", err)
+	}
+	if updated.PayoutAlipayAccount != "alipay@example.com" {
+		t.Fatalf("payout account = %q", updated.PayoutAlipayAccount)
+	}
+	if _, err := svc.UpdateUserPayoutAlipayAccount(user.ID, " "); !errors.Is(err, ErrPayoutAlipayAccountInvalid) {
+		t.Fatalf("expected invalid payout account error, got %v", err)
+	}
+}
+
 func TestResellerManagementApplyDisabledConfigRejects(t *testing.T) {
 	db := openResellerManagementServiceTestDB(t)
 	user := seedResellerManagementUser(t, db, "apply-disabled@example.test")

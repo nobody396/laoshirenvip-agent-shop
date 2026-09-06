@@ -202,6 +202,7 @@ export interface ResellerProfileSummaryData {
     id: number
     status: string
     settlement_status: string
+    payout_alipay_account?: string
     created_at: string
 }
 
@@ -213,6 +214,7 @@ export interface ResellerManagementProfileData {
     default_markup_percent: string
     max_markup_percent: string
     settlement_status: string
+    payout_alipay_account?: string
     reviewed_at?: string
     created_at: string
     updated_at: string
@@ -460,8 +462,6 @@ export interface ResellerOrderStatsData {
 export interface ResellerWithdrawApplyPayload {
     amount: string
     currency: string
-    channel: string
-    account: string
 }
 
 export interface CreatePaymentPayload {

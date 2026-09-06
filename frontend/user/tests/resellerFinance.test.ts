@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import {
   getResellerFinanceStatusView,
   getResellerLedgerTypeKey,
@@ -46,4 +47,15 @@ test('reseller ledger type mapping includes all backend ledger types', () => {
   assert.equal(getResellerLedgerTypeKey('manual_adjust'), 'manualAdjust')
   assert.equal(getResellerLedgerTypeKey('withdraw_paid'), 'withdrawPaid')
   assert.equal(getResellerLedgerTypeKey('other'), null)
+})
+
+test('reseller withdrawal saves one Alipay account and reuses it', async () => {
+  const view = await readFile(new URL('../src/views/reseller/ResellerWithdraws.vue', import.meta.url), 'utf8')
+  const api = await readFile(new URL('../src/api/reseller.ts', import.meta.url), 'utf8')
+  assert.match(view, /payoutAlipayAccount/)
+  assert.match(view, /savedPayoutAlipayAccount/)
+  assert.match(view, /resellerConsole\.withdraws\.alipay/)
+  assert.doesNotMatch(view, /form\.channel/)
+  assert.doesNotMatch(view, /form\.account/)
+  assert.match(api, /payout-alipay-account/)
 })

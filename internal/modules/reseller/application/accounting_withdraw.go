@@ -38,6 +38,14 @@ func (s *AccountingWithdrawService) ApplyUserWithdraw(userID uint, input reselle
 	if err := RequireActiveProfile(profile); err != nil {
 		return nil, err
 	}
+	account := strings.TrimSpace(profile.PayoutAlipayAccount)
+	if account == "" {
+		return nil, resellercontract.ErrPayoutAlipayAccountInvalid
+	}
+	// Reseller payouts are deliberately limited to the saved Alipay account.
+	// Do not trust a per-request channel/account supplied by the browser.
+	input.Channel = "支付宝"
+	input.Account = account
 	return s.ApplyWithdraw(profile.ID, input)
 }
 

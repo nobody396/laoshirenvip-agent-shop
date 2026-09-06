@@ -12,6 +12,7 @@ import type {
 export const resellerAPI = {
     managementProfile: () => userApi.get('/reseller/profile'),
     apply: (data: ResellerApplyPayload) => userApi.post('/reseller/apply', data),
+    updatePayoutAlipayAccount: (account: string) => userApi.put('/reseller/payout-alipay-account', { account }),
     domains: () => userApi.get('/reseller/domains'),
     submitDomain: (data: ResellerCustomDomainPayload) => userApi.post('/reseller/domains', data),
     siteConfig: () => userApi.get('/reseller/site-config'),

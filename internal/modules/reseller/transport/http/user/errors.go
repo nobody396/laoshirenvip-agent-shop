@@ -26,6 +26,7 @@ var userManagementErrorRules = []mappedError{
 	{target: resellermodule.ErrDomainMainHostNotAllowed, code: response.CodeBadRequest, key: "error.reseller_domain_main_host_not_allowed"},
 	{target: resellermodule.ErrDomainConflict, code: response.CodeBadRequest, key: "error.reseller_domain_conflict"},
 	{target: resellermodule.ErrSiteConfigInvalid, code: response.CodeBadRequest, key: "error.reseller_site_config_invalid"},
+	{target: resellermodule.ErrPayoutAlipayAccountInvalid, code: response.CodeBadRequest, key: "error.reseller_payout_alipay_account_invalid"},
 }
 
 func respondUserManagementError(c *gin.Context, err error, fallbackKey string) {
@@ -97,6 +98,7 @@ var userFinanceErrorRules = []mappedError{
 	{target: resellermodule.ErrWithdrawCurrencyUnavailable, code: response.CodeBadRequest, key: "error.reseller_withdraw_currency_unavailable"},
 	{target: resellermodule.ErrWithdrawInsufficient, code: response.CodeBadRequest, key: "error.reseller_withdraw_insufficient"},
 	{target: resellermodule.ErrBalanceAccountFrozen, code: response.CodeBadRequest, key: "error.reseller_balance_frozen"},
+	{target: resellermodule.ErrPayoutAlipayAccountInvalid, code: response.CodeBadRequest, key: "error.reseller_payout_alipay_account_invalid"},
 }
 
 func respondUserFinanceError(c *gin.Context, err error, fallbackKey string) {

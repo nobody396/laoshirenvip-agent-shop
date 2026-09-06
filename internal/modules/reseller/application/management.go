@@ -114,6 +114,32 @@ func (s *ManagementService) ApplyUserReseller(userID uint, input ResellerApplyIn
 	}
 }
 
+func (s *ManagementService) UpdateUserPayoutAlipayAccount(userID uint, rawAccount string) (*resellerdomain.Profile, error) {
+	if s == nil || s.store == nil || userID == 0 {
+		return nil, productcontract.ErrNotFound
+	}
+	account := strings.TrimSpace(rawAccount)
+	if account == "" || len(account) > 255 {
+		return nil, resellercontract.ErrPayoutAlipayAccountInvalid
+	}
+	profile, err := s.store.GetProfileByUserID(userID)
+	if err != nil {
+		return nil, err
+	}
+	if profile == nil {
+		return nil, resellercontract.ErrNotOpened
+	}
+	if err := RequireActiveProfile(profile); err != nil {
+		return nil, err
+	}
+	profile.PayoutAlipayAccount = account
+	profile.UpdatedAt = time.Now()
+	if err := s.store.UpdateProfile(profile); err != nil {
+		return nil, err
+	}
+	return s.store.GetProfileByID(profile.ID)
+}
+
 func (s *ManagementService) ApproveProfile(ctx context.Context, adminID, profileID uint, input ResellerApproveInput) (*ResellerApproveResult, error) {
 	if s == nil || s.store == nil || adminID == 0 || profileID == 0 {
 		return nil, productcontract.ErrNotFound

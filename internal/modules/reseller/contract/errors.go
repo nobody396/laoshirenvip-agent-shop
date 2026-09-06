@@ -41,6 +41,8 @@ var (
 	ErrWithdrawCurrencyUnavailable = errors.New("reseller withdraw currency unavailable")
 	// ErrWithdrawStatusInvalid 表示提现状态流转不合法。
 	ErrWithdrawStatusInvalid = errors.New("reseller withdraw status invalid")
+	// ErrPayoutAlipayAccountInvalid 表示支付宝提现账号未配置或格式不合法。
+	ErrPayoutAlipayAccountInvalid = errors.New("reseller payout alipay account invalid")
 	// ErrBalanceAccountFrozen 表示余额账户已冻结。
 	ErrBalanceAccountFrozen = errors.New("reseller balance account frozen")
 	// ErrOrderNotFound 表示分销视角下订单不存在。

@@ -20,6 +20,20 @@
         <span class="font-mono text-sm font-bold text-foreground">{{ formatResellerConsoleAmount(selectedAvailable, form.currency) }}</span>
       </div>
 
+      <div class="mb-5 rounded-xl border bg-muted/20 p-4">
+        <div class="mb-3">
+          <div class="font-semibold text-foreground">{{ t('resellerConsole.withdraws.payoutSettingsTitle') }}</div>
+          <p class="mt-1 text-xs text-muted-foreground">{{ t('resellerConsole.withdraws.payoutSettingsHint') }}</p>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-[160px_minmax(0,1fr)_auto]">
+          <Input :model-value="t('resellerConsole.withdraws.alipay')" readonly disabled />
+          <Input v-model.trim="payoutAlipayAccount" :placeholder="t('resellerConsole.withdraws.alipayAccountPlaceholder')" maxlength="255" />
+          <Button type="button" variant="outline" :disabled="savingPayoutAccount || !payoutAlipayAccount" @click="savePayoutAccount">
+            {{ savingPayoutAccount ? t('resellerConsole.withdraws.savingAccount') : t('resellerConsole.withdraws.saveAccount') }}
+          </Button>
+        </div>
+      </div>
+
       <form class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5" @submit.prevent="onSubmit">
         <div class="flex flex-col gap-1">
           <Input
@@ -40,9 +54,9 @@
           </SelectContent>
         </Select>
         <Input v-else model-value="" readonly disabled :placeholder="t('resellerConsole.withdraws.noCurrency')" />
-        <Input v-model.trim="form.channel" :placeholder="t('personalCenter.reseller.withdrawChannelPlaceholder')" :disabled="!withdrawEnabled || submittingWithdraw" />
-        <Input v-model.trim="form.account" :placeholder="t('personalCenter.reseller.withdrawAccountPlaceholder')" :disabled="!withdrawEnabled || submittingWithdraw" />
-        <Button type="submit" :disabled="submittingWithdraw || !withdrawEnabled || amountError || balanceCurrencies.length === 0">
+        <Input :model-value="t('resellerConsole.withdraws.alipay')" readonly disabled />
+        <Input :model-value="savedPayoutAlipayAccount" readonly disabled :placeholder="t('resellerConsole.withdraws.saveAccountFirst')" />
+        <Button type="submit" :disabled="submittingWithdraw || !withdrawEnabled || !savedPayoutAlipayAccount || amountError || balanceCurrencies.length === 0">
           {{ submittingWithdraw ? t('personalCenter.reseller.withdrawing') : t('personalCenter.reseller.withdrawSubmit') }}
         </Button>
       </form>
@@ -127,6 +141,7 @@ import ResellerRecordCard from '../../components/reseller-console/ResellerRecord
 import ResellerSectionHeader from '../../components/reseller-console/ResellerSectionHeader.vue'
 import ResellerStatusBadge, { type ResellerBadgeTone } from '../../components/reseller-console/ResellerStatusBadge.vue'
 import { useResellerFinance } from '../../composables/reseller/useResellerFinance'
+import { resellerAPI } from '../../api'
 import { useConfirmDialog } from '../../composables/useConfirmDialog'
 import { RESELLER_WITHDRAW_STATUS_PAID, RESELLER_WITHDRAW_STATUS_PENDING, RESELLER_WITHDRAW_STATUS_REJECTED } from '../../constants/reseller'
 import { type PageAlert } from '../../utils/alerts'
@@ -138,7 +153,10 @@ const { confirm } = useConfirmDialog()
 const finance = useResellerFinance()
 const { dashboard, balances, withdraws, withdrawsLoading, submittingWithdraw, loadDashboard, loadBalances, loadWithdraws, applyWithdraw } = finance
 const alert = ref<PageAlert | null>(null)
-const form = reactive({ amount: '', currency: '', channel: '', account: '' })
+const form = reactive({ amount: '', currency: '' })
+const payoutAlipayAccount = ref('')
+const savingPayoutAccount = ref(false)
+const savedPayoutAlipayAccount = computed(() => String(dashboard.value?.profile?.payout_alipay_account || '').trim())
 
 const balanceCurrencies = computed(() => Array.from(new Set(balances.value.map((item) => item.currency).filter(Boolean))))
 const withdrawEnabled = computed(() => isResellerWithdrawEnabled(dashboard.value))
@@ -164,6 +182,26 @@ watch(balanceCurrencies, (values) => {
   if (!form.currency && values[0]) form.currency = values[0]
 })
 
+watch(savedPayoutAlipayAccount, (value) => {
+  payoutAlipayAccount.value = value
+}, { immediate: true })
+
+const savePayoutAccount = async () => {
+  const account = payoutAlipayAccount.value.trim()
+  if (!account) return
+  savingPayoutAccount.value = true
+  alert.value = null
+  try {
+    await resellerAPI.updatePayoutAlipayAccount(account)
+    await loadDashboard()
+    alert.value = { level: 'success', message: t('resellerConsole.withdraws.accountSaved') }
+  } catch (err) {
+    alert.value = { level: 'error', message: err instanceof Error && err.message ? err.message : t('personalCenter.common.saveFailed') }
+  } finally {
+    savingPayoutAccount.value = false
+  }
+}
+
 const onSubmit = async () => {
   if (amountError.value) return
   const ok = await confirm({
@@ -176,8 +214,6 @@ const onSubmit = async () => {
   try {
     await applyWithdraw({ ...form })
     form.amount = ''
-    form.channel = ''
-    form.account = ''
     alert.value = { level: 'success', message: t('personalCenter.common.saveSuccess') }
   } catch (err) {
     // 透传后端细分错误（余额不足/币种不可用/账户冻结等），失败兜底通用文案。

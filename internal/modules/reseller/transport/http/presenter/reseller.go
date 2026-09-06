@@ -12,10 +12,11 @@ import (
 )
 
 type ResellerProfileSummaryResp struct {
-	ID               uint      `json:"id"`
-	Status           string    `json:"status"`
-	SettlementStatus string    `json:"settlement_status"`
-	CreatedAt        time.Time `json:"created_at"`
+	ID                  uint      `json:"id"`
+	Status              string    `json:"status"`
+	SettlementStatus    string    `json:"settlement_status"`
+	PayoutAlipayAccount string    `json:"payout_alipay_account,omitempty"`
+	CreatedAt           time.Time `json:"created_at"`
 }
 
 type ResellerBalanceResp struct {
@@ -68,6 +69,7 @@ type ResellerManagementProfileResp struct {
 	DefaultMarkupPercent string     `json:"default_markup_percent"`
 	MaxMarkupPercent     string     `json:"max_markup_percent"`
 	SettlementStatus     string     `json:"settlement_status"`
+	PayoutAlipayAccount  string     `json:"payout_alipay_account,omitempty"`
 	ReviewedAt           *time.Time `json:"reviewed_at,omitempty"`
 	CreatedAt            time.Time  `json:"created_at"`
 	UpdatedAt            time.Time  `json:"updated_at"`
@@ -236,10 +238,11 @@ func NewResellerProfileSummaryResp(profile *resellerdomain.Profile) *ResellerPro
 		return nil
 	}
 	return &ResellerProfileSummaryResp{
-		ID:               profile.ID,
-		Status:           profile.Status,
-		SettlementStatus: profile.SettlementStatus,
-		CreatedAt:        profile.CreatedAt,
+		ID:                  profile.ID,
+		Status:              profile.Status,
+		SettlementStatus:    profile.SettlementStatus,
+		PayoutAlipayAccount: profile.PayoutAlipayAccount,
+		CreatedAt:           profile.CreatedAt,
 	}
 }
 
@@ -255,6 +258,7 @@ func NewResellerManagementProfileResp(profile *resellerdomain.Profile) *Reseller
 		DefaultMarkupPercent: profile.DefaultMarkupPercent.String(),
 		MaxMarkupPercent:     profile.MaxMarkupPercent.String(),
 		SettlementStatus:     profile.SettlementStatus,
+		PayoutAlipayAccount:  profile.PayoutAlipayAccount,
 		ReviewedAt:           profile.ReviewedAt,
 		CreatedAt:            profile.CreatedAt,
 		UpdatedAt:            profile.UpdatedAt,

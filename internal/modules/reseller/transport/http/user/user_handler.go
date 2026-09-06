@@ -20,6 +20,7 @@ import (
 type ManagementService interface {
 	GetUserManagementSnapshot(userID uint) (*resellerdomain.Profile, []resellerdomain.Domain, bool, error)
 	ApplyUserReseller(userID uint, input resellermodule.ResellerApplyInput) (*resellerdomain.Profile, error)
+	UpdateUserPayoutAlipayAccount(userID uint, account string) (*resellerdomain.Profile, error)
 	SubmitUserCustomDomain(userID uint, rawDomain string) (*resellerdomain.Domain, error)
 }
 
@@ -47,6 +48,10 @@ func NewUserHandler(management ManagementService, siteConfig SiteConfigService, 
 
 type applyRequest struct {
 	Reason string `json:"reason"`
+}
+
+type payoutAlipayAccountRequest struct {
+	Account string `json:"account" binding:"required"`
 }
 
 type customDomainRequest struct {
@@ -107,6 +112,25 @@ func (h *UserHandler) ApplyProfile(c *gin.Context) {
 		return
 	}
 	profile, err := h.management.ApplyUserReseller(uid, resellermodule.ResellerApplyInput{Reason: req.Reason})
+	if err != nil {
+		respondUserManagementError(c, err, "error.save_failed")
+		return
+	}
+	response.Success(c, dto.NewResellerManagementProfileResp(profile))
+}
+
+// UpdatePayoutAlipayAccount 保存当前代理唯一的支付宝提现账号。
+func (h *UserHandler) UpdatePayoutAlipayAccount(c *gin.Context) {
+	uid, ok := ginutil.GetUserID(c)
+	if !ok {
+		return
+	}
+	var req payoutAlipayAccountRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		ginutil.RespondBindError(c, err)
+		return
+	}
+	profile, err := h.management.UpdateUserPayoutAlipayAccount(uid, req.Account)
 	if err != nil {
 		respondUserManagementError(c, err, "error.save_failed")
 		return

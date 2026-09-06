@@ -17,6 +17,7 @@ type Profile struct {
 	DefaultMarkupPercent money.Amount `gorm:"type:decimal(10,2);not null;default:0" json:"default_markup_percent"`
 	MaxMarkupPercent     money.Amount `gorm:"type:decimal(10,2);not null;default:0" json:"max_markup_percent"`
 	SettlementStatus     string       `gorm:"type:varchar(32);index;not null;default:'normal'" json:"settlement_status"`
+	PayoutAlipayAccount  string       `gorm:"type:varchar(255);not null;default:''" json:"payout_alipay_account,omitempty"`
 	ReviewedBy           *uint        `gorm:"index" json:"reviewed_by,omitempty"`
 	ReviewedAt           *time.Time   `gorm:"index" json:"reviewed_at,omitempty"`
 	CreatedAt            time.Time    `gorm:"index" json:"created_at"`

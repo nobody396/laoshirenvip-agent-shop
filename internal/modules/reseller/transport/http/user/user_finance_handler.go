@@ -46,8 +46,6 @@ func NewUserFinanceHandler(query UserFinanceQueryService, withdraw UserWithdrawS
 type withdrawApplyRequest struct {
 	Amount   string `json:"amount" binding:"required"`
 	Currency string `json:"currency" binding:"required"`
-	Channel  string `json:"channel" binding:"required"`
-	Account  string `json:"account" binding:"required"`
 }
 
 // GetDashboard 获取当前用户的分销商财务看板。
@@ -147,8 +145,6 @@ func (h *UserFinanceHandler) ApplyWithdraw(c *gin.Context) {
 	row, err := h.withdraw.ApplyUserWithdraw(uid, resellermodule.WithdrawApplyInput{
 		Amount:   amount,
 		Currency: strings.TrimSpace(req.Currency),
-		Channel:  strings.TrimSpace(req.Channel),
-		Account:  strings.TrimSpace(req.Account),
 	})
 	if err != nil {
 		respondUserFinanceError(c, err, "error.save_failed")

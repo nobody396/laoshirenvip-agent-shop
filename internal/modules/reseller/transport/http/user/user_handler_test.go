@@ -41,6 +41,19 @@ func (s managementStub) ApplyUserReseller(userID uint, input resellermodule.Rese
 	return &resellerdomain.Profile{UserID: userID, Status: resellerdomain.ProfileStatusPendingReview, ApplyReason: input.Reason}, nil
 }
 
+func (s managementStub) UpdateUserPayoutAlipayAccount(userID uint, account string) (*resellerdomain.Profile, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	profile := s.profile
+	if profile == nil {
+		profile = &resellerdomain.Profile{UserID: userID, Status: resellerdomain.ProfileStatusActive}
+	}
+	copyProfile := *profile
+	copyProfile.PayoutAlipayAccount = account
+	return &copyProfile, nil
+}
+
 func (s managementStub) SubmitUserCustomDomain(userID uint, rawDomain string) (*resellerdomain.Domain, error) {
 	if s.err != nil {
 		return nil, s.err
@@ -100,6 +113,17 @@ func TestUserHandlerApplyAndSnapshot(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), `"pending_review"`) {
 		t.Fatalf("unexpected snapshot body: %s", recorder.Body.String())
+	}
+}
+
+func TestUserHandlerUpdatesSavedAlipayPayoutAccount(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	profile := &resellerdomain.Profile{ID: 9, UserID: 7, Status: resellerdomain.ProfileStatusActive}
+	h := NewUserHandler(managementStub{profile: profile}, siteConfigStub{}, uploadStub{})
+	c, recorder := newUserHandlerTestContext(http.MethodPut, "/api/v1/user/reseller/payout-alipay-account", []byte(`{"account":"buyer@example.com"}`), 7)
+	h.UpdatePayoutAlipayAccount(c)
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"payout_alipay_account":"buyer@example.com"`) {
+		t.Fatalf("unexpected response: code=%d body=%s", recorder.Code, recorder.Body.String())
 	}
 }
 

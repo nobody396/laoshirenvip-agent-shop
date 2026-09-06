@@ -43,6 +43,7 @@ var (
 	ErrResellerSiteConfigInvalid    = resellercontract.ErrSiteConfigInvalid
 	ErrResellerPriceBelowBase       = resellercontract.ErrPriceBelowBase
 	ErrResellerMarkupExceeded       = resellercontract.ErrMarkupExceeded
+	ErrPayoutAlipayAccountInvalid   = resellercontract.ErrPayoutAlipayAccountInvalid
 	ResellerTenantContext           = resellercontract.ResellerTenantContext
 )
 

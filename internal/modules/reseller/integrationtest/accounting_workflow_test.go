@@ -682,6 +682,31 @@ func TestResellerAccountingApplyWithdrawLocksSameCurrencyLedgers(t *testing.T) {
 	}
 }
 
+func TestResellerAccountingUserWithdrawUsesSavedAlipayAccount(t *testing.T) {
+	db := openResellerAccountingServiceTestDB(t)
+	profile := seedResellerAccountingProfile(t, db)
+	profile.PayoutAlipayAccount = "alipay@example.com"
+	if err := db.Save(&profile).Error; err != nil {
+		t.Fatalf("save payout account failed: %v", err)
+	}
+	now := time.Now()
+	row := resellerdomain.LedgerEntry{ResellerID: profile.ID, Type: resellerdomain.LedgerTypeOrderProfit, Amount: money.FromDecimal(decimal.NewFromInt(10)), Currency: "CNY", IdempotencyKey: "order_profit:saved-alipay", Status: resellerdomain.LedgerStatusAvailable, AvailableAt: &now}
+	if err := db.Create(&row).Error; err != nil {
+		t.Fatalf("seed ledger failed: %v", err)
+	}
+	repo := resellergormstore.New(db)
+	svc := newResellerAccountingTestHarness(repo, 0)
+	req, err := svc.withdraw.ApplyUserWithdraw(profile.UserID, resellercontract.WithdrawApplyInput{
+		Amount: decimal.NewFromInt(10), Currency: "CNY", Channel: "attacker", Account: "attacker-account",
+	})
+	if err != nil {
+		t.Fatalf("apply user withdraw failed: %v", err)
+	}
+	if req.Channel != "支付宝" || req.Account != "alipay@example.com" {
+		t.Fatalf("withdraw did not use saved Alipay account: %+v", req)
+	}
+}
+
 func TestResellerAccountingRejectWithdrawUnlocksLedgers(t *testing.T) {
 	db := openResellerAccountingServiceTestDB(t)
 	profile := seedResellerAccountingProfile(t, db)
