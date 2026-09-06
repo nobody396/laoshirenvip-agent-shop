@@ -5,7 +5,7 @@
 	# Caddy to obtain a public certificate. This prevents arbitrary SNI values
 	# from consuming ACME issuance quotas.
 	on_demand_tls {
-		ask http://app:8080/api/v1/public/reseller-domain/tls-allow?domain={host}
+		ask http://app:8080/api/v1/public/reseller-domain/tls-allow
 	}
 }
 
