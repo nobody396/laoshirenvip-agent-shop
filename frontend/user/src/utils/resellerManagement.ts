@@ -20,6 +20,7 @@ const RESELLER_PROFILE_STATUS_REJECTED = 'rejected'
 const RESELLER_PROFILE_STATUS_DISABLED = 'disabled'
 
 const RESELLER_DOMAIN_STATUS_PENDING_REVIEW = 'pending_review'
+const RESELLER_DOMAIN_STATUS_PROVISIONING = 'provisioning'
 const RESELLER_DOMAIN_STATUS_ACTIVE = 'active'
 const RESELLER_DOMAIN_STATUS_DISABLED = 'disabled'
 
@@ -32,7 +33,8 @@ export const getResellerProfileStatusKey = (status?: string) => {
 }
 
 export const getResellerDomainStatusKey = (status?: string) => {
-  if (status === RESELLER_DOMAIN_STATUS_PENDING_REVIEW) return 'pendingReview'
+	if (status === RESELLER_DOMAIN_STATUS_PENDING_REVIEW) return 'pendingReview'
+	if (status === RESELLER_DOMAIN_STATUS_PROVISIONING) return 'provisioning'
   if (status === RESELLER_DOMAIN_STATUS_ACTIVE) return 'active'
   if (status === RESELLER_DOMAIN_STATUS_DISABLED) return 'disabled'
   return 'unknown'

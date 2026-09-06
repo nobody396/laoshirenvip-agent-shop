@@ -4,6 +4,7 @@ const RESELLER_PROFILE_STATUS_REJECTED = 'rejected'
 const RESELLER_PROFILE_STATUS_DISABLED = 'disabled'
 
 const RESELLER_DOMAIN_STATUS_PENDING_REVIEW = 'pending_review'
+const RESELLER_DOMAIN_STATUS_PROVISIONING = 'provisioning'
 const RESELLER_DOMAIN_STATUS_ACTIVE = 'active'
 const RESELLER_DOMAIN_STATUS_DISABLED = 'disabled'
 
@@ -27,5 +28,5 @@ export const getResellerProfileActionState = (status?: string) => ({
 
 export const getResellerDomainActionState = (status?: string) => ({
   canApprove: status === RESELLER_DOMAIN_STATUS_PENDING_REVIEW || status === RESELLER_DOMAIN_STATUS_DISABLED,
-  canDisable: status === RESELLER_DOMAIN_STATUS_PENDING_REVIEW || status === RESELLER_DOMAIN_STATUS_ACTIVE,
+  canDisable: status === RESELLER_DOMAIN_STATUS_PENDING_REVIEW || status === RESELLER_DOMAIN_STATUS_PROVISIONING || status === RESELLER_DOMAIN_STATUS_ACTIVE,
 })

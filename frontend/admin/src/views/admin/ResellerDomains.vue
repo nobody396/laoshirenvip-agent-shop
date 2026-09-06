@@ -8,6 +8,7 @@ import {
   RESELLER_DOMAIN_STATUS_ACTIVE,
   RESELLER_DOMAIN_STATUS_DISABLED,
   RESELLER_DOMAIN_STATUS_PENDING_REVIEW,
+  RESELLER_DOMAIN_STATUS_PROVISIONING,
   RESELLER_DOMAIN_TYPE_CUSTOM,
   RESELLER_DOMAIN_TYPE_SUBDOMAIN,
   RESELLER_DOMAIN_VERIFICATION_FAILED,
@@ -110,6 +111,7 @@ const typeLabel = (type?: string) => {
 
 const statusLabel = (status?: string) => {
   if (status === RESELLER_DOMAIN_STATUS_PENDING_REVIEW) return t('admin.resellerDomains.status.pendingReview')
+  if (status === RESELLER_DOMAIN_STATUS_PROVISIONING) return t('admin.resellerDomains.status.provisioning')
   if (status === RESELLER_DOMAIN_STATUS_ACTIVE) return t('admin.resellerDomains.status.active')
   if (status === RESELLER_DOMAIN_STATUS_DISABLED) return t('admin.resellerDomains.status.disabled')
   return status || '-'
@@ -117,6 +119,7 @@ const statusLabel = (status?: string) => {
 
 const statusClass = (status?: string) => {
   if (status === RESELLER_DOMAIN_STATUS_PENDING_REVIEW) return 'border-amber-200 bg-amber-50 text-amber-700'
+  if (status === RESELLER_DOMAIN_STATUS_PROVISIONING) return 'border-sky-200 bg-sky-50 text-sky-700'
   if (status === RESELLER_DOMAIN_STATUS_ACTIVE) return 'border-emerald-200 bg-emerald-50 text-emerald-700'
   if (status === RESELLER_DOMAIN_STATUS_DISABLED) return 'border-zinc-200 bg-zinc-50 text-zinc-700'
   return 'border-border bg-muted/30 text-muted-foreground'

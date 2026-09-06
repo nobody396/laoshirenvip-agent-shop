@@ -72,6 +72,7 @@ type ManagementStore interface {
 	GetDomainByIDForUpdate(id uint) (*resellerdomain.Domain, error)
 	UpdateDomain(domain *resellerdomain.Domain) error
 	FindDomainByHost(host string) (*resellerdomain.Domain, error)
+	ListProvisioningSystemDomains(limit int) ([]resellerdomain.Domain, error)
 }
 
 // ProductSettingListFilter 用户侧分销商品配置列表过滤条件。

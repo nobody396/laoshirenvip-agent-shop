@@ -2,7 +2,12 @@ package application
 
 import (
 	"context"
+	"crypto/tls"
+	"errors"
+	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"strings"
 	"time"
 
@@ -19,8 +24,9 @@ import (
 )
 
 type ManagementService struct {
-	store resellercontract.ManagementStore
-	cfg   config.ResellerConfig
+	store           resellercontract.ManagementStore
+	cfg             config.ResellerConfig
+	domainReadiness DomainReadinessChecker
 }
 
 type ResellerApplyInput struct {
@@ -49,7 +55,133 @@ type ResellerApproveResult struct {
 }
 
 func NewManagementService(store resellercontract.ManagementStore, cfg config.ResellerConfig) *ManagementService {
-	return &ManagementService{store: store, cfg: cfg}
+	service := &ManagementService{store: store, cfg: cfg}
+	if cfg.DomainReadinessEnabled {
+		service.domainReadiness = NewHTTPSDomainReadinessChecker(cfg.DomainReadinessTimeoutSeconds)
+	}
+	return service
+}
+
+// SetDomainReadinessChecker overrides the public HTTPS checker. It is mainly
+// useful for deterministic tests; production uses the config-driven checker.
+func (s *ManagementService) SetDomainReadinessChecker(checker DomainReadinessChecker) {
+	if s != nil {
+		s.domainReadiness = checker
+	}
+}
+
+const domainReadinessPath = "/health"
+
+// DomainReadinessChecker proves that a system subdomain completes verified
+// public TLS and reaches the platform health endpoint.
+type DomainReadinessChecker interface {
+	Check(ctx context.Context, host string) error
+}
+
+type HTTPSDomainReadinessChecker struct {
+	client *http.Client
+}
+
+func NewHTTPSDomainReadinessChecker(timeoutSeconds int) *HTTPSDomainReadinessChecker {
+	if timeoutSeconds <= 0 || timeoutSeconds > 60 {
+		timeoutSeconds = 12
+	}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	return &HTTPSDomainReadinessChecker{client: &http.Client{
+		Timeout:   time.Duration(timeoutSeconds) * time.Second,
+		Transport: transport,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return errors.New("domain readiness redirect rejected")
+		},
+	}}
+}
+
+func (c *HTTPSDomainReadinessChecker) Check(ctx context.Context, host string) error {
+	host = strings.TrimSpace(strings.ToLower(host))
+	if c == nil || c.client == nil || host == "" {
+		return errors.New("domain readiness checker unavailable")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+host+domainReadinessPath, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("domain readiness returned HTTP %d", resp.StatusCode)
+	}
+	if resp.TLS == nil || len(resp.TLS.VerifiedChains) == 0 {
+		return errors.New("domain readiness TLS was not verified")
+	}
+	return nil
+}
+
+// ReconcileProvisioningSystemDomains retries all pending system subdomains.
+// A failed public probe leaves the row in provisioning state for the next run.
+func (s *ManagementService) ReconcileProvisioningSystemDomains(ctx context.Context, limit int) (int, error) {
+	if s == nil || s.store == nil || s.domainReadiness == nil {
+		return 0, nil
+	}
+	rows, err := s.store.ListProvisioningSystemDomains(limit)
+	if err != nil {
+		return 0, err
+	}
+	activated := 0
+	for i := range rows {
+		ok, activateErr := s.tryActivateProvisioningSystemDomain(ctx, rows[i].ID)
+		if activateErr != nil {
+			continue
+		}
+		if ok {
+			activated++
+		}
+	}
+	return activated, nil
+}
+
+func (s *ManagementService) tryActivateProvisioningSystemDomain(ctx context.Context, domainID uint) (bool, error) {
+	row, err := s.store.GetDomainByID(domainID)
+	if err != nil || row == nil {
+		return false, err
+	}
+	if row.Type != resellerdomain.DomainTypeSubdomain || row.Status != resellerdomain.DomainStatusProvisioning {
+		return false, nil
+	}
+	host := row.Domain
+	if err := s.domainReadiness.Check(ctx, host); err != nil {
+		return false, err
+	}
+	activated := false
+	err = s.store.WithinManagementTransaction(func(repoTx resellercontract.ManagementStore) error {
+		locked, lockErr := repoTx.GetDomainByIDForUpdate(domainID)
+		if lockErr != nil || locked == nil {
+			return lockErr
+		}
+		if locked.Domain != host || locked.Type != resellerdomain.DomainTypeSubdomain || locked.Status != resellerdomain.DomainStatusProvisioning {
+			return nil
+		}
+		now := time.Now()
+		locked.Status = resellerdomain.DomainStatusActive
+		locked.VerificationStatus = resellerdomain.DomainVerificationVerified
+		locked.VerifiedAt = &now
+		if updateErr := repoTx.UpdateDomain(locked); updateErr != nil {
+			return updateErr
+		}
+		activated = true
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	if activated {
+		_ = cache.DelResellerDomain(ctx, host)
+	}
+	return activated, nil
 }
 
 func (s *ManagementService) GetUserManagementSnapshot(userID uint) (*resellerdomain.Profile, []resellerdomain.Domain, bool, error) {
@@ -197,6 +329,7 @@ func (s *ManagementService) AssignSystemSubdomain(ctx context.Context, adminID, 
 	}
 	cacheDomains := make([]string, 0, 3)
 	var updatedID uint
+	provisioningRequired := s.domainReadiness != nil
 	err = s.store.WithinManagementTransaction(func(repoTx resellercontract.ManagementStore) error {
 		profile, err := repoTx.GetProfileByID(profileID)
 		if err != nil {
@@ -233,15 +366,23 @@ func (s *ManagementService) AssignSystemSubdomain(ctx context.Context, adminID, 
 		}
 		now := time.Now()
 		shouldBePrimary := !hasPrimary || (systemDomain != nil && systemDomain.IsPrimary)
+		nextStatus := resellerdomain.DomainStatusActive
+		nextVerification := resellerdomain.DomainVerificationVerified
+		var nextVerifiedAt *time.Time = &now
+		if provisioningRequired {
+			nextStatus = resellerdomain.DomainStatusProvisioning
+			nextVerification = resellerdomain.DomainVerificationPending
+			nextVerifiedAt = nil
+		}
 		if systemDomain == nil {
 			row, err := repoTx.UpsertDomain(resellerdomain.Domain{
 				ResellerID:         profile.ID,
 				Domain:             nextDomain,
 				Type:               resellerdomain.DomainTypeSubdomain,
-				VerificationStatus: resellerdomain.DomainVerificationVerified,
-				Status:             resellerdomain.DomainStatusActive,
+				VerificationStatus: nextVerification,
+				Status:             nextStatus,
 				IsPrimary:          shouldBePrimary,
-				VerifiedAt:         &now,
+				VerifiedAt:         nextVerifiedAt,
 			})
 			if err != nil {
 				if strings.Contains(strings.ToLower(err.Error()), "already exists") ||
@@ -258,13 +399,16 @@ func (s *ManagementService) AssignSystemSubdomain(ctx context.Context, adminID, 
 		if systemDomain.Domain != "" {
 			cacheDomains = append(cacheDomains, systemDomain.Domain)
 		}
+		unchangedReadyDomain := systemDomain.Domain == nextDomain && systemDomain.Status == resellerdomain.DomainStatusActive && systemDomain.VerificationStatus == resellerdomain.DomainVerificationVerified
 		systemDomain.Domain = nextDomain
 		systemDomain.Type = resellerdomain.DomainTypeSubdomain
 		systemDomain.VerificationToken = ""
-		systemDomain.VerificationStatus = resellerdomain.DomainVerificationVerified
-		systemDomain.Status = resellerdomain.DomainStatusActive
+		if !unchangedReadyDomain {
+			systemDomain.VerificationStatus = nextVerification
+			systemDomain.Status = nextStatus
+			systemDomain.VerifiedAt = nextVerifiedAt
+		}
 		systemDomain.IsPrimary = shouldBePrimary
-		systemDomain.VerifiedAt = &now
 		if err := repoTx.UpdateDomain(systemDomain); err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "already exists") ||
 				strings.Contains(strings.ToLower(err.Error()), "unique") ||
@@ -284,6 +428,9 @@ func (s *ManagementService) AssignSystemSubdomain(ctx context.Context, adminID, 
 		if domain != "" {
 			_ = cache.DelResellerDomain(ctx, domain)
 		}
+	}
+	if provisioningRequired {
+		_, _ = s.tryActivateProvisioningSystemDomain(ctx, updatedID)
 	}
 	return s.store.GetDomainByID(updatedID)
 }

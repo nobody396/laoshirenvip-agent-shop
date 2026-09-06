@@ -256,6 +256,7 @@ import {
   RESELLER_DOMAIN_STATUS_ACTIVE,
   RESELLER_DOMAIN_STATUS_DISABLED,
   RESELLER_DOMAIN_STATUS_PENDING_REVIEW,
+  RESELLER_DOMAIN_STATUS_PROVISIONING,
   RESELLER_DOMAIN_TYPE_CUSTOM,
   RESELLER_DOMAIN_TYPE_SUBDOMAIN,
   RESELLER_DOMAIN_VERIFICATION_FAILED,
@@ -318,7 +319,7 @@ const domainStatusLabel = (status?: string) => t(`personalCenter.reseller.domain
 
 const domainTone = (status?: string): ResellerBadgeTone => {
   if (status === RESELLER_DOMAIN_STATUS_ACTIVE) return 'success'
-  if (status === RESELLER_DOMAIN_STATUS_PENDING_REVIEW) return 'warning'
+  if (status === RESELLER_DOMAIN_STATUS_PENDING_REVIEW || status === RESELLER_DOMAIN_STATUS_PROVISIONING) return 'warning'
   if (status === RESELLER_DOMAIN_STATUS_DISABLED) return 'neutral'
   return 'neutral'
 }

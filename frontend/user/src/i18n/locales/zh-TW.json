@@ -899,6 +899,7 @@
       },
       "domainStatus": {
         "pendingReview": "待審核",
+        "provisioning": "公網設定中",
         "active": "已啟用",
         "disabled": "已停用",
         "unknown": "未知狀態"

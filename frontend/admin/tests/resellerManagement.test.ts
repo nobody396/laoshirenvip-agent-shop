@@ -22,6 +22,7 @@ test('admin reseller profile actions follow review state', () => {
 
 test('admin reseller domain actions follow domain state', () => {
   assert.deepEqual(getResellerDomainActionState('pending_review'), { canApprove: true, canDisable: true })
+  assert.deepEqual(getResellerDomainActionState('provisioning'), { canApprove: false, canDisable: true })
   assert.deepEqual(getResellerDomainActionState('active'), { canApprove: false, canDisable: true })
   assert.deepEqual(getResellerDomainActionState('disabled'), { canApprove: true, canDisable: false })
 })

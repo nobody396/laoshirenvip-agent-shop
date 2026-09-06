@@ -17,6 +17,7 @@ test('user reseller profile status keys map backend values', () => {
 
 test('user reseller domain status keys map backend values', () => {
   assert.equal(getResellerDomainStatusKey('pending_review'), 'pendingReview')
+  assert.equal(getResellerDomainStatusKey('provisioning'), 'provisioning')
   assert.equal(getResellerDomainStatusKey('active'), 'active')
   assert.equal(getResellerDomainStatusKey('disabled'), 'disabled')
   assert.equal(getResellerDomainStatusKey('unexpected'), 'unknown')

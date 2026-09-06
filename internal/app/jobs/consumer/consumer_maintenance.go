@@ -70,6 +70,20 @@ func (c *Consumer) handleResellerConfirmLedger(_ context.Context, _ *asynq.Task)
 	return nil
 }
 
+func (c *Consumer) handleResellerProvisionDomains(ctx context.Context, _ *asynq.Task) error {
+	if c == nil || c.ResellerManagementService == nil {
+		logger.Debugw("worker_reseller_provision_domains_skip_nil", "consumer_nil", c == nil)
+		return nil
+	}
+	activated, err := c.ResellerManagementService.ReconcileProvisioningSystemDomains(ctx, 100)
+	if err != nil {
+		logger.Warnw("worker_reseller_provision_domains_failed", "error", err)
+		return err
+	}
+	logger.Debugw("worker_reseller_provision_domains_ok", "activated", activated)
+	return nil
+}
+
 // handleReconciliationRun 处理对账任务执行。
 func (c *Consumer) handleReconciliationRun(ctx context.Context, task *asynq.Task) error {
 	if c == nil || task == nil || c.ReconciliationService == nil {

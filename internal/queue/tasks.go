@@ -23,6 +23,8 @@ const (
 	TaskAffiliateConfirmCommissions = constants.TaskAffiliateConfirmCommissions
 	// TaskResellerConfirmLedger 分销商账务到期确认任务
 	TaskResellerConfirmLedger = constants.TaskResellerConfirmLedger
+	// TaskResellerProvisionDomains retries public HTTPS readiness for new subdomains.
+	TaskResellerProvisionDomains = constants.TaskResellerProvisionDomains
 	// TaskUpstreamSyncStock 上游库存同步任务
 	TaskUpstreamSyncStock = constants.TaskUpstreamSyncStock
 	// TaskProcurementSubmit 采购提交任务
@@ -138,6 +140,11 @@ func NewAffiliateConfirmCommissionsTask() *asynq.Task {
 // NewResellerConfirmLedgerTask 创建分销商账务到期确认任务。
 func NewResellerConfirmLedgerTask() *asynq.Task {
 	return asynq.NewTask(TaskResellerConfirmLedger, nil)
+}
+
+// NewResellerProvisionDomainsTask creates the periodic subdomain readiness task.
+func NewResellerProvisionDomainsTask() *asynq.Task {
+	return asynq.NewTask(TaskResellerProvisionDomains, nil)
 }
 
 // NewUpstreamSyncStockTask 创建上游库存同步任务

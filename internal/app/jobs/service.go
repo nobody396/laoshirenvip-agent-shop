@@ -70,6 +70,15 @@ func registerPeriodicTasks(scheduler *asynq.Scheduler, consumer *jobconsumer.Con
 			logger.Infow("scheduler_register_reseller_confirm_ledger_ok", "entry_id", entryID)
 		}
 	}
+	if consumer.ResellerManagementService != nil && consumer.Config != nil && consumer.Config.Reseller.DomainReadinessEnabled {
+		task := queue.NewResellerProvisionDomainsTask()
+		entryID, err := scheduler.Register("@every 1m", task, asynq.Queue(queue.DefaultQueue))
+		if err != nil {
+			logger.Warnw("scheduler_register_reseller_provision_domains_failed", "error", err)
+		} else {
+			logger.Infow("scheduler_register_reseller_provision_domains_ok", "entry_id", entryID)
+		}
+	}
 	if consumer.ProductMappingService != nil {
 		fallbackInterval := "5m"
 		if cfg != nil && cfg.UpstreamSyncInterval != "" {

@@ -899,6 +899,7 @@
       },
       "domainStatus": {
         "pendingReview": "Pending Review",
+        "provisioning": "Provisioning",
         "active": "Active",
         "disabled": "Disabled",
         "unknown": "Unknown Status"

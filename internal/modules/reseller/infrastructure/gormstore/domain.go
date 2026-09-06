@@ -152,6 +152,25 @@ func (r *Store) ListDomainsByResellerID(resellerID uint) ([]resellerdomain.Domai
 	return rows, nil
 }
 
+// ListProvisioningSystemDomains returns system subdomains that still need a
+// successful public HTTPS readiness readback before customer traffic is sent
+// to them.
+func (r *Store) ListProvisioningSystemDomains(limit int) ([]resellerdomain.Domain, error) {
+	rows := make([]resellerdomain.Domain, 0)
+	if limit <= 0 || limit > 200 {
+		limit = 100
+	}
+	err := r.db.
+		Where("type = ? AND status = ? AND deleted_at IS NULL", resellerdomain.DomainTypeSubdomain, resellerdomain.DomainStatusProvisioning).
+		Order("updated_at ASC, id ASC").
+		Limit(limit).
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
 // ListDomains 分页列出分销商域名。
 func (r *Store) ListDomains(filter resellercontract.DomainListFilter) ([]resellerdomain.Domain, int64, error) {
 	rows := make([]resellerdomain.Domain, 0)

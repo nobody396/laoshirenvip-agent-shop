@@ -20,6 +20,16 @@ import (
 	"gorm.io/gorm"
 )
 
+type domainReadinessCheckerStub struct {
+	err   error
+	hosts []string
+}
+
+func (s *domainReadinessCheckerStub) Check(_ context.Context, host string) error {
+	s.hosts = append(s.hosts, host)
+	return s.err
+}
+
 func openResellerManagementServiceTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(fmt.Sprintf("file:reseller_management_%d?mode=memory&cache=shared", time.Now().UnixNano())), &gorm.Config{})
@@ -212,6 +222,78 @@ func TestResellerManagementAssignSystemSubdomainCreatesAndEditsReadableDomain(t 
 	}
 	if len(domains) != 1 {
 		t.Fatalf("expected one editable system domain, got %+v", domains)
+	}
+}
+
+func TestResellerManagementSystemSubdomainStaysProvisioningUntilPublicHTTPSIsReady(t *testing.T) {
+	db := openResellerManagementServiceTestDB(t)
+	user := seedResellerManagementUser(t, db, "provision-subdomain@example.test")
+	svc := newResellerManagementServiceForTest(db)
+	checker := &domainReadinessCheckerStub{err: errors.New("TLS handshake failed")}
+	svc.SetDomainReadinessChecker(checker)
+	profile, err := svc.ApplyUserReseller(user.ID, ResellerApplyInput{Reason: "approve me"})
+	if err != nil {
+		t.Fatalf("apply failed: %v", err)
+	}
+	if _, err := svc.ApproveProfile(context.Background(), 9, profile.ID, ResellerApproveInput{}); err != nil {
+		t.Fatalf("approve profile failed: %v", err)
+	}
+
+	created, err := svc.AssignSystemSubdomain(context.Background(), 9, profile.ID, ResellerSystemDomainInput{Subdomain: "edge"})
+	if err != nil {
+		t.Fatalf("AssignSystemSubdomain failed: %v", err)
+	}
+	if created.Status != resellerdomain.DomainStatusProvisioning || created.VerificationStatus != resellerdomain.DomainVerificationPending || created.VerifiedAt != nil {
+		t.Fatalf("domain became customer-active before HTTPS readiness: %+v", created)
+	}
+	if len(checker.hosts) != 1 || checker.hosts[0] != "edge.shop.example.test" {
+		t.Fatalf("unexpected readiness probes: %+v", checker.hosts)
+	}
+
+	checker.err = nil
+	activated, err := svc.ReconcileProvisioningSystemDomains(context.Background(), 100)
+	if err != nil {
+		t.Fatalf("reconcile provisioning domains failed: %v", err)
+	}
+	if activated != 1 {
+		t.Fatalf("activated = %d, want 1", activated)
+	}
+	ready, err := resellergormstore.New(db).GetDomainByID(created.ID)
+	if err != nil {
+		t.Fatalf("reload ready domain failed: %v", err)
+	}
+	if ready.Status != resellerdomain.DomainStatusActive || ready.VerificationStatus != resellerdomain.DomainVerificationVerified || ready.VerifiedAt == nil {
+		t.Fatalf("unexpected ready domain: %+v", ready)
+	}
+}
+
+func TestResellerManagementReassigningSameReadySubdomainDoesNotRegressToProvisioning(t *testing.T) {
+	db := openResellerManagementServiceTestDB(t)
+	user := seedResellerManagementUser(t, db, "same-subdomain@example.test")
+	svc := newResellerManagementServiceForTest(db)
+	profile, err := svc.ApplyUserReseller(user.ID, ResellerApplyInput{Reason: "approve me"})
+	if err != nil {
+		t.Fatalf("apply failed: %v", err)
+	}
+	if _, err := svc.ApproveProfile(context.Background(), 9, profile.ID, ResellerApproveInput{}); err != nil {
+		t.Fatalf("approve profile failed: %v", err)
+	}
+	ready, err := svc.AssignSystemSubdomain(context.Background(), 9, profile.ID, ResellerSystemDomainInput{Subdomain: "stable"})
+	if err != nil {
+		t.Fatalf("initial assignment failed: %v", err)
+	}
+	checker := &domainReadinessCheckerStub{err: errors.New("should not be required for unchanged ready domain")}
+	svc.SetDomainReadinessChecker(checker)
+
+	unchanged, err := svc.AssignSystemSubdomain(context.Background(), 9, profile.ID, ResellerSystemDomainInput{Subdomain: "stable"})
+	if err != nil {
+		t.Fatalf("same-domain assignment failed: %v", err)
+	}
+	if unchanged.ID != ready.ID || unchanged.Status != resellerdomain.DomainStatusActive || unchanged.VerificationStatus != resellerdomain.DomainVerificationVerified {
+		t.Fatalf("same ready domain regressed: %+v", unchanged)
+	}
+	if len(checker.hosts) != 0 {
+		t.Fatalf("same ready domain should not be re-probed: %+v", checker.hosts)
 	}
 }
 

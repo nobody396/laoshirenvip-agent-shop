@@ -387,6 +387,7 @@ const (
 	TaskNotificationDispatch        = "notification:dispatch"
 	TaskAffiliateConfirmCommissions = "affiliate:confirm_commissions"
 	TaskResellerConfirmLedger       = "reseller:confirm_ledger"
+	TaskResellerProvisionDomains    = "reseller:provision_domains"
 	TaskProcurementSubmit           = "procurement:submit"
 	TaskProcurementPollStatus       = "procurement:poll_status"
 	TaskProcurementSyncAccepted     = "procurement:sync_accepted"

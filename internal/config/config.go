@@ -297,6 +297,11 @@ type ResellerConfig struct {
 	MainHosts            []string `mapstructure:"main_hosts"`
 	TrustedForwardedHost bool     `mapstructure:"trusted_forwarded_host"`
 	SubdomainBase        string   `mapstructure:"subdomain_base"`
+	// DomainReadinessEnabled keeps a newly assigned system subdomain out of the
+	// active tenant resolver until its public HTTPS health endpoint is usable.
+	DomainReadinessEnabled bool `mapstructure:"domain_readiness_enabled"`
+	// DomainReadinessTimeoutSeconds bounds each public HTTPS readiness probe.
+	DomainReadinessTimeoutSeconds int `mapstructure:"domain_readiness_timeout_seconds"`
 	// CustomDomainOriginIPs are the public ingress addresses a customer-owned
 	// hostname must resolve to before an administrator can approve it.
 	CustomDomainOriginIPs []string `mapstructure:"custom_domain_origin_ips"`
@@ -429,6 +434,8 @@ func Load() *Config {
 	viper.SetDefault("reseller.main_hosts", []string{"localhost", "127.0.0.1", "::1"})
 	viper.SetDefault("reseller.trusted_forwarded_host", false)
 	viper.SetDefault("reseller.subdomain_base", "")
+	viper.SetDefault("reseller.domain_readiness_enabled", false)
+	viper.SetDefault("reseller.domain_readiness_timeout_seconds", 12)
 	viper.SetDefault("reseller.custom_domain_origin_ips", []string{})
 	viper.SetDefault("reseller.self_apply_enabled", true)
 	viper.SetDefault("reseller.settlement_confirm_days", 1)

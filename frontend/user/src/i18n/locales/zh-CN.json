@@ -852,6 +852,7 @@
       },
       "domainStatus": {
         "pendingReview": "待审核",
+        "provisioning": "公网配置中",
         "active": "已启用",
         "disabled": "已停用",
         "unknown": "未知状态"
