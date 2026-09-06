@@ -362,6 +362,7 @@ func sharedStockDeliveryPayload(secret string, returnedURLs ...string) string {
 // whose upstream documentation does not identify one.
 func sharedStockRedeemURL(code string) string {
 	return map[string]string{
+		"F286772962B67D84": "https://vip.sxzfd.com/",             // ChatGPT Go
 		"D37C0FB7EC7A21F6": "https://aiee.fun/",                  // ChatGPT Plus 菲律宾
 		"72CA8BC21CF70BBD": "https://aiee.fun/",                  // ChatGPT Pro 20X 菲律宾
 		"2DF0B5724CBFF6BF": "https://aiee.fun/",                  // Codex 点数

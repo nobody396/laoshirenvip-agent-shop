@@ -147,6 +147,7 @@ func TestSharedStockAdapterPackagesCredentialURLAndUsageMethod(t *testing.T) {
 
 func TestSharedStockRedeemURLsMatchPublishedUpstreamProductGuides(t *testing.T) {
 	want := map[string]string{
+		"F286772962B67D84": "https://vip.sxzfd.com/",
 		"D37C0FB7EC7A21F6": "https://aiee.fun/",
 		"72CA8BC21CF70BBD": "https://aiee.fun/",
 		"2DF0B5724CBFF6BF": "https://aiee.fun/",
@@ -162,11 +163,6 @@ func TestSharedStockRedeemURLsMatchPublishedUpstreamProductGuides(t *testing.T) 
 	for code, expected := range want {
 		if got := sharedStockRedeemURL(code); got != expected {
 			t.Fatalf("redeem URL for %s = %q, want %q", code, got, expected)
-		}
-	}
-	for _, undocumented := range []string{"F286772962B67D84"} {
-		if got := sharedStockRedeemURL(undocumented); got != "" {
-			t.Fatalf("undocumented SKU %s must not use guessed URL %q", undocumented, got)
 		}
 	}
 }
