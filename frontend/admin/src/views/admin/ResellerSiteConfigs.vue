@@ -70,6 +70,7 @@ type ResellerSiteConfigForm = {
     builtin: Record<string, boolean>
   }
   payment_channel_ids: number[]
+  payment_fee_policy: 'merchant_absorbed' | 'customer_surcharge'
 }
 
 const { t, locale } = useI18n()
@@ -103,7 +104,7 @@ const initFiltersFromQuery = () => {
 const pageSizeOptions = [10, 20, 50, 100]
 const navBuiltinKeys = ['blog', 'notice', 'about']
 
-const activeTab = ref<'brand' | 'announcement' | 'support' | 'seo' | 'footer' | 'nav'>('brand')
+const activeTab = ref<'brand' | 'announcement' | 'support' | 'seo' | 'footer' | 'nav' | 'payment'>('brand')
 const activeLocale = ref<ResellerLocale>('zh-CN')
 const localeLabels: Record<ResellerLocale, string> = {
   'zh-CN': '简体',
@@ -147,6 +148,7 @@ const createBlankForm = (): ResellerSiteConfigForm => ({
     },
   },
   payment_channel_ids: [],
+  payment_fee_policy: 'merchant_absorbed',
 })
 
 const form = reactive<ResellerSiteConfigForm>(createBlankForm())
@@ -199,6 +201,7 @@ const normalizeConfigForForm = (row: AdminResellerSiteConfig): ResellerSiteConfi
     footer_links: normalizeFooterLinksForForm(row.footer_links),
     nav_config: { builtin },
     payment_channel_ids: Array.isArray(row.payment_channel_ids) ? row.payment_channel_ids.map(Number).filter((id) => id > 0) : [],
+    payment_fee_policy: row.payment_fee_policy === 'customer_surcharge' ? 'customer_surcharge' : 'merchant_absorbed',
   }
 }
 
@@ -239,7 +242,12 @@ const buildPayload = (): AdminResellerSiteConfigPayload => ({
     custom_items: [],
   },
   payment_channel_ids: [...form.payment_channel_ids],
+  payment_fee_policy: form.payment_fee_policy,
 })
+
+const setPaymentFeePolicy = (agentPays: boolean) => {
+  form.payment_fee_policy = agentPays ? 'merchant_absorbed' : 'customer_surcharge'
+}
 
 const fetchRows = async (page = 1, options: ListFetchOptions = {}) => {
   if (!options.preserveRows) loading.value = true
@@ -462,6 +470,7 @@ onMounted(() => {
             <TabsTrigger value="seo" class="flex-none">{{ t('admin.resellerSiteConfigs.editor.sections.seo') }}</TabsTrigger>
             <TabsTrigger value="footer" class="flex-none">{{ t('admin.resellerSiteConfigs.editor.sections.footer') }}</TabsTrigger>
             <TabsTrigger value="nav" class="flex-none">{{ t('admin.resellerSiteConfigs.editor.sections.nav') }}</TabsTrigger>
+            <TabsTrigger value="payment" class="flex-none">{{ t('admin.resellerSiteConfigs.editor.sections.payment') }}</TabsTrigger>
           </TabsList>
 
           <!-- 品牌 -->
@@ -594,6 +603,25 @@ onMounted(() => {
               <span class="text-sm text-foreground">{{ t(`admin.resellerSiteConfigs.navItems.${key}`) }}</span>
               <Switch v-model="form.nav_config.builtin[key]" />
             </div>
+          </TabsContent>
+
+          <!-- 手续费 -->
+          <TabsContent value="payment" class="mt-4 space-y-3">
+            <div class="flex items-center justify-between gap-4 rounded-md border border-border bg-muted/20 p-4">
+              <div>
+                <p class="text-sm font-medium text-foreground">{{ t('admin.resellerSiteConfigs.fields.absorbPaymentFee') }}</p>
+                <p class="mt-1 text-xs leading-5 text-muted-foreground">
+                  {{ form.payment_fee_policy === 'merchant_absorbed'
+                    ? t('admin.resellerSiteConfigs.fields.absorbPaymentFeeOn')
+                    : t('admin.resellerSiteConfigs.fields.absorbPaymentFeeOff') }}
+                </p>
+              </div>
+              <Switch
+                :model-value="form.payment_fee_policy === 'merchant_absorbed'"
+                @update:model-value="setPaymentFeePolicy"
+              />
+            </div>
+            <p class="text-xs text-muted-foreground">{{ t('admin.resellerSiteConfigs.fields.paymentFeeSnapshotHint') }}</p>
           </TabsContent>
         </Tabs>
 

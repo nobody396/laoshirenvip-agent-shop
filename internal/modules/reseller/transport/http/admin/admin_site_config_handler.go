@@ -51,6 +51,7 @@ type adminSiteConfigRequest struct {
 	FooterLinks       []resellermodule.ResellerFooterLinkInput `json:"footer_links"`
 	NavConfig         resellermodule.ResellerNavConfigInput    `json:"nav_config"`
 	PaymentChannelIDs []uint                                   `json:"payment_channel_ids"`
+	PaymentFeePolicy  string                                   `json:"payment_fee_policy"`
 }
 
 func (req adminSiteConfigRequest) toInput() resellermodule.ResellerSiteConfigInput {
@@ -64,6 +65,7 @@ func (req adminSiteConfigRequest) toInput() resellermodule.ResellerSiteConfigInp
 		FooterLinks:       req.FooterLinks,
 		NavConfig:         req.NavConfig,
 		PaymentChannelIDs: req.PaymentChannelIDs,
+		PaymentFeePolicy:  req.PaymentFeePolicy,
 	}
 }
 
@@ -137,7 +139,7 @@ func (h *AdminSiteConfigHandler) UpdateSiteConfig(c *gin.Context) {
 		"reseller_id":    resellerID,
 		"config_id":      row.ID,
 		"site_name":      row.SiteName,
-		"changed_fields": []string{"site_name", "logo", "favicon", "announcement", "support", "seo", "footer_links", "nav_config", "payment_channel_ids"},
+		"changed_fields": []string{"site_name", "logo", "favicon", "announcement", "support", "seo", "footer_links", "nav_config", "payment_channel_ids", "payment_fee_policy"},
 		"source":         "admin",
 	})
 	response.Success(c, dto.NewAdminResellerSiteConfigResp(row))

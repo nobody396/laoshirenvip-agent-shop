@@ -74,6 +74,24 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 	if s.settingService != nil {
 		feeConfig = s.settingService.GetPaymentFeeConfig()
 	}
+	// Read the reseller fee switch before opening the payment transaction. This
+	// avoids a second DB read through the site-config repository while SQLite is
+	// holding its single transaction connection. The final Payment still stores
+	// an immutable FeePolicy snapshot.
+	resellerFeePolicy := constants.PaymentFeePolicyNone
+	preOrder, preOrderErr := s.orderRepo.GetByID(input.OrderID)
+	if preOrderErr != nil {
+		return nil, orderapp.ErrOrderFetchFailed
+	}
+	if preOrder == nil {
+		return nil, orderapp.ErrOrderNotFound
+	}
+	if preOrder.ResellerID != nil && *preOrder.ResellerID > 0 {
+		resellerFeePolicy, preOrderErr = s.resolveResellerPaymentFeePolicy(preOrder.ResellerID)
+		if preOrderErr != nil {
+			return nil, preOrderErr
+		}
+	}
 
 	// 在事务外查询设置，避免 SQLite 单连接池下自锁
 	walletOnly := s.settingService != nil && s.settingService.GetWalletOnlyPayment()
@@ -239,12 +257,12 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 			fixedFee = channel.FixedFee.Decimal.Round(2)
 		}
 
-		// 主站继续遵循全局手续费开关；托管子站始终让客户支付代理设置的
-		// 整数售价，再从代理差价中扣渠道手续费。这样平台供货价不会被
-		// 子站支付渠道侵蚀，客户也不会在结账页看到额外的小数手续费。
+		// 主站继续遵循全局手续费开关；托管子站遵循各自的全局开关。
+		// merchant_absorbed: 客户支付标价，手续费从代理利润扣除；
+		// customer_surcharge: 客户在标价之外支付手续费，代理利润不扣渠道费。
 		customerFeeEnabled := feeConfig.CustomerFeeEnabled
 		if lockedOrder.ResellerID != nil && *lockedOrder.ResellerID > 0 {
-			customerFeeEnabled = false
+			customerFeeEnabled = resellerFeePolicy == constants.PaymentFeePolicyCustomerSurcharge
 		}
 		paymentAmount, feeAmount, feePolicy := calculatePaymentAmounts(onlineAmount, feeRate, fixedFee, customerFeeEnabled)
 		if lockedOrder.ResellerID != nil && *lockedOrder.ResellerID > 0 &&

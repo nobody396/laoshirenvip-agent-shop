@@ -100,6 +100,13 @@ type ResellerPaymentChannelSelector interface {
 	GetResellerPaymentChannelIDs(resellerID uint) ([]uint, error)
 }
 
+// ResellerPaymentFeePolicySelector is optional so existing embedders that only
+// select channels keep the safe default. Production's reseller selector
+// implements it and reads the child site's global fee switch.
+type ResellerPaymentFeePolicySelector interface {
+	GetResellerPaymentFeePolicy(resellerID uint) (string, error)
+}
+
 // SetProcurementService 设置采购单服务（解决循环依赖）
 func (s *PaymentService) SetProcurementService(svc ProcurementCreator) {
 	s.procurementSvc = svc

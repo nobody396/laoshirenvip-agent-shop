@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/dujiao-next/internal/constants"
 	resellergormstore "github.com/dujiao-next/internal/modules/reseller/infrastructure/gormstore"
 
 	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
@@ -57,6 +58,7 @@ func TestResellerSiteConfigServiceNormalizesAndStoresSafeFields(t *testing.T) {
 			Description: LocalizedTextInput{"zh-CN": "精选商品", "en-US": "Curated products"},
 		},
 		PaymentChannelIDs: []uint{2, 0, 2, 3},
+		PaymentFeePolicy:  constants.PaymentFeePolicyCustomerSurcharge,
 	})
 	if err != nil {
 		t.Fatalf("update site config failed: %v", err)
@@ -77,6 +79,27 @@ func TestResellerSiteConfigServiceNormalizesAndStoresSafeFields(t *testing.T) {
 	if len(row.PaymentChannelIDs) != 2 || row.PaymentChannelIDs[0] != 2 || row.PaymentChannelIDs[1] != 3 {
 		t.Fatalf("unexpected payment channel selection: %+v", row.PaymentChannelIDs)
 	}
+	if row.PaymentFeePolicy != constants.PaymentFeePolicyCustomerSurcharge {
+		t.Fatalf("unexpected payment fee policy: %q", row.PaymentFeePolicy)
+	}
+}
+
+func TestResellerSiteConfigServiceDefaultsPaymentFeePolicyToMerchantAbsorbed(t *testing.T) {
+	db := openResellerManagementServiceTestDB(t)
+	repo := resellergormstore.New(db)
+	user := seedResellerManagementUser(t, db, "site-config-fee-default@example.test")
+	profile := resellerdomain.Profile{UserID: user.ID, Status: resellerdomain.ProfileStatusActive, SettlementStatus: resellerdomain.SettlementStatusNormal}
+	if err := db.Create(&profile).Error; err != nil {
+		t.Fatalf("create profile failed: %v", err)
+	}
+	svc := NewResellerSiteConfigService(repo)
+	row, err := svc.UpdateUserSiteConfig(context.Background(), user.ID, ResellerSiteConfigInput{SiteName: "Default Fee Store"})
+	if err != nil {
+		t.Fatalf("save default fee policy: %v", err)
+	}
+	if row.PaymentFeePolicy != constants.PaymentFeePolicyMerchantAbsorbed {
+		t.Fatalf("default payment fee policy = %q", row.PaymentFeePolicy)
+	}
 }
 
 func TestResellerSiteConfigServiceUpdatesPaymentChannelSelection(t *testing.T) {
@@ -88,10 +111,10 @@ func TestResellerSiteConfigServiceUpdatesPaymentChannelSelection(t *testing.T) {
 		t.Fatalf("create profile failed: %v", err)
 	}
 	svc := NewResellerSiteConfigService(repo)
-	if _, err := svc.UpdateUserSiteConfig(context.Background(), user.ID, ResellerSiteConfigInput{SiteName: "Channel Store", PaymentChannelIDs: []uint{2}}); err != nil {
+	if _, err := svc.UpdateUserSiteConfig(context.Background(), user.ID, ResellerSiteConfigInput{SiteName: "Channel Store", PaymentChannelIDs: []uint{2}, PaymentFeePolicy: constants.PaymentFeePolicyCustomerSurcharge}); err != nil {
 		t.Fatalf("create channel selection: %v", err)
 	}
-	if _, err := svc.UpdateUserSiteConfig(context.Background(), user.ID, ResellerSiteConfigInput{SiteName: "Channel Store", PaymentChannelIDs: []uint{7}}); err != nil {
+	if _, err := svc.UpdateUserSiteConfig(context.Background(), user.ID, ResellerSiteConfigInput{SiteName: "Channel Store", PaymentChannelIDs: []uint{7}, PaymentFeePolicy: constants.PaymentFeePolicyMerchantAbsorbed}); err != nil {
 		t.Fatalf("update channel selection: %v", err)
 	}
 	row, err := repo.GetSiteConfigByResellerID(profile.ID)
@@ -100,6 +123,9 @@ func TestResellerSiteConfigServiceUpdatesPaymentChannelSelection(t *testing.T) {
 	}
 	if row == nil || len(row.PaymentChannelIDs) != 1 || row.PaymentChannelIDs[0] != 7 {
 		t.Fatalf("payment channel selection was not replaced: %+v", row)
+	}
+	if row.PaymentFeePolicy != constants.PaymentFeePolicyMerchantAbsorbed {
+		t.Fatalf("payment fee policy was not replaced: %+v", row)
 	}
 }
 

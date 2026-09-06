@@ -3,6 +3,7 @@ package container
 import (
 	catalogmappingbootstrap "github.com/dujiao-next/internal/bootstrap/catalogmapping"
 	telegrambroadcast "github.com/dujiao-next/internal/bootstrap/telegrambroadcast"
+	"github.com/dujiao-next/internal/constants"
 	"github.com/dujiao-next/internal/logger"
 	apicredentialapp "github.com/dujiao-next/internal/modules/apicredential/application"
 	auditlogapp "github.com/dujiao-next/internal/modules/auditlog/application"
@@ -166,4 +167,18 @@ func (s resellerPaymentChannelSelector) GetResellerPaymentChannelIDs(resellerID 
 		return nil, err
 	}
 	return []uint(config.PaymentChannelIDs), nil
+}
+
+func (s resellerPaymentChannelSelector) GetResellerPaymentFeePolicy(resellerID uint) (string, error) {
+	if s.store == nil || resellerID == 0 {
+		return constants.PaymentFeePolicyMerchantAbsorbed, nil
+	}
+	config, err := s.store.GetSiteConfigByResellerID(resellerID)
+	if err != nil || config == nil {
+		return constants.PaymentFeePolicyMerchantAbsorbed, err
+	}
+	if config.PaymentFeePolicy == constants.PaymentFeePolicyCustomerSurcharge {
+		return constants.PaymentFeePolicyCustomerSurcharge, nil
+	}
+	return constants.PaymentFeePolicyMerchantAbsorbed, nil
 }

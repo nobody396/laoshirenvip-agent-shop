@@ -40,6 +40,7 @@ func (r *Store) UpsertSiteConfig(input resellerdomain.SiteConfig) (*resellerdoma
 	existing.FooterLinksJSON = input.FooterLinksJSON
 	existing.NavConfigJSON = input.NavConfigJSON
 	existing.PaymentChannelIDs = input.PaymentChannelIDs
+	existing.PaymentFeePolicy = input.PaymentFeePolicy
 	existing.ThemeJSON = input.ThemeJSON
 	existing.DeletedAt = nil
 	existing.UpdatedAt = now

@@ -3889,6 +3889,7 @@ const messages = {
             seo: 'SEO',
             footer: '页脚链接',
             nav: '导航',
+            payment: '手续费',
           },
         },
         announcementTypes: {
@@ -3914,6 +3915,10 @@ const messages = {
           ogImage: '分享图',
           linkName: '链接名称',
           linkUrl: '链接地址',
+          absorbPaymentFee: '代理承担支付手续费',
+          absorbPaymentFeeOn: '客户只支付商品标价，通道手续费从本单代理利润中扣除。',
+          absorbPaymentFeeOff: '客户在商品标价之外另付通道手续费，代理利润不扣除该手续费。',
+          paymentFeeSnapshotHint: '修改仅影响新发起的支付，已有支付单按创建时的策略结算。',
         },
         navItems: {
           blog: '文章',
@@ -8332,6 +8337,7 @@ const messages = {
             seo: 'SEO',
             footer: '頁腳連結',
             nav: '導覽',
+            payment: '手續費',
           },
         },
         announcementTypes: {
@@ -8357,6 +8363,10 @@ const messages = {
           ogImage: '分享圖',
           linkName: '連結名稱',
           linkUrl: '連結地址',
+          absorbPaymentFee: '代理承擔支付手續費',
+          absorbPaymentFeeOn: '客戶只支付商品標價，渠道手續費從本單代理利潤中扣除。',
+          absorbPaymentFeeOff: '客戶在商品標價之外另付渠道手續費，代理利潤不扣除該手續費。',
+          paymentFeeSnapshotHint: '修改只影響新發起的支付，已有支付單按建立時的策略結算。',
         },
         navItems: {
           blog: '文章',
@@ -12775,6 +12785,7 @@ const messages = {
             seo: 'SEO',
             footer: 'Footer Links',
             nav: 'Navigation',
+            payment: 'Payment Fees',
           },
         },
         announcementTypes: {
@@ -12800,6 +12811,10 @@ const messages = {
           ogImage: 'Share Image',
           linkName: 'Link Name',
           linkUrl: 'Link URL',
+          absorbPaymentFee: 'Reseller absorbs payment fees',
+          absorbPaymentFeeOn: 'Customers pay only the listed price; the channel fee is deducted from this order’s reseller profit.',
+          absorbPaymentFeeOff: 'Customers pay the channel fee on top of the listed price; reseller profit is not reduced by that fee.',
+          paymentFeeSnapshotHint: 'Changes affect only new payments. Existing payment links keep the policy captured at creation.',
         },
         navItems: {
           blog: 'Blog',

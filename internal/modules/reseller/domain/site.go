@@ -40,6 +40,7 @@ type SiteConfig struct {
 	FooterLinksJSON   jsonmap.JSON    `gorm:"type:json" json:"footer_links_json"`
 	NavConfigJSON     jsonmap.JSON    `gorm:"type:json" json:"nav_config_json"`
 	PaymentChannelIDs jsonslice.Uints `gorm:"type:json" json:"payment_channel_ids"`
+	PaymentFeePolicy  string          `gorm:"type:varchar(32);not null;default:'merchant_absorbed'" json:"payment_fee_policy"`
 	ThemeJSON         jsonmap.JSON    `gorm:"type:json" json:"theme_json"`
 	CreatedAt         time.Time       `gorm:"index" json:"created_at"`
 	UpdatedAt         time.Time       `gorm:"index" json:"updated_at"`

@@ -65,6 +65,7 @@ type ResellerSiteConfigInput struct {
 	FooterLinks       []ResellerFooterLinkInput `json:"footer_links"`
 	NavConfig         ResellerNavConfigInput    `json:"nav_config"`
 	PaymentChannelIDs []uint                    `json:"payment_channel_ids"`
+	PaymentFeePolicy  string                    `json:"payment_fee_policy"`
 }
 
 func normalizeResellerPaymentChannelIDs(input []uint) jsonslice.Uints {
@@ -81,6 +82,17 @@ func normalizeResellerPaymentChannelIDs(input []uint) jsonslice.Uints {
 		result = append(result, id)
 	}
 	return result
+}
+
+// normalizeResellerPaymentFeePolicy keeps the existing customer-friendly
+// behavior as the safe default. The policy is copied to each new Payment as an
+// immutable snapshot, so changing the switch never rewrites an in-flight or
+// completed payment.
+func normalizeResellerPaymentFeePolicy(input string) string {
+	if strings.TrimSpace(input) == constants.PaymentFeePolicyCustomerSurcharge {
+		return constants.PaymentFeePolicyCustomerSurcharge
+	}
+	return constants.PaymentFeePolicyMerchantAbsorbed
 }
 
 type SiteConfigService struct {
@@ -290,6 +302,7 @@ func (s *SiteConfigService) buildModel(resellerID uint, input ResellerSiteConfig
 		FooterLinksJSON:   footerLinks,
 		NavConfigJSON:     navConfig,
 		PaymentChannelIDs: normalizeResellerPaymentChannelIDs(input.PaymentChannelIDs),
+		PaymentFeePolicy:  normalizeResellerPaymentFeePolicy(input.PaymentFeePolicy),
 		ThemeJSON:         jsonmap.JSON{},
 	}, nil
 }

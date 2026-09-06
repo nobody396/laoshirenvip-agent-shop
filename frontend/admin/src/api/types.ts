@@ -895,6 +895,7 @@ export interface AdminResellerSiteConfigPayload {
     }>
   }
   payment_channel_ids?: number[]
+  payment_fee_policy?: 'merchant_absorbed' | 'customer_surcharge'
 }
 
 export interface AdminResellerSiteConfig extends Required<Pick<AdminResellerSiteConfigPayload, 'announcement' | 'support' | 'seo' | 'nav_config'>> {
@@ -908,6 +909,7 @@ export interface AdminResellerSiteConfig extends Required<Pick<AdminResellerSite
     url?: string
   }>
   payment_channel_ids: number[]
+  payment_fee_policy: 'merchant_absorbed' | 'customer_surcharge'
   profile?: AdminResellerProfileRef
   created_at: string
   updated_at: string

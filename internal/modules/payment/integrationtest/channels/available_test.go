@@ -42,10 +42,17 @@ func setupAvailableChannelService(t *testing.T) (*paymentapp.PaymentService, *se
 	}), settingService, db
 }
 
-type fixedResellerChannels struct{ ids []uint }
+type fixedResellerChannels struct {
+	ids       []uint
+	feePolicy string
+}
 
 func (s fixedResellerChannels) GetResellerPaymentChannelIDs(uint) ([]uint, error) {
 	return append([]uint(nil), s.ids...), nil
+}
+
+func (s fixedResellerChannels) GetResellerPaymentFeePolicy(uint) (string, error) {
+	return s.feePolicy, nil
 }
 
 func TestResellerChannelsDefaultToAlipayAndAllowExplicitOptIn(t *testing.T) {
@@ -108,6 +115,20 @@ func TestResellerChannelsDefaultToAlipayAndAllowExplicitOptIn(t *testing.T) {
 	}
 	if got := fmt.Sprint(channels[0]["fee_rate"]); got != "4.00" {
 		t.Fatalf("child site fee rate = %s, want 4.00", got)
+	}
+
+	customerPaysService := paymentapp.NewPaymentService(paymentapp.PaymentServiceOptions{
+		ChannelStore: store, SettingService: settingService,
+		ResellerChannels: fixedResellerChannels{feePolicy: constants.PaymentFeePolicyCustomerSurcharge},
+	})
+	channels, err = customerPaysService.GetAvailableChannels(paymentapp.AvailablePaymentChannelFilter{
+		PaymentType: constants.PaymentTypeOrder, ResellerID: &resellerID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(channels) != 1 || channels[0]["fee_policy"] != constants.PaymentFeePolicyCustomerSurcharge {
+		t.Fatalf("child customer-pays switch was not exposed, got %+v", channels)
 	}
 }
 

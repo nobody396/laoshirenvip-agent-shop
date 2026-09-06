@@ -3,6 +3,7 @@ package presenter
 import (
 	"time"
 
+	"github.com/dujiao-next/internal/constants"
 	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
 
 	productdomain "github.com/dujiao-next/internal/modules/catalog/product/domain"
@@ -103,6 +104,7 @@ type ResellerSiteConfigResp struct {
 	FooterLinks       []interface{} `json:"footer_links"`
 	NavConfig         jsonmap.JSON  `json:"nav_config"`
 	PaymentChannelIDs []uint        `json:"payment_channel_ids"`
+	PaymentFeePolicy  string        `json:"payment_fee_policy"`
 	UpdatedAt         time.Time     `json:"updated_at"`
 }
 
@@ -138,6 +140,7 @@ type AdminResellerSiteConfigResp struct {
 	FooterLinks       []interface{}                     `json:"footer_links"`
 	NavConfig         jsonmap.JSON                      `json:"nav_config"`
 	PaymentChannelIDs []uint                            `json:"payment_channel_ids"`
+	PaymentFeePolicy  string                            `json:"payment_fee_policy"`
 	Profile           *ResellerSiteConfigProfileRefResp `json:"profile,omitempty"`
 	CreatedAt         time.Time                         `json:"created_at"`
 	UpdatedAt         time.Time                         `json:"updated_at"`
@@ -311,6 +314,7 @@ func NewResellerSiteConfigResp(row *resellerdomain.SiteConfig) *ResellerSiteConf
 		FooterLinks:       resellerFooterLinksFromEnvelope(row.FooterLinksJSON),
 		NavConfig:         row.NavConfigJSON,
 		PaymentChannelIDs: []uint(row.PaymentChannelIDs),
+		PaymentFeePolicy:  normalizedResellerPaymentFeePolicy(row.PaymentFeePolicy),
 		UpdatedAt:         row.UpdatedAt,
 	}
 }
@@ -372,10 +376,18 @@ func NewAdminResellerSiteConfigResp(row *resellerdomain.SiteConfig) AdminReselle
 		FooterLinks:       resellerFooterLinksFromEnvelope(row.FooterLinksJSON),
 		NavConfig:         row.NavConfigJSON,
 		PaymentChannelIDs: []uint(row.PaymentChannelIDs),
+		PaymentFeePolicy:  normalizedResellerPaymentFeePolicy(row.PaymentFeePolicy),
 		Profile:           profile,
 		CreatedAt:         row.CreatedAt,
 		UpdatedAt:         row.UpdatedAt,
 	}
+}
+
+func normalizedResellerPaymentFeePolicy(raw string) string {
+	if raw == constants.PaymentFeePolicyCustomerSurcharge {
+		return constants.PaymentFeePolicyCustomerSurcharge
+	}
+	return constants.PaymentFeePolicyMerchantAbsorbed
 }
 
 func NewAdminResellerSiteConfigRespList(rows []resellerdomain.SiteConfig) []AdminResellerSiteConfigResp {

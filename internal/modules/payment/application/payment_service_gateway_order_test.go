@@ -1230,6 +1230,18 @@ func createFeePolicyOrderFixture(t *testing.T, db *gorm.DB, channelName, orderNo
 	return channel, order
 }
 
+type fixedResellerPaymentConfig struct {
+	feePolicy string
+}
+
+func (s fixedResellerPaymentConfig) GetResellerPaymentChannelIDs(uint) ([]uint, error) {
+	return nil, nil
+}
+
+func (s fixedResellerPaymentConfig) GetResellerPaymentFeePolicy(uint) (string, error) {
+	return s.feePolicy, nil
+}
+
 func TestCreateOrderPaymentSnapshotsCustomerSurchargeCompatibilityMode(t *testing.T) {
 	svc, db := setupPaymentServiceWalletTest(t)
 	if _, err := svc.settingService.Update(constants.SettingKeyPaymentConfig, map[string]interface{}{
@@ -1288,6 +1300,43 @@ func TestCreateResellerOrderPaymentKeepsListedPriceAndChargesFeeToResellerMargin
 	}
 	if result.Payment.FeePolicy != constants.PaymentFeePolicyMerchantAbsorbed {
 		t.Fatalf("hosted reseller policy = %s, want merchant_absorbed", result.Payment.FeePolicy)
+	}
+	if got := result.Payment.FeeAmount.StringFixed(2); got != "4.00" {
+		t.Fatalf("hosted reseller fee = %s, want 4.00", got)
+	}
+}
+
+func TestCreateResellerOrderPaymentCanChargeCustomerSurcharge(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	svc.resellerChannels = fixedResellerPaymentConfig{feePolicy: constants.PaymentFeePolicyCustomerSurcharge}
+	channel, order := createFeePolicyOrderFixture(t, db, "Hosted Reseller Customer Fee", "DJ-RESELLER-CUSTOMER-FEE")
+	channel.FeeRate = money.FromDecimal(decimal.RequireFromString("4.00"))
+	channel.FixedFee = money.FromDecimal(decimal.Zero)
+	if err := db.Save(channel).Error; err != nil {
+		t.Fatalf("update hosted reseller fee: %v", err)
+	}
+	resellerID := uint(29)
+	order.ResellerID = &resellerID
+	// Customer-paid fees must not be rejected even when the reseller's margin is
+	// lower than the fee because the margin is not bearing that fee.
+	order.ResellerProfitAmount = money.FromDecimal(decimal.NewFromInt(1))
+	if err := db.Save(order).Error; err != nil {
+		t.Fatalf("mark order as reseller sale: %v", err)
+	}
+
+	var gatewayAmount money.Amount
+	registerTestGateway(t, svc, channel.ProviderType, channel.ChannelType, emptyProviderRefProvider{onCreate: func(input paymentcontract.GatewayCreateInput) {
+		gatewayAmount = input.Amount
+	}})
+	result, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: context.Background()})
+	if err != nil {
+		t.Fatalf("create customer-pays reseller payment: %v", err)
+	}
+	if got := gatewayAmount.StringFixed(2); got != "104.00" {
+		t.Fatalf("customer payable amount = %s, want 104.00", got)
+	}
+	if result.Payment.FeePolicy != constants.PaymentFeePolicyCustomerSurcharge {
+		t.Fatalf("hosted reseller policy = %s, want customer_surcharge", result.Payment.FeePolicy)
 	}
 	if got := result.Payment.FeeAmount.StringFixed(2); got != "4.00" {
 		t.Fatalf("hosted reseller fee = %s, want 4.00", got)

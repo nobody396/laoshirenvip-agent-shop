@@ -63,6 +63,7 @@ type siteConfigRequest struct {
 	FooterLinks       []resellermodule.ResellerFooterLinkInput `json:"footer_links"`
 	NavConfig         resellermodule.ResellerNavConfigInput    `json:"nav_config"`
 	PaymentChannelIDs []uint                                   `json:"payment_channel_ids"`
+	PaymentFeePolicy  string                                   `json:"payment_fee_policy"`
 }
 
 func (req siteConfigRequest) toInput() resellermodule.ResellerSiteConfigInput {
@@ -76,6 +77,7 @@ func (req siteConfigRequest) toInput() resellermodule.ResellerSiteConfigInput {
 		FooterLinks:       req.FooterLinks,
 		NavConfig:         req.NavConfig,
 		PaymentChannelIDs: req.PaymentChannelIDs,
+		PaymentFeePolicy:  req.PaymentFeePolicy,
 	}
 }
 

@@ -217,14 +217,18 @@ func (s *PaymentService) GetAvailableChannels(filter AvailablePaymentChannelFilt
 		return nil, err
 	}
 	customerFeeEnabled := s.settingService != nil && s.settingService.GetPaymentFeeConfig().CustomerFeeEnabled
-	resellerFeeAbsorbed := filter.ResellerID != nil && *filter.ResellerID > 0
+	resellerSite := filter.ResellerID != nil && *filter.ResellerID > 0
+	resellerFeePolicy, err := s.resolveResellerPaymentFeePolicy(filter.ResellerID)
+	if err != nil {
+		return nil, err
+	}
 	available := make([]map[string]interface{}, 0, len(channels))
 	resellerAllowed, err := s.resolveResellerAllowedChannelIDs(filter.ResellerID)
 	if err != nil {
 		return nil, err
 	}
 	for _, channel := range channels {
-		if channelResellerOnly(channel) && !resellerFeeAbsorbed {
+		if channelResellerOnly(channel) && !resellerSite {
 			continue
 		}
 		if filter.ResellerID != nil && !resellerChannelAllowed(channel, resellerAllowed) {
@@ -242,10 +246,10 @@ func (s *PaymentService) GetAvailableChannels(filter AvailablePaymentChannelFilt
 			"interaction_mode": channel.InteractionMode, "min_amount": channel.MinAmount,
 			"max_amount": channel.MaxAmount, "hide_amount_out_range": channel.HideAmountOutRange,
 		}
-		if customerFeeEnabled || resellerFeeAbsorbed {
+		if customerFeeEnabled || resellerSite {
 			feePolicy := constants.PaymentFeePolicyCustomerSurcharge
-			if resellerFeeAbsorbed {
-				feePolicy = constants.PaymentFeePolicyMerchantAbsorbed
+			if resellerSite {
+				feePolicy = resellerFeePolicy
 			}
 			item["fee_policy"] = feePolicy
 			item["fee_rate"] = channel.FeeRate
@@ -257,6 +261,24 @@ func (s *PaymentService) GetAvailableChannels(filter AvailablePaymentChannelFilt
 		available = append(available, item)
 	}
 	return available, nil
+}
+
+func (s *PaymentService) resolveResellerPaymentFeePolicy(resellerID *uint) (string, error) {
+	if resellerID == nil || *resellerID == 0 {
+		return constants.PaymentFeePolicyNone, nil
+	}
+	selector, ok := s.resellerChannels.(ResellerPaymentFeePolicySelector)
+	if !ok || selector == nil {
+		return constants.PaymentFeePolicyMerchantAbsorbed, nil
+	}
+	policy, err := selector.GetResellerPaymentFeePolicy(*resellerID)
+	if err != nil {
+		return "", err
+	}
+	if policy == constants.PaymentFeePolicyCustomerSurcharge {
+		return constants.PaymentFeePolicyCustomerSurcharge, nil
+	}
+	return constants.PaymentFeePolicyMerchantAbsorbed, nil
 }
 
 func channelResellerOnly(channel paymentdomain.PaymentChannel) bool {

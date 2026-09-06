@@ -3,6 +3,7 @@ package presenter
 import (
 	"testing"
 
+	"github.com/dujiao-next/internal/constants"
 	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
 
 	"github.com/dujiao-next/internal/shared/jsonmap"
@@ -93,11 +94,12 @@ func TestResellerDomainRespExposesVerificationTokenForOwner(t *testing.T) {
 
 func TestResellerSiteConfigRespUsesSafeFields(t *testing.T) {
 	row := &resellerdomain.SiteConfig{
-		ID:         10,
-		ResellerID: 3,
-		SiteName:   "Alice Store",
-		Logo:       "/uploads/logo.png",
-		Favicon:    "/uploads/favicon.png",
+		ID:               10,
+		ResellerID:       3,
+		SiteName:         "Alice Store",
+		Logo:             "/uploads/logo.png",
+		Favicon:          "/uploads/favicon.png",
+		PaymentFeePolicy: constants.PaymentFeePolicyCustomerSurcharge,
 		SupportJSON: jsonmap.JSON{
 			"telegram": "https://t.me/alice",
 		},
@@ -114,5 +116,8 @@ func TestResellerSiteConfigRespUsesSafeFields(t *testing.T) {
 	}
 	if len(resp.FooterLinks) != 1 {
 		t.Fatalf("expected footer links unwrapped, got %+v", resp.FooterLinks)
+	}
+	if resp.PaymentFeePolicy != constants.PaymentFeePolicyCustomerSurcharge {
+		t.Fatalf("unexpected payment fee policy: %q", resp.PaymentFeePolicy)
 	}
 }

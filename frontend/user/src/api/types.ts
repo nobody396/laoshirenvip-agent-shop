@@ -278,8 +278,9 @@ export interface ResellerSiteConfigPayload {
     nav_config?: {
         builtin: Record<string, boolean>
         custom_items: Array<{ name: ResellerLocalizedText; url: string }>
-    }
+	}
 	payment_channel_ids?: number[]
+	payment_fee_policy?: 'merchant_absorbed' | 'customer_surcharge'
 }
 
 export interface ResellerSiteConfigData extends ResellerSiteConfigPayload {

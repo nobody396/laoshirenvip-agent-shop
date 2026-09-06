@@ -371,6 +371,25 @@
             <p class="mt-4 rounded-xl bg-secondary/60 p-4 text-xs leading-6 text-muted-foreground">
               {{ t('personalCenter.reseller.siteConfig.payments.hint') }}
             </p>
+            <div class="mt-5 flex flex-col gap-4 rounded-2xl border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div class="min-w-0">
+                <p class="font-semibold text-foreground">{{ t('personalCenter.reseller.siteConfig.payments.absorbFeeTitle') }}</p>
+                <p class="mt-1 text-xs leading-5 text-muted-foreground">
+                  {{ resellerAbsorbsFee
+                    ? t('personalCenter.reseller.siteConfig.payments.absorbFeeEnabled')
+                    : t('personalCenter.reseller.siteConfig.payments.absorbFeeDisabled') }}
+                </p>
+              </div>
+              <label class="inline-flex shrink-0 items-center gap-2 rounded-full border bg-background px-3 py-2 text-sm font-medium text-foreground">
+                <Switch v-model="resellerAbsorbsFee" />
+                {{ resellerAbsorbsFee
+                  ? t('personalCenter.reseller.siteConfig.payments.agentPays')
+                  : t('personalCenter.reseller.siteConfig.payments.customerPays') }}
+              </label>
+            </div>
+            <p class="mt-3 text-xs leading-5 text-muted-foreground">
+              {{ t('personalCenter.reseller.siteConfig.payments.policySnapshotHint') }}
+            </p>
           </section>
         </div>
       </div>
@@ -560,6 +579,7 @@ const createBlankForm = (): ResellerSiteConfigPayload => ({
         custom_items: [],
     },
 	payment_channel_ids: [],
+	payment_fee_policy: 'merchant_absorbed',
 })
 
 const form = reactive<any>(createBlankForm())
@@ -595,6 +615,12 @@ const togglePaymentChannel = (id: number, enabled: boolean) => {
 	else if (current.size > 1) current.delete(id)
 	form.payment_channel_ids = Array.from(current)
 }
+const resellerAbsorbsFee = computed({
+	get: () => form.payment_fee_policy !== 'customer_surcharge',
+	set: (enabled: boolean) => {
+		form.payment_fee_policy = enabled ? 'merchant_absorbed' : 'customer_surcharge'
+	},
+})
 const dirtyHint = computed(
     () => !loading.value && !saving.value && baseline.value !== '' && JSON.stringify(form) !== baseline.value,
 )
@@ -647,6 +673,9 @@ const assignForm = (config?: ResellerSiteConfigData) => {
 		next.payment_channel_ids = Array.isArray(config.payment_channel_ids) && config.payment_channel_ids.length
 			? config.payment_channel_ids.filter((id) => Number(id) > 0).map(Number)
 			: defaultPaymentChannelIDs()
+		next.payment_fee_policy = config.payment_fee_policy === 'customer_surcharge'
+			? 'customer_surcharge'
+			: 'merchant_absorbed'
 	} else {
 		next.payment_channel_ids = defaultPaymentChannelIDs()
     }
