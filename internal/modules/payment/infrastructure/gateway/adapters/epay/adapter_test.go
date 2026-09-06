@@ -58,6 +58,72 @@ func TestEpayAdapter_CreatePayment_ConfigInvalidMapped(t *testing.T) {
 	}
 }
 
+func TestEpayAdapter_CreatePayment_ResolvesSecretEnvReferences(t *testing.T) {
+	t.Setenv("TEST_EPAY_MERCHANT_ID", "1001")
+	t.Setenv("TEST_EPAY_MERCHANT_KEY", "key-001")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse payment form: %v", err)
+		}
+		if got := r.Form.Get("pid"); got != "1001" {
+			t.Fatalf("resolved merchant id = %q, want 1001", got)
+		}
+		params := map[string]string{}
+		for key, values := range r.Form {
+			if len(values) > 0 && key != "sign" && key != "sign_type" {
+				params[key] = values[0]
+			}
+		}
+		if got, want := r.Form.Get("sign"), md5Hex(buildEpayAdapterSignContent(params)+"key-001"); got != want {
+			t.Fatalf("payment signature did not use resolved merchant key")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":1,"msg":"success","trade_no":"EPAY-ENV-001","payurl":"https://pay.example.com/env"}`))
+	}))
+	defer server.Close()
+
+	a := NewEpayAdapter()
+	raw := jsonmap.JSON{
+		"gateway_url":  server.URL,
+		"epay_version": "v1",
+		"merchant_id":  "env://TEST_EPAY_MERCHANT_ID",
+		"merchant_key": "env://TEST_EPAY_MERCHANT_KEY",
+		"notify_url":   "https://api.example.com/api/v1/payments/callback",
+		"return_url":   "https://shop.example.com/pay",
+		"sign_type":    "MD5",
+	}
+	result, err := a.CreatePayment(context.Background(), raw, paymentcontract.GatewayCreateInput{
+		OrderNo: "ORDER-ENV-001", Amount: money.FromDecimal(decimal.NewFromInt(1)), Currency: "CNY",
+		ChannelType: constants.PaymentChannelTypeAlipay, ClientIP: "127.0.0.1",
+		Extra: jsonmap.JSON{"interaction_mode": constants.PaymentInteractionQR},
+	})
+	if err != nil {
+		t.Fatalf("CreatePayment() with env refs failed: %v", err)
+	}
+	if result.ProviderRef != "EPAY-ENV-001" {
+		t.Fatalf("provider ref = %q", result.ProviderRef)
+	}
+	if raw["merchant_id"] != "env://TEST_EPAY_MERCHANT_ID" || raw["merchant_key"] != "env://TEST_EPAY_MERCHANT_KEY" {
+		t.Fatalf("adapter mutated stored secret references: %+v", raw)
+	}
+}
+
+func TestEpayAdapter_EnvReferenceFailsClosedWhenSecretMissing(t *testing.T) {
+	a := NewEpayAdapter()
+	err := a.ValidateConfig(jsonmap.JSON{
+		"gateway_url":  "https://epay.example.com",
+		"epay_version": "v1",
+		"merchant_id":  "env://TEST_EPAY_MISSING_ID",
+		"merchant_key": "env://TEST_EPAY_MISSING_KEY",
+		"notify_url":   "https://api.example.com/api/v1/payments/callback",
+		"return_url":   "https://shop.example.com/pay",
+		"sign_type":    "MD5",
+	}, constants.PaymentChannelTypeAlipay)
+	if !errors.Is(err, paymentcontract.ErrGatewayConfigInvalid) {
+		t.Fatalf("missing env secret error = %v, want config invalid", err)
+	}
+}
+
 // TestEpayAdapter_CreatePayment_ExchangeRate_AuditFields 守护 P1.2c audit
 // 字段写入回归。模式见 stripe_adapter_test.go 同名测试。
 func TestEpayAdapter_CreatePayment_ExchangeRate_AuditFields(t *testing.T) {
@@ -142,6 +208,32 @@ func TestEpayAdapter_VerifyCallbackRejectsMerchantMismatch(t *testing.T) {
 	}
 	if !errors.Is(err, paymentcontract.ErrGatewaySignatureInvalid) {
 		t.Fatalf("expected wrapped paymentcontract.ErrGatewaySignatureInvalid, got %v", err)
+	}
+}
+
+func TestEpayAdapter_VerifyCallbackResolvesSecretEnvReferences(t *testing.T) {
+	t.Setenv("TEST_EPAY_CALLBACK_ID", "1001")
+	t.Setenv("TEST_EPAY_CALLBACK_KEY", "key-001")
+	a := NewEpayAdapter()
+	raw := jsonmap.JSON{
+		"gateway_url":  "https://epay.example.com",
+		"epay_version": "v1",
+		"merchant_id":  "env://TEST_EPAY_CALLBACK_ID",
+		"merchant_key": "env://TEST_EPAY_CALLBACK_KEY",
+		"notify_url":   "https://api.example.com/api/v1/payments/callback",
+		"return_url":   "https://shop.example.com/pay",
+		"sign_type":    "MD5",
+	}
+	form := signEpayV1AdapterCallbackForm(map[string]string{
+		"pid": "1001", "out_trade_no": "ORDER-ENV-001", "trade_no": "EPAY-ENV-001",
+		"money": "1.00", "trade_status": constants.EpayTradeStatusSuccess,
+	}, "key-001")
+	result, err := a.(paymentcontract.GatewayCallbackVerifier).VerifyCallback(raw, form, nil)
+	if err != nil {
+		t.Fatalf("VerifyCallback() with env refs failed: %v", err)
+	}
+	if result.OrderNo != "ORDER-ENV-001" || result.Status != constants.PaymentStatusSuccess {
+		t.Fatalf("unexpected callback result: %+v", result)
 	}
 }
 

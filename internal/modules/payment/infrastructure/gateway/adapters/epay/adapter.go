@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	gatewaycommon "github.com/dujiao-next/internal/modules/payment/infrastructure/gateway/common"
@@ -21,6 +22,10 @@ import (
 // epayAdapter implements V1/V2 creation and callback verification. V2 also
 // supports signed active order queries so a missed callback can be reconciled.
 type epayAdapter struct{}
+
+const epaySecretEnvPrefix = "env://"
+
+var epaySecretConfigKeys = []string{"merchant_id", "merchant_key", "private_key", "platform_public_key"}
 
 // NewEpayAdapter 实例化 epay adapter。
 func NewEpayAdapter() paymentcontract.GatewayProvider { return &epayAdapter{} }
@@ -40,7 +45,11 @@ func (a *epayAdapter) Type() string {
 // parseConfig 解析并验证 epay Config。epay 不需要 interactionMode，
 // 通过 dispatch 时按 mode 调用不同的函数（BuildRedirectURL vs CreatePayment）。
 func (a *epayAdapter) parseConfig(raw jsonmap.JSON) (*epay.Config, error) {
-	cfg, err := epay.ParseConfig(raw)
+	resolved, err := resolveEpaySecretEnvReferences(raw)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := epay.ParseConfig(resolved)
 	if err != nil {
 		return nil, mapEpayError(err)
 	}
@@ -48,6 +57,50 @@ func (a *epayAdapter) parseConfig(raw jsonmap.JSON) (*epay.Config, error) {
 		return nil, mapEpayError(err)
 	}
 	return cfg, nil
+}
+
+// resolveEpaySecretEnvReferences lets persistent channel configuration retain
+// only env://NAME references. Real credentials remain in the runtime
+// environment injected from Agent Switch and are never written back to the DB
+// object or returned through the admin API.
+func resolveEpaySecretEnvReferences(raw jsonmap.JSON) (jsonmap.JSON, error) {
+	resolved := make(jsonmap.JSON, len(raw))
+	for key, value := range raw {
+		resolved[key] = value
+	}
+	for _, key := range epaySecretConfigKeys {
+		value, ok := resolved[key].(string)
+		if !ok {
+			continue
+		}
+		value = strings.TrimSpace(value)
+		if !strings.HasPrefix(value, epaySecretEnvPrefix) {
+			continue
+		}
+		name := strings.TrimSpace(strings.TrimPrefix(value, epaySecretEnvPrefix))
+		if !validEpaySecretEnvName(name) {
+			return nil, fmt.Errorf("%w: %s env reference invalid", paymentcontract.ErrGatewayConfigInvalid, key)
+		}
+		secret, exists := os.LookupEnv(name)
+		if !exists || strings.TrimSpace(secret) == "" {
+			return nil, fmt.Errorf("%w: %s env reference unavailable", paymentcontract.ErrGatewayConfigInvalid, key)
+		}
+		resolved[key] = strings.TrimSpace(secret)
+	}
+	return resolved, nil
+}
+
+func validEpaySecretEnvName(name string) bool {
+	if name == "" || len(name) > 128 {
+		return false
+	}
+	for index, char := range name {
+		if char == '_' || char >= 'A' && char <= 'Z' || index > 0 && char >= '0' && char <= '9' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // ValidateConfig 验证 channel.ConfigJSON。
@@ -200,7 +253,7 @@ func (a *epayAdapter) CreatePayment(ctx context.Context, raw jsonmap.JSON, input
 //   - money        = 金额
 //   - sign / sign_type / type / pid / param 等元数据
 func (a *epayAdapter) VerifyCallback(raw jsonmap.JSON, form map[string][]string, _ []byte) (*paymentcontract.GatewayCallbackResult, error) {
-	cfg, err := epay.ParseConfig(raw)
+	cfg, err := a.parseConfig(raw)
 	if err != nil {
 		return nil, mapEpayError(err)
 	}
