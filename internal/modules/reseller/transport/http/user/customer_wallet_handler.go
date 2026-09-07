@@ -164,3 +164,133 @@ func respondCustomerWalletError(c *gin.Context, err error) {
 		ginutil.RespondError(c, response.CodeInternal, "error.save_failed", err)
 	}
 }
+
+type UserCustomerPriceService interface {
+	List(ownerUserID, customerUserID uint) (*resellerapp.CustomerPriceListResult, error)
+	Set(ownerUserID, customerUserID, productID, skuID uint, fixedPrice decimal.Decimal) (*resellerapp.CustomerPriceQuote, error)
+	Delete(ownerUserID, customerUserID, productID, skuID uint) error
+}
+
+type UserCustomerPriceHandler struct{ service UserCustomerPriceService }
+
+func NewUserCustomerPriceHandler(service UserCustomerPriceService) *UserCustomerPriceHandler {
+	if service == nil {
+		panic("reseller customer price handler: service is nil")
+	}
+	return &UserCustomerPriceHandler{service: service}
+}
+
+type customerPriceRequest struct {
+	FixedPriceAmount string `json:"fixed_price_amount" binding:"required"`
+}
+
+func (h *UserCustomerPriceHandler) List(c *gin.Context) {
+	ownerUserID, ok := ginutil.GetUserID(c)
+	if !ok {
+		return
+	}
+	customerUserID, err := ginutil.ParseParamUint(c, "id")
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.user_id_invalid", nil)
+		return
+	}
+	result, err := h.service.List(ownerUserID, customerUserID)
+	if err != nil {
+		respondCustomerPriceError(c, err)
+		return
+	}
+	response.Success(c, gin.H{
+		"customer": gin.H{
+			"id":           result.Customer.ID,
+			"email":        result.Customer.Email,
+			"display_name": result.Customer.DisplayName,
+			"status":       result.Customer.Status,
+		},
+		"settings": result.Settings,
+	})
+}
+
+func (h *UserCustomerPriceHandler) Set(c *gin.Context) {
+	ownerUserID, ok := ginutil.GetUserID(c)
+	if !ok {
+		return
+	}
+	customerUserID, productID, skuID, ok := parseCustomerPriceScope(c)
+	if !ok {
+		return
+	}
+	var req customerPriceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		ginutil.RespondBindError(c, err)
+		return
+	}
+	price, err := decimal.NewFromString(strings.TrimSpace(req.FixedPriceAmount))
+	if err != nil || price.LessThanOrEqual(decimal.Zero) || !price.Equal(price.Round(2)) {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
+		return
+	}
+	quote, err := h.service.Set(ownerUserID, customerUserID, productID, skuID, price)
+	if err != nil {
+		respondCustomerPriceError(c, err)
+		return
+	}
+	response.Success(c, gin.H{
+		"setting":             quote.Setting,
+		"base_price_amount":   quote.BasePrice.StringFixed(2),
+		"retail_price_amount": quote.RetailPrice.StringFixed(2),
+		"fixed_price_amount":  quote.SpecialPrice.StringFixed(2),
+		"gross_profit_amount": quote.GrossProfit.StringFixed(2),
+	})
+}
+
+func (h *UserCustomerPriceHandler) Delete(c *gin.Context) {
+	ownerUserID, ok := ginutil.GetUserID(c)
+	if !ok {
+		return
+	}
+	customerUserID, productID, skuID, ok := parseCustomerPriceScope(c)
+	if !ok {
+		return
+	}
+	if err := h.service.Delete(ownerUserID, customerUserID, productID, skuID); err != nil {
+		respondCustomerPriceError(c, err)
+		return
+	}
+	response.Success(c, gin.H{"deleted": true})
+}
+
+func parseCustomerPriceScope(c *gin.Context) (uint, uint, uint, bool) {
+	customerUserID, err := ginutil.ParseParamUint(c, "id")
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.user_id_invalid", nil)
+		return 0, 0, 0, false
+	}
+	productID, err := ginutil.ParseParamUint(c, "product_id")
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
+		return 0, 0, 0, false
+	}
+	skuID, err := ginutil.ParseParamUint(c, "sku_id")
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
+		return 0, 0, 0, false
+	}
+	return customerUserID, productID, skuID, true
+}
+
+func respondCustomerPriceError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, resellercontract.ErrCustomerNotFound):
+		ginutil.RespondError(c, response.CodeNotFound, "error.user_not_found", nil)
+	case errors.Is(err, resellercontract.ErrNotOpened), errors.Is(err, resellercontract.ErrProfileInactive):
+		ginutil.RespondError(c, response.CodeForbidden, "error.forbidden", nil)
+	case errors.Is(err, resellercontract.ErrPriceBelowBase):
+		ginutil.RespondError(c, response.CodeBadRequest, "error.reseller_customer_price_below_base", nil)
+	case errors.Is(err, resellercontract.ErrCustomerPriceAboveRetail):
+		ginutil.RespondError(c, response.CodeBadRequest, "error.reseller_customer_price_above_retail", nil)
+	case errors.Is(err, resellercontract.ErrCustomerPriceInvalid):
+		ginutil.RespondError(c, response.CodeBadRequest, "error.reseller_customer_price_invalid", nil)
+	default:
+		ginutil.RespondError(c, response.CodeInternal, "error.save_failed", err)
+	}
+}

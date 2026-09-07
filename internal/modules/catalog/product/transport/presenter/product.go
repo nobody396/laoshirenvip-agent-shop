@@ -22,6 +22,8 @@ type Product struct {
 	Description          jsonmap.JSON      `json:"description"`
 	Content              jsonmap.JSON      `json:"content"`
 	PriceAmount          money.Amount      `json:"price_amount"`
+	RegularPriceAmount   *money.Amount     `json:"regular_price_amount,omitempty"`
+	CustomerPriceApplied bool              `json:"customer_price_applied,omitempty"`
 	WholesalePrices      []WholesalePrice  `json:"wholesale_prices,omitempty"`
 	Images               jsonslice.Strings `json:"images"`
 	Tags                 jsonslice.Strings `json:"tags"`
@@ -96,21 +98,23 @@ func WholesalePrices(tiers productdomain.WholesalePriceTiers) []WholesalePrice {
 
 // SKU 是公开商品 SKU 响应。
 type SKU struct {
-	ID                  uint         `json:"id"`
-	SKUCode             string       `json:"sku_code"`
-	SpecValues          jsonmap.JSON `json:"spec_values"`
-	PriceAmount         money.Amount `json:"price_amount"`
-	ManualStockTotal    int          `json:"manual_stock_total"`
-	ManualStockSold     int          `json:"manual_stock_sold"`
-	AutoStockAvailable  int64        `json:"auto_stock_available"`
-	StockStatus         string       `json:"stock_status"`
-	StockDisplayMode    string       `json:"stock_display_mode"`
-	StockDisplay        string       `json:"stock_display"`
-	StockRangeMin       *int         `json:"stock_range_min,omitempty"`
-	StockRangeMax       *int         `json:"stock_range_max,omitempty"`
-	StockQuantityHidden bool         `json:"stock_quantity_hidden"`
-	IsSoldOut           bool         `json:"is_sold_out"`
-	IsActive            bool         `json:"is_active"`
+	ID                   uint          `json:"id"`
+	SKUCode              string        `json:"sku_code"`
+	SpecValues           jsonmap.JSON  `json:"spec_values"`
+	PriceAmount          money.Amount  `json:"price_amount"`
+	RegularPriceAmount   *money.Amount `json:"regular_price_amount,omitempty"`
+	CustomerPriceApplied bool          `json:"customer_price_applied,omitempty"`
+	ManualStockTotal     int           `json:"manual_stock_total"`
+	ManualStockSold      int           `json:"manual_stock_sold"`
+	AutoStockAvailable   int64         `json:"auto_stock_available"`
+	StockStatus          string        `json:"stock_status"`
+	StockDisplayMode     string        `json:"stock_display_mode"`
+	StockDisplay         string        `json:"stock_display"`
+	StockRangeMin        *int          `json:"stock_range_min,omitempty"`
+	StockRangeMax        *int          `json:"stock_range_max,omitempty"`
+	StockQuantityHidden  bool          `json:"stock_quantity_hidden"`
+	IsSoldOut            bool          `json:"is_sold_out"`
+	IsActive             bool          `json:"is_active"`
 
 	PromotionPriceAmount *money.Amount `json:"promotion_price_amount,omitempty"`
 	MemberPriceAmount    *money.Amount `json:"member_price_amount,omitempty"`

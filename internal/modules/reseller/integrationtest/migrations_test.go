@@ -40,6 +40,12 @@ func TestMigrateCreatesResellerTablesAndOrderColumns(t *testing.T) {
 	if !db.Migrator().HasTable(&resellerdomain.Domain{}) {
 		t.Fatal("expected reseller_domains table")
 	}
+	if !db.Migrator().HasTable(&resellerdomain.CustomerPriceSetting{}) {
+		t.Fatal("expected reseller_customer_price_settings table")
+	}
+	if !db.Migrator().HasIndex(&resellerdomain.CustomerPriceSetting{}, "idx_reseller_customer_price_active_scope") {
+		t.Fatal("expected reseller customer price active scope index")
+	}
 	if !db.Migrator().HasColumn(&orderdomain.Order{}, "reseller_id") {
 		t.Fatal("expected orders.reseller_id column")
 	}

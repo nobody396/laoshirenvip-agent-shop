@@ -11,6 +11,16 @@ func RegisterPublicRoutes(public gin.IRoutes, handler *PublicHandler) {
 	public.GET("/products/:slug", handler.GetProductBySlug)
 }
 
+// RegisterAuthenticatedRoutes exposes the same catalog through the authenticated
+// route group so customer-specific prices never share the public cache surface.
+func RegisterAuthenticatedRoutes(user gin.IRoutes, handler *PublicHandler) {
+	if user == nil || handler == nil {
+		panic("catalog authenticated routes: required dependency is nil")
+	}
+	user.GET("/products", handler.GetProducts)
+	user.GET("/products/:slug", handler.GetProductBySlug)
+}
+
 // RegisterAdminRoutes 注册商品后台端点。
 func RegisterAdminRoutes(admin gin.IRoutes, handler *AdminProductHandler) {
 	if admin == nil || handler == nil {

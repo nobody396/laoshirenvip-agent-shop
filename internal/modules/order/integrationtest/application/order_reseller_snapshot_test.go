@@ -100,6 +100,7 @@ func newOrderResellerSnapshotFixture(t *testing.T) orderResellerSnapshotFixture 
 		&paymentdomain.Payment{},
 		&resellerdomain.Profile{},
 		&resellerdomain.ProductSetting{},
+		&resellerdomain.CustomerPriceSetting{},
 		&resellerdomain.RelatedAccount{},
 		&resellerdomain.OrderSnapshot{},
 	); err != nil {
@@ -127,6 +128,10 @@ func newOrderResellerSnapshotFixture(t *testing.T) orderResellerSnapshotFixture 
 	if err := db.Create(&profile).Error; err != nil {
 		t.Fatalf("create profile failed: %v", err)
 	}
+	if err := db.Model(&userdomain.User{}).Where("id = ?", buyer.ID).Update("registration_reseller_id", profile.ID).Error; err != nil {
+		t.Fatalf("bind buyer to reseller failed: %v", err)
+	}
+	buyer.RegistrationResellerID = &profile.ID
 	product := productdomain.Product{
 		CategoryID:      category.ID,
 		Slug:            "reseller-order-product",
@@ -299,6 +304,40 @@ func TestPreviewOrderResellerRejectsCouponCode(t *testing.T) {
 	_, err := f.svc.PreviewOrder(input)
 	if !errors.Is(err, ErrResellerCouponNotAllowed) {
 		t.Fatalf("expected ErrResellerCouponNotAllowed, got %v", err)
+	}
+}
+
+func TestPreviewAndCreateOrderUseAuthenticatedCustomerSpecialPrice(t *testing.T) {
+	f := newOrderResellerSnapshotFixture(t)
+	setting := resellerdomain.CustomerPriceSetting{
+		ResellerID: f.profile.ID, CustomerUserID: f.buyer.ID, ProductID: f.product.ID, SKUID: f.sku.ID,
+		FixedPriceAmount: money.FromDecimal(decimal.NewFromInt(122)), CreatedByUserID: f.owner.ID,
+	}
+	if err := f.db.Create(&setting).Error; err != nil {
+		t.Fatalf("create customer price failed: %v", err)
+	}
+	preview, err := f.svc.PreviewOrder(f.createInput(f.buyer.ID))
+	if err != nil {
+		t.Fatalf("PreviewOrder failed: %v", err)
+	}
+	if preview.TotalAmount.String() != "122.00" || preview.Items[0].UnitPrice.String() != "122.00" {
+		t.Fatalf("special preview mismatch: %+v", preview)
+	}
+	order, err := f.svc.CreateOrder(f.createInput(f.buyer.ID))
+	if err != nil {
+		t.Fatalf("CreateOrder failed: %v", err)
+	}
+	if order.TotalAmount.String() != "122.00" || order.ResellerProfitAmount.String() != "22.00" {
+		t.Fatalf("special order mismatch total=%s profit=%s", order.TotalAmount.String(), order.ResellerProfitAmount.String())
+	}
+	snapshot, err := f.resellerRepo.GetOrderSnapshotByOrderID(order.ID)
+	if err != nil || snapshot == nil {
+		t.Fatalf("load snapshot failed: snapshot=%+v err=%v", snapshot, err)
+	}
+	items, _ := snapshot.PricingSnapshotJSON["items"].([]interface{})
+	item, _ := items[0].(map[string]interface{})
+	if item["retail_unit_amount"] != "130.00" || item["reseller_unit_amount"] != "122.00" {
+		t.Fatalf("special price snapshot mismatch: %+v", item)
 	}
 }
 

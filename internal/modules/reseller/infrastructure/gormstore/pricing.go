@@ -1,8 +1,13 @@
 package gormstore
 
 import (
+	"errors"
+	"time"
+
+	"github.com/dujiao-next/internal/constants"
 	productdomain "github.com/dujiao-next/internal/modules/catalog/product/domain"
 	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
+	"gorm.io/gorm"
 )
 
 // ListProductSettingsForPricing 批量获取分销定价所需的商品级与 SKU 级配置。
@@ -90,4 +95,66 @@ func uniqueUintSlice(values []uint) []uint {
 		result = append(result, value)
 	}
 	return result
+}
+
+func (r *Store) ListCustomerPriceSettings(resellerID, customerUserID uint) ([]resellerdomain.CustomerPriceSetting, error) {
+	if resellerID == 0 || customerUserID == 0 {
+		return []resellerdomain.CustomerPriceSetting{}, nil
+	}
+	var rows []resellerdomain.CustomerPriceSetting
+	err := r.db.Where("reseller_id = ? AND customer_user_id = ? AND deleted_at IS NULL", resellerID, customerUserID).
+		Order("product_id ASC, sku_id ASC, id ASC").Find(&rows).Error
+	return rows, err
+}
+
+func (r *Store) ListCustomerPriceSettingsForPricing(resellerID, customerUserID uint, productIDs, skuIDs []uint) ([]resellerdomain.CustomerPriceSetting, error) {
+	if resellerID == 0 || customerUserID == 0 || len(productIDs) == 0 || len(skuIDs) == 0 {
+		return []resellerdomain.CustomerPriceSetting{}, nil
+	}
+	var rows []resellerdomain.CustomerPriceSetting
+	err := r.db.Model(&resellerdomain.CustomerPriceSetting{}).
+		Joins("JOIN users customer_price_user ON customer_price_user.id = reseller_customer_price_settings.customer_user_id AND customer_price_user.deleted_at IS NULL").
+		Where("customer_price_user.registration_reseller_id = ? AND customer_price_user.status = ?", resellerID, constants.UserStatusActive).
+		Where(
+			"reseller_customer_price_settings.reseller_id = ? AND reseller_customer_price_settings.customer_user_id = ? AND reseller_customer_price_settings.product_id IN ? AND reseller_customer_price_settings.sku_id IN ? AND reseller_customer_price_settings.deleted_at IS NULL",
+			resellerID, customerUserID, uniqueUintSlice(productIDs), uniqueUintSlice(skuIDs),
+		).Order("reseller_customer_price_settings.product_id ASC, reseller_customer_price_settings.sku_id ASC, reseller_customer_price_settings.id ASC").Find(&rows).Error
+	return rows, err
+}
+
+func (r *Store) UpsertCustomerPriceSetting(setting resellerdomain.CustomerPriceSetting) (*resellerdomain.CustomerPriceSetting, error) {
+	if setting.ResellerID == 0 || setting.CustomerUserID == 0 || setting.ProductID == 0 || setting.SKUID == 0 {
+		return nil, errors.New("reseller customer price scope is invalid")
+	}
+	var existing resellerdomain.CustomerPriceSetting
+	err := r.db.Unscoped().Where(
+		"reseller_id = ? AND customer_user_id = ? AND product_id = ? AND sku_id = ?",
+		setting.ResellerID, setting.CustomerUserID, setting.ProductID, setting.SKUID,
+	).First(&existing).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		if err := r.db.Create(&setting).Error; err != nil {
+			return nil, err
+		}
+		return &setting, nil
+	}
+	existing.FixedPriceAmount = setting.FixedPriceAmount
+	existing.CreatedByUserID = setting.CreatedByUserID
+	existing.DeletedAt = nil
+	if err := r.db.Model(&resellerdomain.CustomerPriceSetting{}).Where("id = ?", existing.ID).Select("*").Updates(&existing).Error; err != nil {
+		return nil, err
+	}
+	return &existing, nil
+}
+
+func (r *Store) DeleteCustomerPriceSetting(resellerID, customerUserID, productID, skuID uint) error {
+	if resellerID == 0 || customerUserID == 0 || productID == 0 || skuID == 0 {
+		return nil
+	}
+	now := time.Now()
+	return r.db.Model(&resellerdomain.CustomerPriceSetting{}).
+		Where("reseller_id = ? AND customer_user_id = ? AND product_id = ? AND sku_id = ? AND deleted_at IS NULL", resellerID, customerUserID, productID, skuID).
+		Updates(map[string]interface{}{"deleted_at": &now, "updated_at": now}).Error
 }

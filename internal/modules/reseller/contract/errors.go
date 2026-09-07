@@ -55,4 +55,10 @@ var (
 	ErrLedgerInvalidSnapshot = errors.New("reseller ledger invalid snapshot")
 	// ErrCustomerNotFound hides both missing and cross-reseller customers.
 	ErrCustomerNotFound = errors.New("reseller customer not found")
+	// ErrCustomerPriceAboveRetail prevents a customer-specific price from being
+	// worse than the reseller's regular storefront price.
+	ErrCustomerPriceAboveRetail = errors.New("reseller customer price above retail")
+	// ErrCustomerPriceInvalid indicates a missing, stale, or otherwise invalid
+	// customer-specific SKU price.
+	ErrCustomerPriceInvalid = errors.New("reseller customer price invalid")
 )

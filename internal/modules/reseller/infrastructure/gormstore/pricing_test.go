@@ -43,11 +43,64 @@ func openResellerPricingRepoTestDB(t *testing.T) *gorm.DB {
 		&resellerdomain.Profile{},
 		&resellerdomain.ProductSetting{},
 		&resellerdomain.RelatedAccount{},
+		&resellerdomain.CustomerPriceSetting{},
 		&resellerdomain.OrderSnapshot{},
 	); err != nil {
 		t.Fatalf("migrate failed: %v", err)
 	}
 	return db
+}
+
+func TestCustomerPriceRepositoryScopesByResellerCustomerAndSKU(t *testing.T) {
+	db := openResellerPricingRepoTestDB(t)
+	repo := New(db)
+	resellerOne := uint(1)
+	resellerTwo := uint(2)
+	users := []userdomain.User{
+		{ID: 10, Email: "customer-10@example.com", PasswordHash: "hash", Status: constants.UserStatusActive, RegistrationResellerID: &resellerOne},
+		{ID: 11, Email: "customer-11@example.com", PasswordHash: "hash", Status: constants.UserStatusActive, RegistrationResellerID: &resellerOne},
+		{ID: 12, Email: "customer-12@example.com", PasswordHash: "hash", Status: constants.UserStatusActive, RegistrationResellerID: &resellerTwo},
+	}
+	for i := range users {
+		if err := db.Create(&users[i]).Error; err != nil {
+			t.Fatalf("create customer %d failed: %v", i, err)
+		}
+	}
+	rows := []resellerdomain.CustomerPriceSetting{
+		{ResellerID: 1, CustomerUserID: 10, ProductID: 20, SKUID: 30, FixedPriceAmount: money.FromDecimal(decimal.NewFromInt(122)), CreatedByUserID: 100},
+		{ResellerID: 1, CustomerUserID: 11, ProductID: 20, SKUID: 30, FixedPriceAmount: money.FromDecimal(decimal.NewFromInt(123)), CreatedByUserID: 100},
+		{ResellerID: 2, CustomerUserID: 12, ProductID: 20, SKUID: 30, FixedPriceAmount: money.FromDecimal(decimal.NewFromInt(124)), CreatedByUserID: 101},
+	}
+	for i := range rows {
+		if err := db.Create(&rows[i]).Error; err != nil {
+			t.Fatalf("create customer price %d failed: %v", i, err)
+		}
+	}
+	got, err := repo.ListCustomerPriceSettingsForPricing(1, 10, []uint{20}, []uint{30})
+	if err != nil || len(got) != 1 || got[0].FixedPriceAmount.String() != "122.00" {
+		t.Fatalf("unexpected scoped customer prices: rows=%+v err=%v", got, err)
+	}
+	updated, err := repo.UpsertCustomerPriceSetting(resellerdomain.CustomerPriceSetting{
+		ResellerID: 1, CustomerUserID: 10, ProductID: 20, SKUID: 30,
+		FixedPriceAmount: money.FromDecimal(decimal.NewFromInt(121)), CreatedByUserID: 100,
+	})
+	if err != nil || updated.ID != rows[0].ID || updated.FixedPriceAmount.String() != "121.00" {
+		t.Fatalf("unexpected upsert: row=%+v err=%v", updated, err)
+	}
+	if err := repo.DeleteCustomerPriceSetting(1, 10, 20, 30); err != nil {
+		t.Fatalf("delete failed: %v", err)
+	}
+	remaining, err := repo.ListCustomerPriceSettings(1, 10)
+	if err != nil || len(remaining) != 0 {
+		t.Fatalf("unexpected remaining rows: %+v err=%v", remaining, err)
+	}
+	recreated, err := repo.UpsertCustomerPriceSetting(resellerdomain.CustomerPriceSetting{
+		ResellerID: 1, CustomerUserID: 10, ProductID: 20, SKUID: 30,
+		FixedPriceAmount: money.FromDecimal(decimal.NewFromInt(120)), CreatedByUserID: 100,
+	})
+	if err != nil || recreated.ID != rows[0].ID {
+		t.Fatalf("soft-deleted scope was not restored: row=%+v err=%v", recreated, err)
+	}
 }
 
 func seedResellerPricingProduct(t *testing.T, db *gorm.DB, slug string, activeSKUCount int) (productdomain.Product, []productdomain.ProductSKU) {

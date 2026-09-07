@@ -96,6 +96,9 @@
                 <div class="mb-8 border-b pb-8" ref="priceSection">
                   <div class="mb-3 flex flex-wrap items-center gap-2">
                     <span class="text-sm text-muted-foreground">{{ t('products.price') }}</span>
+                    <Badge v-if="(selectedSku && selectedSku.customer_price_applied) || (!selectedSku && product.customer_price_applied)" variant="success">
+                      {{ t('products.customerPriceTag') }}
+                    </Badge>
                     <Badge v-if="(selectedSku && hasSkuPromotionPrice(selectedSku)) || (!selectedSku && hasPromotionPrice(product))" variant="danger">
                       {{ t('products.promotionTag') }}
                     </Badge>
@@ -106,7 +109,14 @@
                       {{ t('products.wholesaleTag') }}
                     </Badge>
                   </div>
-                  <div v-if="selectedSku && hasSelectedSkuWholesalePrice" class="space-y-2">
+                  <div v-if="selectedSku && selectedSku.customer_price_applied" class="space-y-2">
+                    <div class="flex flex-wrap items-end gap-4">
+                      <span class="theme-price-lg text-emerald-600 dark:text-emerald-300">{{ formatPrice(selectedSku.price_amount, siteCurrency) }}</span>
+                      <span class="theme-price-original">{{ formatPrice(selectedSku.regular_price_amount, siteCurrency) }}</span>
+                    </div>
+                    <p class="text-sm font-medium text-emerald-600 dark:text-emerald-300">{{ t('products.customerPriceTag') }}</p>
+                  </div>
+                  <div v-else-if="selectedSku && hasSelectedSkuWholesalePrice" class="space-y-2">
                     <div class="flex flex-wrap items-end gap-4">
                       <span
                         class="theme-price-lg"
@@ -167,6 +177,13 @@
                     </span>
                   </div>
                   <!-- 未选 SKU，产品级有促销价 -->
+                  <div v-else-if="product.customer_price_applied" class="space-y-2">
+                    <div class="flex flex-wrap items-end gap-4">
+                      <span class="theme-price-lg text-emerald-600 dark:text-emerald-300">{{ formatPrice(product.price_amount, siteCurrency) }}</span>
+                      <span class="theme-price-original">{{ formatPrice(product.regular_price_amount, siteCurrency) }}</span>
+                    </div>
+                    <p class="text-sm font-medium text-emerald-600 dark:text-emerald-300">{{ t('products.customerPriceTag') }}</p>
+                  </div>
                   <div v-else-if="hasPromotionPrice(product)" class="space-y-2">
                     <div class="flex flex-wrap items-end gap-4">
                       <span class="theme-price-lg text-rose-600 dark:text-rose-300">

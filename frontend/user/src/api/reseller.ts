@@ -46,4 +46,10 @@ export const resellerAPI = {
         userApi.post(`/reseller/customers/${customerId}/wallet/topup`, data),
     customerWalletTransactions: (customerId: number, params?: { page?: number; page_size?: number }) =>
         userApi.get(`/reseller/customers/${customerId}/wallet/transactions`, { params }),
+    customerPrices: (customerId: number) =>
+        userApi.get(`/reseller/customers/${customerId}/prices`),
+    setCustomerPrice: (customerId: number, productId: number, skuId: number, fixedPriceAmount: string) =>
+        userApi.put(`/reseller/customers/${customerId}/prices/${productId}/${skuId}`, { fixed_price_amount: fixedPriceAmount }),
+    resetCustomerPrice: (customerId: number, productId: number, skuId: number) =>
+        userApi.delete(`/reseller/customers/${customerId}/prices/${productId}/${skuId}`),
 }

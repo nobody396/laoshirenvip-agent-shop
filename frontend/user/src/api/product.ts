@@ -1,8 +1,10 @@
-import { api } from './client'
+import { api, userApi } from './client'
+
+const authenticated = () => Boolean(localStorage.getItem('user_token'))
 
 export const productAPI = {
-    list: (params?: any) => api.get('/public/products', { params }),
-    detail: (slug: string) => api.get(`/public/products/${slug}`),
+    list: (params?: any) => authenticated() ? userApi.get('/products', { params }) : api.get('/public/products', { params }),
+    detail: (slug: string) => authenticated() ? userApi.get(`/products/${slug}`) : api.get(`/public/products/${slug}`),
 }
 
 export const postAPI = {

@@ -173,6 +173,7 @@
     "searchLabel": "搜尋",
     "searchPlaceholder": "搜尋商品名稱",
     "promotionTag": "活動價",
+    "customerPriceTag": "專屬價",
     "wholesaleTag": "批發價",
     "memberPriceTag": "會員價",
     "saveAmount": "現省",
@@ -1649,7 +1650,28 @@
       "previous": "上一頁",
       "next": "下一頁",
       "transactions": "充值流水",
-      "noTransactions": "暫無充值或消費流水"
+      "noTransactions": "暫無充值或消費流水",
+      "specialPrices": "專屬價格"
+    },
+    "customerPrices": {
+      "title": "客戶專屬價格",
+      "description": "為登入客戶設定逐 SKU 的固定專屬價。",
+      "back": "返回客戶列表",
+      "hint": "未設定的 SKU 繼續使用普通零售價。專屬價不能低於平台結算底價，也不能高於你的普通零售價；毛利未扣支付手續費。",
+      "empty": "暫無可設定的已上架商品",
+      "sku": "商品規格",
+      "basePrice": "結算底價",
+      "retailPrice": "普通零售價",
+      "specialPrice": "固定專屬價",
+      "grossProfit": "預計毛利",
+      "save": "儲存",
+      "reset": "恢復零售價",
+      "invalid": "請輸入最多兩位小數的正數價格",
+      "belowBase": "不能低於平台結算底價",
+      "aboveRetail": "不能高於普通零售價",
+      "saved": "專屬價格已儲存",
+      "resetDone": "已恢復普通零售價",
+      "failed": "儲存失敗，請重試"
     }
   },
   "orders": {

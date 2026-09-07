@@ -28,3 +28,20 @@ type ProductSetting struct {
 }
 
 func (ProductSetting) TableName() string { return "reseller_product_settings" }
+
+// CustomerPriceSetting is a fixed SKU price offered by one reseller to one
+// authenticated customer registered through that reseller's storefront.
+type CustomerPriceSetting struct {
+	ID               uint         `gorm:"primarykey" json:"id"`
+	ResellerID       uint         `gorm:"not null;index;uniqueIndex:idx_reseller_customer_price_active_scope,priority:1,where:deleted_at IS NULL" json:"reseller_id"`
+	CustomerUserID   uint         `gorm:"not null;index;uniqueIndex:idx_reseller_customer_price_active_scope,priority:2,where:deleted_at IS NULL" json:"customer_user_id"`
+	ProductID        uint         `gorm:"not null;index;uniqueIndex:idx_reseller_customer_price_active_scope,priority:3,where:deleted_at IS NULL" json:"product_id"`
+	SKUID            uint         `gorm:"column:sku_id;not null;index;uniqueIndex:idx_reseller_customer_price_active_scope,priority:4,where:deleted_at IS NULL" json:"sku_id"`
+	FixedPriceAmount money.Amount `gorm:"type:decimal(20,2);not null" json:"fixed_price_amount"`
+	CreatedByUserID  uint         `gorm:"not null;index" json:"created_by_user_id"`
+	CreatedAt        time.Time    `gorm:"index" json:"created_at"`
+	UpdatedAt        time.Time    `gorm:"index" json:"updated_at"`
+	DeletedAt        *time.Time   `gorm:"index" json:"-"`
+}
+
+func (CustomerPriceSetting) TableName() string { return "reseller_customer_price_settings" }

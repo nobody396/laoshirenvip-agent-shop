@@ -173,6 +173,7 @@
     "searchLabel": "搜索",
     "searchPlaceholder": "搜索商品名称",
     "promotionTag": "活动价",
+    "customerPriceTag": "专属价",
     "wholesaleTag": "批发价",
     "memberPriceTag": "会员价",
     "saveAmount": "立省",
@@ -1602,7 +1603,28 @@
       "previous": "上一页",
       "next": "下一页",
       "transactions": "充值流水",
-      "noTransactions": "暂无充值或消费流水"
+      "noTransactions": "暂无充值或消费流水",
+      "specialPrices": "专属价格"
+    },
+    "customerPrices": {
+      "title": "客户专属价格",
+      "description": "为登录客户设置逐 SKU 的固定专属价。",
+      "back": "返回客户列表",
+      "hint": "未设置的 SKU 继续使用普通零售价。专属价不能低于平台结算底价，也不能高于你的普通零售价；毛利未扣支付手续费。",
+      "empty": "暂无可配置的已上架商品",
+      "sku": "商品规格",
+      "basePrice": "结算底价",
+      "retailPrice": "普通零售价",
+      "specialPrice": "固定专属价",
+      "grossProfit": "预计毛利",
+      "save": "保存",
+      "reset": "恢复零售价",
+      "invalid": "请输入最多两位小数的正数价格",
+      "belowBase": "不能低于平台结算底价",
+      "aboveRetail": "不能高于普通零售价",
+      "saved": "专属价格已保存",
+      "resetDone": "已恢复普通零售价",
+      "failed": "保存失败，请重试"
     }
   },
   "orders": {

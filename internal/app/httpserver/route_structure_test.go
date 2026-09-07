@@ -46,6 +46,7 @@ func TestRouteDomainFilesPreserveTrustBoundaries(t *testing.T) {
 			required: []string{
 				`storefront.Use(middleware.ResellerTenantMiddleware(`,
 				`producthttp.RegisterPublicRoutes(public, publicCatalogHandler)`,
+				`producthttp.RegisterAuthenticatedRoutes(user, publicCatalogHandler)`,
 				`categoryhttp.RegisterPublicRoutes(public, publicCategoryHandler)`,
 				`contenttransport.RegisterPublicRoutes(public, publicContentHandler)`,
 				`captchatransport.RegisterPublicRoutes(public,`,
@@ -58,6 +59,7 @@ func TestRouteDomainFilesPreserveTrustBoundaries(t *testing.T) {
 				`resellertransport.RegisterUserFinanceRoutes(resellerConsole, userResellerFinanceHandler)`,
 				`resellertransport.RegisterUserOrderRoutes(resellerConsole, userResellerOrderHandler)`,
 				`resellertransport.RegisterUserCustomerWalletRoutes(resellerConsole, userResellerCustomerWalletHandler)`,
+				`resellertransport.RegisterUserCustomerPriceRoutes(resellerConsole, userResellerCustomerPriceHandler)`,
 				`apicredentialtransport.RegisterUserRoutes(user, userApiCredentialHandler)`,
 				`auditlogtransport.RegisterUserRoutes(user, userAuditLogHandler)`,
 				`giftcardtransport.RegisterUserRoutes(user, userGiftCardHandler)`,

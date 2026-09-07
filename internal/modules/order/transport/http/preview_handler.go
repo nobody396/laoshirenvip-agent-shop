@@ -348,6 +348,8 @@ var userOrderCommonErrorRules = []mappedError{
 	{target: resellermodule.ErrMarkupExceeded, code: response.CodeBadRequest, key: "error.reseller_markup_exceeded"},
 	{target: ErrResellerCouponNotAllowed, code: response.CodeBadRequest, key: "error.reseller_coupon_not_allowed"},
 	{target: resellermodule.ErrPricingModeInvalid, code: response.CodeBadRequest, key: "error.reseller_price_invalid"},
+	{target: resellermodule.ErrCustomerPriceInvalid, code: response.CodeBadRequest, key: "error.reseller_customer_price_invalid"},
+	{target: resellermodule.ErrCustomerPriceAboveRetail, code: response.CodeBadRequest, key: "error.reseller_customer_price_above_retail"},
 	{target: couponcontract.ErrInvalid, code: response.CodeBadRequest, key: "error.coupon_invalid"},
 	{target: couponcontract.ErrNotFound, code: response.CodeBadRequest, key: "error.coupon_not_found"},
 	{target: couponcontract.ErrInactive, code: response.CodeBadRequest, key: "error.coupon_inactive"},

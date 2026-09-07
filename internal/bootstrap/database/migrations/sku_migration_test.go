@@ -418,6 +418,7 @@ func TestAutoMigrateOwnsResellerSchemaAndCrossModuleConstraints(t *testing.T) {
 		"reseller_withdraw_requests",
 		"reseller_balance_accounts",
 		"reseller_related_accounts",
+		"reseller_customer_price_settings",
 	} {
 		if !db.Migrator().HasTable(table) {
 			t.Errorf("central AutoMigrate did not create reseller table %s", table)
@@ -432,6 +433,7 @@ func TestAutoMigrateOwnsResellerSchemaAndCrossModuleConstraints(t *testing.T) {
 		{model: &resellerdomain.ProductSetting{}, name: "idx_reseller_product_settings_active_scope"},
 		{model: &resellerdomain.BalanceAccount{}, name: "idx_reseller_balance_accounts_active_currency"},
 		{model: &resellerdomain.RelatedAccount{}, name: "idx_reseller_related_accounts_active_user"},
+		{model: &resellerdomain.CustomerPriceSetting{}, name: "idx_reseller_customer_price_active_scope"},
 	} {
 		if !db.Migrator().HasIndex(index.model, index.name) {
 			t.Errorf("central AutoMigrate did not create reseller index %s", index.name)

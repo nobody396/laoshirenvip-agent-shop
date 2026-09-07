@@ -98,7 +98,13 @@
         <div class="flex flex-col">
           <span class="hidden md:block text-xs text-muted-foreground uppercase tracking-wider">{{ t('products.price') }}</span>
           <span
-            v-if="hasPromotionPrice(product)"
+            v-if="product.customer_price_applied"
+            class="theme-price-sm text-emerald-600 dark:text-emerald-300"
+          >
+            {{ formatPrice(product.price_amount, siteCurrency) }}
+          </span>
+          <span
+            v-else-if="hasPromotionPrice(product)"
             class="theme-price-sm theme-price-promotion"
             :aria-label="t('products.promotionPriceAria', { price: formatPrice(getPromotionPriceAmount(product), siteCurrency) })"
           >
@@ -111,7 +117,11 @@
           >
             {{ formatPrice(product.price_amount, siteCurrency) }}
           </span>
-          <div v-if="hasPromotionPrice(product)" class="mt-0.5 flex flex-wrap items-center gap-1.5">
+          <div v-if="product.customer_price_applied" class="mt-0.5 flex flex-wrap items-center gap-1.5">
+            <span class="hidden md:inline text-xs text-muted-foreground opacity-80 line-through">{{ formatPrice(product.regular_price_amount, siteCurrency) }}</span>
+            <Badge variant="success" size="xs">{{ t('products.customerPriceTag') }}</Badge>
+          </div>
+          <div v-else-if="hasPromotionPrice(product)" class="mt-0.5 flex flex-wrap items-center gap-1.5">
             <span
               class="hidden md:inline text-xs text-muted-foreground opacity-80 line-through"
               :aria-label="t('products.originalPriceAria', { price: formatPrice(product.price_amount, siteCurrency) })"

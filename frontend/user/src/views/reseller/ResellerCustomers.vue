@@ -59,10 +59,18 @@
               <TableCell>{{ row.status }}</TableCell>
               <TableCell class="text-right font-mono font-bold">¥{{ money(row.wallet_balance) }}</TableCell>
               <TableCell class="text-right">
+                <div class="flex justify-end gap-2">
+                <Button size="sm" variant="outline" as-child>
+                  <RouterLink :to="`/reseller/customers/${row.id}/prices`">
+                    <Tags class="h-4 w-4" />
+                    {{ t('resellerConsole.customers.specialPrices') }}
+                  </RouterLink>
+                </Button>
                 <Button size="sm" @click="selectCustomer(row)">
                   <WalletCards class="h-4 w-4" />
                   {{ t('resellerConsole.customers.topUp') }}
                 </Button>
+                </div>
               </TableCell>
             </TableRow>
           </TableBody>
@@ -131,7 +139,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ShieldCheck, UsersRound, WalletCards } from 'lucide-vue-next'
+import { ShieldCheck, Tags, UsersRound, WalletCards } from 'lucide-vue-next'
 import { resellerAPI } from '../../api/reseller'
 import type { ResellerCustomerWalletRow, ResellerCustomerWalletTransaction } from '../../api/types'
 import { Button } from '@/components/ui/button'

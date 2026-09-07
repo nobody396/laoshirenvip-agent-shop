@@ -23,6 +23,8 @@ type publicSKUView struct {
 	productdomain.ProductSKU
 	PromotionPriceAmount *money.Amount
 	MemberPriceAmount    *money.Amount
+	RegularPriceAmount   *money.Amount
+	CustomerPriceApplied bool
 }
 
 // publicProductView 内部商品计算结构，装饰完成后转换为 productpresenter.Product
@@ -32,6 +34,8 @@ type publicProductView struct {
 	PromotionName        string
 	PromotionType        string
 	PromotionPriceAmount *money.Amount
+	RegularPriceAmount   *money.Amount
+	CustomerPriceApplied bool
 	PromotionRules       []productpresenter.PromotionRule
 	MemberPrices         []productpresenter.MemberLevelPrice
 	PublicSKUs           []publicSKUView
@@ -56,6 +60,8 @@ func (v *publicProductView) toProductResp() productpresenter.Product {
 			SKUCode:              sv.SKUCode,
 			SpecValues:           sv.SpecValuesJSON,
 			PriceAmount:          sv.PriceAmount,
+			RegularPriceAmount:   sv.RegularPriceAmount,
+			CustomerPriceApplied: sv.CustomerPriceApplied,
 			ManualStockTotal:     domaincatalog.MaskStockInt(mode, sv.ManualStockTotal),
 			ManualStockSold:      domaincatalog.MaskSoldCount(mode, sv.ManualStockSold),
 			AutoStockAvailable:   domaincatalog.MaskStockInt64(mode, sv.AutoStockAvailable),
@@ -81,6 +87,8 @@ func (v *publicProductView) toProductResp() productpresenter.Product {
 		Description:          v.Product.DescriptionJSON,
 		Content:              v.Product.ContentJSON,
 		PriceAmount:          v.Product.PriceAmount,
+		RegularPriceAmount:   v.RegularPriceAmount,
+		CustomerPriceApplied: v.CustomerPriceApplied,
 		WholesalePrices:      productpresenter.WholesalePrices(v.Product.WholesalePrices),
 		Images:               v.Product.Images,
 		Tags:                 v.Product.Tags,
@@ -279,11 +287,22 @@ func (h *PublicHandler) decoratePublicProductForTenant(
 	}
 	productCopy.SKUs = filteredSKUs
 
-	item := publicProductView{Product: productCopy}
+	item := publicProductView{
+		Product:              productCopy,
+		RegularPriceAmount:   display.DisplayRegularPrice,
+		CustomerPriceApplied: display.CustomerPriceApplied,
+	}
 	h.decorateProductStock(&productCopy, &item)
 	skuViews := make([]publicSKUView, 0, len(productCopy.SKUs))
 	for _, sku := range productCopy.SKUs {
-		skuViews = append(skuViews, publicSKUView{ProductSKU: sku})
+		view := publicSKUView{ProductSKU: sku, CustomerPriceApplied: display.CustomerPriceSKUs[sku.ID]}
+		if view.CustomerPriceApplied {
+			if regular, ok := display.RegularSKUPrices[sku.ID]; ok {
+				regularCopy := regular
+				view.RegularPriceAmount = &regularCopy
+			}
+		}
+		skuViews = append(skuViews, view)
 	}
 	item.PublicSKUs = skuViews
 	return item.toProductResp(), nil
