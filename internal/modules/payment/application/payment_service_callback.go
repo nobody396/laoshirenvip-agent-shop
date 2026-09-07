@@ -324,6 +324,18 @@ func (s *PaymentService) applyPaymentUpdate(payment *paymentdomain.Payment, orde
 		if err := paymentRepo.Update(lockedPayment); err != nil {
 			return ErrPaymentUpdateFailed
 		}
+		if s.walletSvc != nil {
+			switch status {
+			case constants.PaymentStatusFailed, constants.PaymentStatusExpired:
+				if _, err := s.walletSvc.ReleaseResellerPaymentFee(tx.Wallets(), lockedPayment.ID); err != nil {
+					return err
+				}
+			case constants.PaymentStatusSuccess:
+				if err := s.walletSvc.ReleaseResellerPaymentFeesForOrder(tx.Wallets(), lockedOrder.ID, lockedPayment.ID); err != nil {
+					return err
+				}
+			}
+		}
 
 		if status == constants.PaymentStatusSuccess {
 			if _, err := paymentRepo.ExpirePendingByOrderIDs([]uint{lockedOrder.ID}, now); err != nil {

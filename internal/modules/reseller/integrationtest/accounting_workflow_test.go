@@ -391,6 +391,47 @@ func TestResellerAccountingDeductsMerchantAbsorbedGatewayFeeFromProfit(t *testin
 	}
 }
 
+func TestResellerAccountingRecordsZeroProfitWhenWalletCoversFeeDeficit(t *testing.T) {
+	db := openResellerAccountingServiceTestDB(t)
+	order, payment, snapshot := seedPaidResellerOrderSnapshot(t, db, true)
+	snapshot.ProfitAmount = money.FromDecimal(decimal.NewFromInt(3))
+	if err := db.Save(&snapshot).Error; err != nil {
+		t.Fatalf("update gross reseller profit: %v", err)
+	}
+	payment.ProviderType = constants.PaymentProviderEpay
+	payment.FeeRate = money.FromDecimal(decimal.RequireFromString("4.00"))
+	payment.FeeAmount = money.FromDecimal(decimal.NewFromInt(4))
+	payment.FeePolicy = constants.PaymentFeePolicyMerchantAbsorbed
+	if err := db.Save(&payment).Error; err != nil {
+		t.Fatalf("update payment fee snapshot: %v", err)
+	}
+
+	repo := resellergormstore.New(db)
+	svc := newResellerAccountingTestHarness(repo, 7)
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		return svc.ledger.PostOrderProfit(svc.store.BindTx(tx), &order, &payment)
+	}); err != nil {
+		t.Fatalf("post wallet-backed reseller profit: %v", err)
+	}
+	var entry resellerdomain.LedgerEntry
+	if err := db.Where("idempotency_key = ?", fmt.Sprintf("order_profit:%d", order.ID)).First(&entry).Error; err != nil {
+		t.Fatalf("load zero-profit ledger: %v", err)
+	}
+	if got := entry.Amount.StringFixed(2); got != "0.00" {
+		t.Fatalf("credited reseller profit = %s, want 0.00", got)
+	}
+	for key, want := range map[string]string{
+		"gross_profit_amount":       "3.00",
+		"payment_fee_amount":        "4.00",
+		"payment_fee_wallet_amount": "1.00",
+		"net_profit_amount":         "0.00",
+	} {
+		if got := fmt.Sprint(entry.MetadataJSON[key]); got != want {
+			t.Fatalf("metadata %s = %q, want %q", key, got, want)
+		}
+	}
+}
+
 func TestResellerAccountingSkipsSelfDealingSnapshot(t *testing.T) {
 	db := openResellerAccountingServiceTestDB(t)
 	order, payment, _ := seedPaidResellerOrderSnapshot(t, db, false)

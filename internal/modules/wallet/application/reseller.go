@@ -385,3 +385,163 @@ func (s *Service) ReleaseResellerOrderBalance(tx walletcontract.Transaction, inp
 	}
 	return transaction.Amount, nil
 }
+
+const (
+	resellerPaymentFeeReservePrefix = "reseller-payment-fee-reserve:"
+	resellerPaymentFeeReleasePrefix = "reseller-payment-fee-release:"
+)
+
+func resellerPaymentFeeReserveReference(paymentID uint) string {
+	return fmt.Sprintf("%s%d", resellerPaymentFeeReservePrefix, paymentID)
+}
+
+func resellerPaymentFeeReleaseReference(paymentID uint) string {
+	return fmt.Sprintf("%s%d", resellerPaymentFeeReleasePrefix, paymentID)
+}
+
+func paymentIDFromFeeReserveReference(reference string) (uint, bool) {
+	var paymentID uint
+	if _, err := fmt.Sscanf(strings.TrimSpace(reference), resellerPaymentFeeReservePrefix+"%d", &paymentID); err != nil || paymentID == 0 {
+		return 0, false
+	}
+	return paymentID, true
+}
+
+// ReserveResellerPaymentFee debits the reseller owner's prepaid purchasing
+// wallet for only the part of an absorbed gateway fee that the order margin
+// cannot cover. The debit is the hold: success keeps it, while failed or
+// expired payments create an equal release transaction.
+func (s *Service) ReserveResellerPaymentFee(tx walletcontract.Transaction, input walletcontract.ResellerPaymentFeeReserveInput) (*walletdomain.Transaction, error) {
+	if tx == nil {
+		return nil, walletcontract.ErrTransactionRequired
+	}
+	amount := input.Amount.Decimal.Round(2)
+	if input.OwnerUserID == 0 || input.OrderID == 0 || input.PaymentID == 0 {
+		return nil, walletcontract.ErrAccountNotFound
+	}
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return nil, walletcontract.ErrInvalidAmount
+	}
+	repository := tx.Wallets()
+	reference := resellerPaymentFeeReserveReference(input.PaymentID)
+	existing, err := repository.GetTransactionByReference(reference)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		if existing.UserID != input.OwnerUserID || existing.OrderID == nil || *existing.OrderID != input.OrderID ||
+			existing.Type != constants.WalletTxnTypeResellerPaymentFeeReserve || existing.Direction != constants.WalletTxnDirectionOut ||
+			existing.Amount.Decimal.Round(2).Cmp(amount) != 0 {
+			return nil, walletcontract.ErrReferenceConflict
+		}
+		return existing, nil
+	}
+
+	now := time.Now()
+	account, err := ensureAccountForUpdate(repository, input.OwnerUserID, now)
+	if err != nil {
+		return nil, err
+	}
+	before := account.Balance.Decimal.Round(2)
+	if before.LessThan(amount) {
+		return nil, walletcontract.ErrInsufficientBalance
+	}
+	after := before.Sub(amount).Round(2)
+	account.Balance = money.FromDecimal(after)
+	account.UpdatedAt = now
+	if err := repository.UpdateAccount(account); err != nil {
+		return nil, walletcontract.ErrAccountUpdateFailed
+	}
+	orderID := input.OrderID
+	entry := &walletdomain.Transaction{
+		UserID: input.OwnerUserID, OrderID: &orderID,
+		Type: constants.WalletTxnTypeResellerPaymentFeeReserve, Direction: constants.WalletTxnDirectionOut,
+		Amount: money.FromDecimal(amount), BalanceBefore: money.FromDecimal(before), BalanceAfter: money.FromDecimal(after),
+		Currency: normalizeCurrency(input.Currency), Reference: reference,
+		Remark: "子站在线支付手续费缺口暂扣", CreatedAt: now, UpdatedAt: now,
+	}
+	if err := repository.CreateTransaction(entry); err != nil {
+		return nil, walletcontract.ErrTransactionCreateFailed
+	}
+	return entry, nil
+}
+
+// ReleaseResellerPaymentFee returns one fee hold exactly once.
+func (s *Service) ReleaseResellerPaymentFee(tx walletcontract.Transaction, paymentID uint) (*walletdomain.Transaction, error) {
+	if tx == nil {
+		return nil, walletcontract.ErrTransactionRequired
+	}
+	if paymentID == 0 {
+		return nil, nil
+	}
+	repository := tx.Wallets()
+	reserve, err := repository.GetTransactionByReference(resellerPaymentFeeReserveReference(paymentID))
+	if err != nil || reserve == nil {
+		return nil, err
+	}
+	releaseReference := resellerPaymentFeeReleaseReference(paymentID)
+	existing, err := repository.GetTransactionByReference(releaseReference)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		if existing.UserID != reserve.UserID || existing.Type != constants.WalletTxnTypeResellerPaymentFeeRelease ||
+			existing.Direction != constants.WalletTxnDirectionIn || existing.Amount.Decimal.Round(2).Cmp(reserve.Amount.Decimal.Round(2)) != 0 {
+			return nil, walletcontract.ErrReferenceConflict
+		}
+		return existing, nil
+	}
+
+	now := time.Now()
+	account, err := ensureAccountForUpdate(repository, reserve.UserID, now)
+	if err != nil {
+		return nil, err
+	}
+	amount := reserve.Amount.Decimal.Round(2)
+	before := account.Balance.Decimal.Round(2)
+	after := before.Add(amount).Round(2)
+	account.Balance = money.FromDecimal(after)
+	account.UpdatedAt = now
+	if err := repository.UpdateAccount(account); err != nil {
+		return nil, walletcontract.ErrAccountUpdateFailed
+	}
+	entry := &walletdomain.Transaction{
+		UserID: reserve.UserID, OrderID: reserve.OrderID,
+		Type: constants.WalletTxnTypeResellerPaymentFeeRelease, Direction: constants.WalletTxnDirectionIn,
+		Amount: money.FromDecimal(amount), BalanceBefore: money.FromDecimal(before), BalanceAfter: money.FromDecimal(after),
+		Currency: normalizeCurrency(reserve.Currency), Reference: releaseReference,
+		Remark: "子站在线支付未成功，退回手续费暂扣", CreatedAt: now, UpdatedAt: now,
+	}
+	if err := repository.CreateTransaction(entry); err != nil {
+		return nil, walletcontract.ErrTransactionCreateFailed
+	}
+	return entry, nil
+}
+
+// ReleaseResellerPaymentFeesForOrder releases every hold for the order except
+// the payment that remains authoritative after a successful link replacement.
+func (s *Service) ReleaseResellerPaymentFeesForOrder(tx walletcontract.Transaction, orderID, exceptPaymentID uint) error {
+	if tx == nil {
+		return walletcontract.ErrTransactionRequired
+	}
+	if orderID == 0 {
+		return nil
+	}
+	rows, _, err := tx.Wallets().ListTransactions(walletcontract.TransactionListFilter{
+		OrderID: orderID,
+		Type:    constants.WalletTxnTypeResellerPaymentFeeReserve,
+	})
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		paymentID, ok := paymentIDFromFeeReserveReference(row.Reference)
+		if !ok || paymentID == exceptPaymentID {
+			continue
+		}
+		if _, err := s.ReleaseResellerPaymentFee(tx, paymentID); err != nil {
+			return err
+		}
+	}
+	return nil
+}

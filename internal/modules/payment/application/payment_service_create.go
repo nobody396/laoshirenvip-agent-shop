@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -79,6 +80,8 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 	// holding its single transaction connection. The final Payment still stores
 	// an immutable FeePolicy snapshot.
 	resellerFeePolicy := constants.PaymentFeePolicyNone
+	var resellerFeeWalletOwnerUserID uint
+	var resellerFeeWalletOwnerErr error
 	preOrder, preOrderErr := s.orderRepo.GetByID(input.OrderID)
 	if preOrderErr != nil {
 		return nil, orderapp.ErrOrderFetchFailed
@@ -90,6 +93,9 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 		resellerFeePolicy, preOrderErr = s.resolveResellerPaymentFeePolicy(preOrder.ResellerID)
 		if preOrderErr != nil {
 			return nil, preOrderErr
+		}
+		if s.resellerFeeWalletOwners != nil {
+			resellerFeeWalletOwnerUserID, resellerFeeWalletOwnerErr = s.resellerFeeWalletOwners.GetResellerFeeWalletOwnerUserID(*preOrder.ResellerID)
 		}
 	}
 
@@ -224,6 +230,11 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 			if _, err := paymentRepo.SupersedePendingByOrderID(lockedOrder.ID, payment.ID, paidAt); err != nil {
 				return ErrPaymentCreateFailed
 			}
+			if s.walletSvc != nil {
+				if err := s.walletSvc.ReleaseResellerPaymentFeesForOrder(tx.Wallets(), lockedOrder.ID, payment.ID); err != nil {
+					return ErrPaymentCreateFailed
+				}
+			}
 			if err := s.markOrderPaid(tx, &lockedOrder, paidAt); err != nil {
 				return err
 			}
@@ -265,11 +276,7 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 			customerFeeEnabled = resellerFeePolicy == constants.PaymentFeePolicyCustomerSurcharge
 		}
 		paymentAmount, feeAmount, feePolicy := calculatePaymentAmounts(onlineAmount, feeRate, fixedFee, customerFeeEnabled)
-		if lockedOrder.ResellerID != nil && *lockedOrder.ResellerID > 0 &&
-			feePolicy == constants.PaymentFeePolicyMerchantAbsorbed &&
-			feeAmount.GreaterThan(lockedOrder.ResellerProfitAmount.Decimal.Round(2)) {
-			return ErrResellerProfitInsufficientForFee
-		}
+		feeDeficit := resellerPaymentFeeDeficit(&lockedOrder, feeAmount, feePolicy)
 		payment = &paymentdomain.Payment{
 			OrderID:         lockedOrder.ID,
 			ChannelID:       channel.ID,
@@ -292,6 +299,26 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 
 		if err := paymentRepo.Create(payment); err != nil {
 			return ErrPaymentCreateFailed
+		}
+		if feeDeficit.GreaterThan(decimal.Zero) {
+			if resellerFeeWalletOwnerErr != nil {
+				return ErrPaymentCreateFailed
+			}
+			if resellerFeeWalletOwnerUserID == 0 || s.walletSvc == nil {
+				return ErrResellerFeeWalletInsufficient
+			}
+			if _, err := s.walletSvc.ReserveResellerPaymentFee(tx.Wallets(), walletcontract.ResellerPaymentFeeReserveInput{
+				OwnerUserID: resellerFeeWalletOwnerUserID,
+				OrderID:     lockedOrder.ID,
+				PaymentID:   payment.ID,
+				Amount:      money.FromDecimal(feeDeficit),
+				Currency:    lockedOrder.Currency,
+			}); err != nil {
+				if errors.Is(err, walletcontract.ErrInsufficientBalance) {
+					return ErrResellerFeeWalletInsufficient
+				}
+				return ErrPaymentCreateFailed
+			}
 		}
 		if err := tx.Orders().UpdateFields(lockedOrder.ID, map[string]interface{}{
 			"online_paid_amount": money.FromDecimal(onlineAmount),
@@ -362,6 +389,11 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 			if updateErr := paymentRepo.Update(payment); updateErr != nil {
 				return updateErr
 			}
+			if s.walletSvc != nil {
+				if _, releaseErr := s.walletSvc.ReleaseResellerPaymentFee(tx.Wallets(), payment.ID); releaseErr != nil {
+					return releaseErr
+				}
+			}
 			if s.walletSvc == nil {
 				return nil
 			}
@@ -395,7 +427,15 @@ func (s *PaymentService) CreatePayment(input CreatePaymentInput) (*CreatePayment
 		}
 		return nil, err
 	}
-	if _, err := s.paymentRepo.SupersedePendingByOrderID(order.ID, payment.ID, time.Now()); err != nil {
+	if err := s.paymentRepo.WithinTransaction(func(tx paymentcontract.Transaction) error {
+		if _, err := tx.Payments().SupersedePendingByOrderID(order.ID, payment.ID, time.Now()); err != nil {
+			return err
+		}
+		if s.walletSvc != nil {
+			return s.walletSvc.ReleaseResellerPaymentFeesForOrder(tx.Wallets(), order.ID, payment.ID)
+		}
+		return nil
+	}); err != nil {
 		log.Errorw("payment_create_supersede_previous_failed",
 			"payment_id", payment.ID,
 			"order_id", order.ID,

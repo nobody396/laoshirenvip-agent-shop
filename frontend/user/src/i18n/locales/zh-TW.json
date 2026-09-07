@@ -579,7 +579,9 @@
         "gift_card_redeem": "禮品卡兌換",
         "admin_adjust": "管理員調帳",
         "admin_refund": "管理員退款",
-        "order_underpaid_credit": "訂單收款不足轉入"
+        "order_underpaid_credit": "訂單收款不足轉入",
+        "reseller_payment_fee_reserve": "子站支付手續費暫扣",
+        "reseller_payment_fee_release": "子站支付手續費退回"
       },
       "errors": {
         "loadFailed": "錢包資料載入失敗，請稍後重試",
@@ -762,7 +764,7 @@
           "enabled": "預設開啟",
           "usdt": "USDT · 可按代理需要單獨開啟",
           "absorbFeeTitle": "代理承擔支付手續費",
-          "absorbFeeEnabled": "客戶只支付你的商品標價，實際渠道手續費會從本單代理利潤中扣除。",
+          "absorbFeeEnabled": "客戶只支付你的商品標價。手續費先從本單代理利潤中扣除；利潤不足的差額會從你的錢包暫扣，支付失敗或逾期後自動退回。",
           "absorbFeeDisabled": "客戶在商品標價之外另付渠道手續費，本單代理利潤不扣除該手續費。",
           "agentPays": "代理承擔",
           "customerPays": "客戶承擔",

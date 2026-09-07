@@ -2415,7 +2415,9 @@ const messages = {
           },
           types: {
             recharge: '余额充值',
-            order_pay: '订单支付',
+			order_pay: '订单支付',
+			reseller_payment_fee_reserve: '子站支付手续费暂扣',
+			reseller_payment_fee_release: '子站支付手续费退回',
             order_refund: '订单退款',
             gift_card_redeem: '礼品卡兑换',
             admin_adjust: '管理员调账',
@@ -6875,7 +6877,9 @@ const messages = {
           },
           types: {
             recharge: '餘額儲值',
-            order_pay: '訂單支付',
+			order_pay: '訂單支付',
+			reseller_payment_fee_reserve: '子站支付手續費暫扣',
+			reseller_payment_fee_release: '子站支付手續費退回',
             order_refund: '訂單退款',
             gift_card_redeem: '禮品卡兌換',
             admin_adjust: '管理員調帳',
@@ -11335,7 +11339,9 @@ const messages = {
           },
           types: {
             recharge: 'Top-up',
-            order_pay: 'Order payment',
+			order_pay: 'Order payment',
+			reseller_payment_fee_reserve: 'Child-site payment fee hold',
+			reseller_payment_fee_release: 'Child-site payment fee release',
             order_refund: 'Order refund',
             gift_card_redeem: 'Gift card redeem',
             admin_adjust: 'Admin adjustment',

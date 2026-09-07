@@ -30,6 +30,7 @@ var (
 	ErrPaymentStatusInvalid                = errors.New("payment status invalid")
 	ErrPaymentAmountMismatch               = errors.New("payment amount mismatch")
 	ErrResellerProfitInsufficientForFee    = errors.New("reseller profit insufficient for payment fee")
+	ErrResellerFeeWalletInsufficient       = errors.New("reseller wallet insufficient for payment fee deficit")
 	ErrPaymentCurrencyMismatch             = errors.New("payment currency mismatch")
 	ErrPaymentChannelNotFound              = errors.New("payment channel not found")
 	ErrPaymentChannelInactive              = errors.New("payment channel inactive")
@@ -69,6 +70,7 @@ type PaymentService struct {
 	paymentProviderRegistry paymentcontract.GatewayRegistry
 	resellerAccounting      resellerAccountingTransactions
 	resellerChannels        ResellerPaymentChannelSelector
+	resellerFeeWalletOwners ResellerFeeWalletOwnerSelector
 }
 
 type MemberLevelProgressor interface {
@@ -107,6 +109,12 @@ type ResellerPaymentFeePolicySelector interface {
 	GetResellerPaymentFeePolicy(resellerID uint) (string, error)
 }
 
+// ResellerFeeWalletOwnerSelector resolves the prepaid purchasing wallet that
+// backs a hosted reseller's absorbed payment-fee deficit.
+type ResellerFeeWalletOwnerSelector interface {
+	GetResellerFeeWalletOwnerUserID(resellerID uint) (uint, error)
+}
+
 // SetProcurementService 设置采购单服务（解决循环依赖）
 func (s *PaymentService) SetProcurementService(svc ProcurementCreator) {
 	s.procurementSvc = svc
@@ -142,6 +150,7 @@ type PaymentServiceOptions struct {
 	PaymentProviderRegistry paymentcontract.GatewayRegistry
 	ResellerAccounting      resellerAccountingTransactions
 	ResellerChannels        ResellerPaymentChannelSelector
+	ResellerFeeWalletOwners ResellerFeeWalletOwnerSelector
 }
 
 // NewPaymentService 创建支付服务
@@ -165,6 +174,7 @@ func NewPaymentService(opts PaymentServiceOptions) *PaymentService {
 		paymentProviderRegistry: opts.PaymentProviderRegistry,
 		resellerAccounting:      opts.ResellerAccounting,
 		resellerChannels:        opts.ResellerChannels,
+		resellerFeeWalletOwners: opts.ResellerFeeWalletOwners,
 	}
 }
 

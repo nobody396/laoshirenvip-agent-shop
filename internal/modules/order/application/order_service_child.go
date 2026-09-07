@@ -97,6 +97,13 @@ func (s *OrderService) cancelOrderWithChildren(order *orderdomain.Order, rollbac
 		if _, err := tx.ExpirePendingPaymentsByOrderIDs(orderIDs, now); err != nil {
 			return err
 		}
+		if s.walletService != nil {
+			for _, orderID := range orderIDs {
+				if err := s.walletService.ReleaseResellerPaymentFeesForOrder(tx.Wallets(), orderID, 0); err != nil {
+					return err
+				}
+			}
+		}
 		return nil
 	})
 	if err != nil {
@@ -389,6 +396,11 @@ func (s *OrderService) cancelSingleOrderInTx(tx ordercontract.Transaction, order
 		}
 		if _, err := tx.ExpirePendingPaymentsByOrderIDs([]uint{order.ID}, expiredAt); err != nil {
 			return err
+		}
+		if s.walletService != nil {
+			if err := s.walletService.ReleaseResellerPaymentFeesForOrder(tx.Wallets(), order.ID, 0); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

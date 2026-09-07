@@ -6,6 +6,10 @@ import (
 	"time"
 
 	paymentdomain "github.com/dujiao-next/internal/modules/payment/domain"
+	walletapp "github.com/dujiao-next/internal/modules/wallet/application"
+	walletcontract "github.com/dujiao-next/internal/modules/wallet/contract"
+	walletdomain "github.com/dujiao-next/internal/modules/wallet/domain"
+	walletgormstore "github.com/dujiao-next/internal/modules/wallet/infrastructure/gormstore"
 
 	cardsecretdomain "github.com/dujiao-next/internal/modules/cardsecret/domain"
 	fulfillmentdomain "github.com/dujiao-next/internal/modules/fulfillment/domain"
@@ -44,6 +48,8 @@ func TestCancelExpiredOrderExpiresPendingPayments(t *testing.T) {
 		&cardsecretdomain.Batch{},
 		&cardsecretdomain.Secret{},
 		&paymentdomain.Payment{},
+		&walletdomain.Account{},
+		&walletdomain.Transaction{},
 	); err != nil {
 		t.Fatalf("auto migrate failed: %v", err)
 	}
@@ -160,10 +166,70 @@ func setupCancelPaymentTestDB(t *testing.T, namespace string) *gorm.DB {
 		&cardsecretdomain.Batch{},
 		&cardsecretdomain.Secret{},
 		&paymentdomain.Payment{},
+		&walletdomain.Account{},
+		&walletdomain.Transaction{},
 	); err != nil {
 		t.Fatalf("auto migrate failed: %v", err)
 	}
 	return db
+}
+
+func TestCancelExpiredOrderReleasesResellerPaymentFeeReserve(t *testing.T) {
+	db := setupCancelPaymentTestDB(t, "expire_releases_reseller_fee")
+	now := time.Now()
+	expiresAt := now.Add(-time.Minute)
+	order := newPendingOrderForCancel("EXPIRE-RESELLER-FEE-001", 0, nil, now)
+	order.ExpiresAt = &expiresAt
+	if err := db.Create(order).Error; err != nil {
+		t.Fatalf("create order: %v", err)
+	}
+	payment := newPaymentForOrder(order.ID, constants.PaymentStatusPending, now)
+	if err := db.Create(payment).Error; err != nil {
+		t.Fatalf("create payment: %v", err)
+	}
+	const ownerUserID uint = 901
+	if err := db.Create(&walletdomain.Account{
+		UserID: ownerUserID, Balance: money.FromDecimal(decimal.NewFromInt(10)), CreatedAt: now, UpdatedAt: now,
+	}).Error; err != nil {
+		t.Fatalf("create owner wallet: %v", err)
+	}
+	walletRepo := walletgormstore.New(db)
+	walletSvc := walletapp.NewService(walletapp.Options{Repository: walletRepo, Transactions: walletRepo})
+	if err := walletRepo.WithinTransaction(func(tx walletcontract.Transaction) error {
+		_, reserveErr := walletSvc.ReserveResellerPaymentFee(tx, walletcontract.ResellerPaymentFeeReserveInput{
+			OwnerUserID: ownerUserID, OrderID: order.ID, PaymentID: payment.ID,
+			Amount: money.FromDecimal(decimal.NewFromInt(1)), Currency: "CNY",
+		})
+		return reserveErr
+	}); err != nil {
+		t.Fatalf("reserve fee deficit: %v", err)
+	}
+
+	svc := NewOrderService(OrderServiceOptions{
+		OrderStore:       ordergormstore.New(db, "test-guest-credential-secret-with-32-bytes"),
+		ProductStore:     productgormstore.NewProductStore(db),
+		ProductSKUStore:  productgormstore.NewSKUStore(db),
+		CouponStore:      coupongormstore.New(db),
+		CouponUsageStore: coupongormstore.NewUsageStore(db),
+		WalletService:    walletSvc,
+	})
+	if _, err := svc.CancelExpiredOrder(order.ID); err != nil {
+		t.Fatalf("cancel expired order: %v", err)
+	}
+	var account walletdomain.Account
+	if err := db.Where("user_id = ?", ownerUserID).First(&account).Error; err != nil {
+		t.Fatalf("reload owner wallet: %v", err)
+	}
+	if got := account.Balance.StringFixed(2); got != "10.00" {
+		t.Fatalf("expired order left fee reserve held: %s", got)
+	}
+	var releaseCount int64
+	if err := db.Model(&walletdomain.Transaction{}).Where("order_id = ? AND type = ?", order.ID, constants.WalletTxnTypeResellerPaymentFeeRelease).Count(&releaseCount).Error; err != nil {
+		t.Fatalf("count release rows: %v", err)
+	}
+	if releaseCount != 1 {
+		t.Fatalf("release rows = %d, want 1", releaseCount)
+	}
 }
 
 func newPendingOrderForCancel(orderNo string, userID uint, parentID *uint, now time.Time) *orderdomain.Order {

@@ -69,6 +69,9 @@ type UseCase interface {
 	Recharge(input RechargeInput) (*walletdomain.Account, *walletdomain.Transaction, error)
 	AdminAdjustBalance(input AdjustBalanceInput) (*walletdomain.Account, *walletdomain.Transaction, error)
 	CreditInTransaction(tx Transaction, input CreditInput) (*walletdomain.Account, *walletdomain.Transaction, error)
+	ReserveResellerPaymentFee(tx Transaction, input ResellerPaymentFeeReserveInput) (*walletdomain.Transaction, error)
+	ReleaseResellerPaymentFee(tx Transaction, paymentID uint) (*walletdomain.Transaction, error)
+	ReleaseResellerPaymentFeesForOrder(tx Transaction, orderID, exceptPaymentID uint) error
 	ApplyRechargePayment(tx Transaction, recharge *walletdomain.RechargeOrder) (*walletdomain.Transaction, error)
 	ApplyOrderBalance(tx Transaction, input OrderBalanceInput) (money.Amount, error)
 	ReleaseOrderBalance(tx Transaction, input OrderReleaseInput, claim ReleaseClaim) (money.Amount, error)
