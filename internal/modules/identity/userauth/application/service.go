@@ -27,6 +27,7 @@ import (
 	googleauthapp "github.com/dujiao-next/internal/modules/identity/googleauth/application"
 	"github.com/dujiao-next/internal/modules/identity/jwttoken"
 	"github.com/dujiao-next/internal/modules/identity/userauth/challenge"
+	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
 	"github.com/dujiao-next/internal/shared/mailbrand"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -258,8 +259,15 @@ func (s *Service) checkRegistrationEmailDomain(email string) error {
 	return settingsapp.CheckRegistrationEmailDomainAllowed(email, policy)
 }
 
-// Register 用户注册
+// Register preserves the legacy main-site registration interface.
 func (s *Service) Register(email, password, code string, agreementAccepted bool, emailVerificationEnabled bool) (*userdomain.User, string, time.Time, error) {
+	return s.RegisterForTenant(context.Background(), email, password, code, agreementAccepted, emailVerificationEnabled)
+}
+
+// RegisterForTenant records the reseller that owned the storefront where the
+// account was first created. Existing global users are never retroactively
+// claimed by visiting another reseller host.
+func (s *Service) RegisterForTenant(ctx context.Context, email, password, code string, agreementAccepted bool, emailVerificationEnabled bool) (*userdomain.User, string, time.Time, error) {
 	if !agreementAccepted {
 		return nil, "", time.Time{}, ErrAgreementRequired
 	}
@@ -296,13 +304,14 @@ func (s *Service) Register(email, password, code string, agreementAccepted bool,
 	now := time.Now()
 	nickname := resolveNicknameFromEmail(normalized)
 	user := &userdomain.User{
-		Email:           normalized,
-		PasswordHash:    string(hashedPassword),
-		DisplayName:     nickname,
-		Status:          constants.UserStatusActive,
-		EmailVerifiedAt: &now,
-		CreatedAt:       now,
-		UpdatedAt:       now,
+		RegistrationResellerID: registrationResellerID(ctx),
+		Email:                  normalized,
+		PasswordHash:           string(hashedPassword),
+		DisplayName:            nickname,
+		Status:                 constants.UserStatusActive,
+		EmailVerifiedAt:        &now,
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}
 
 	if err := s.userRepo.Create(user); err != nil {
@@ -326,6 +335,15 @@ func (s *Service) Register(email, password, code string, agreementAccepted bool,
 	}
 
 	return user, token, expiresAt, nil
+}
+
+func registrationResellerID(ctx context.Context) *uint {
+	tenant, ok := resellercontract.TenantFromContext(ctx)
+	if !ok || !tenant.IsReseller() || tenant.ResellerID == nil || *tenant.ResellerID == 0 {
+		return nil
+	}
+	id := *tenant.ResellerID
+	return &id
 }
 
 // LoginStep1 用户密码登录第一步：校验密码，根据是否启用 2FA 返回 challenge token 或正式 JWT。

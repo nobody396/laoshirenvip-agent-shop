@@ -113,8 +113,139 @@ func (s *Store) ListAccounts(filter walletcontract.AccountListFilter) ([]walletd
 	return accounts, total, nil
 }
 
+func (s *Store) GetResellerAccount(resellerID, userID uint) (*walletdomain.ResellerAccount, error) {
+	if resellerID == 0 || userID == 0 {
+		return nil, nil
+	}
+	var account walletdomain.ResellerAccount
+	if err := s.db.Where("reseller_id = ? AND user_id = ? AND deleted_at IS NULL", resellerID, userID).
+		First(&account).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &account, nil
+}
+
+func (s *Store) GetResellerAccountForUpdate(resellerID, userID uint) (*walletdomain.ResellerAccount, error) {
+	if resellerID == 0 || userID == 0 {
+		return nil, nil
+	}
+	var account walletdomain.ResellerAccount
+	if err := s.db.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("reseller_id = ? AND user_id = ? AND deleted_at IS NULL", resellerID, userID).
+		First(&account).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &account, nil
+}
+
+func (s *Store) GetResellerAccountsByUserIDs(resellerID uint, userIDs []uint) ([]walletdomain.ResellerAccount, error) {
+	if resellerID == 0 || len(userIDs) == 0 {
+		return []walletdomain.ResellerAccount{}, nil
+	}
+	var accounts []walletdomain.ResellerAccount
+	if err := s.db.Where("reseller_id = ? AND user_id IN ? AND deleted_at IS NULL", resellerID, userIDs).
+		Find(&accounts).Error; err != nil {
+		return nil, err
+	}
+	return accounts, nil
+}
+
+func (s *Store) CreateResellerAccount(account *walletdomain.ResellerAccount) error {
+	return s.db.Create(account).Error
+}
+
+func (s *Store) UpdateResellerAccount(account *walletdomain.ResellerAccount) error {
+	return s.db.Save(account).Error
+}
+
+func (s *Store) ListResellerAccounts(filter walletcontract.ResellerAccountListFilter) ([]walletdomain.ResellerAccount, int64, error) {
+	query := s.db.Model(&walletdomain.ResellerAccount{}).Where("deleted_at IS NULL")
+	if filter.ResellerID != 0 {
+		query = query.Where("reseller_id = ?", filter.ResellerID)
+	}
+	if filter.UserID != 0 {
+		query = query.Where("user_id = ?", filter.UserID)
+	}
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var accounts []walletdomain.ResellerAccount
+	if err := gormutil.ApplyPagination(query, filter.Page, filter.PageSize).Order("id desc").Find(&accounts).Error; err != nil {
+		return nil, 0, err
+	}
+	return accounts, total, nil
+}
+
 func (s *Store) CreateTransaction(transaction *walletdomain.Transaction) error {
 	return s.db.Create(transaction).Error
+}
+
+func (s *Store) CreateResellerTransaction(transaction *walletdomain.ResellerTransaction) error {
+	return s.db.Create(transaction).Error
+}
+
+func (s *Store) GetResellerTransactionByReference(reference string) (*walletdomain.ResellerTransaction, error) {
+	reference = strings.TrimSpace(reference)
+	if reference == "" {
+		return nil, nil
+	}
+	var transaction walletdomain.ResellerTransaction
+	if err := s.db.Where("reference = ? AND deleted_at IS NULL", reference).First(&transaction).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &transaction, nil
+}
+
+func (s *Store) CountResellerOrderTransactionsByType(orderID uint, transactionType string) (int64, error) {
+	transactionType = strings.TrimSpace(transactionType)
+	if orderID == 0 || transactionType == "" {
+		return 0, nil
+	}
+	var count int64
+	if err := s.db.Model(&walletdomain.ResellerTransaction{}).
+		Where("order_id = ? AND type = ? AND deleted_at IS NULL", orderID, transactionType).
+		Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (s *Store) ListResellerTransactions(filter walletcontract.ResellerTransactionListFilter) ([]walletdomain.ResellerTransaction, int64, error) {
+	query := s.db.Model(&walletdomain.ResellerTransaction{}).Where("deleted_at IS NULL")
+	if filter.ResellerID != 0 {
+		query = query.Where("reseller_id = ?", filter.ResellerID)
+	}
+	if filter.UserID != 0 {
+		query = query.Where("user_id = ?", filter.UserID)
+	}
+	if filter.OrderID != 0 {
+		query = query.Where("order_id = ?", filter.OrderID)
+	}
+	if filter.Type != "" {
+		query = query.Where("type = ?", filter.Type)
+	}
+	if filter.Direction != "" {
+		query = query.Where("direction = ?", filter.Direction)
+	}
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var transactions []walletdomain.ResellerTransaction
+	if err := gormutil.ApplyPagination(query, filter.Page, filter.PageSize).Order("id desc").Find(&transactions).Error; err != nil {
+		return nil, 0, err
+	}
+	return transactions, total, nil
 }
 
 // CountOrderTransactionsByType 统计订单在某一流水类型下已经发生的次数，

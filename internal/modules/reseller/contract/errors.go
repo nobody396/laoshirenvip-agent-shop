@@ -53,4 +53,6 @@ var (
 	ErrAccountingUnavailable = errors.New("reseller accounting unavailable")
 	// ErrLedgerInvalidSnapshot 表示订单快照不足以生成账务流水。
 	ErrLedgerInvalidSnapshot = errors.New("reseller ledger invalid snapshot")
+	// ErrCustomerNotFound hides both missing and cross-reseller customers.
+	ErrCustomerNotFound = errors.New("reseller customer not found")
 )

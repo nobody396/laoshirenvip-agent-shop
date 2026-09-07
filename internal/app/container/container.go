@@ -180,6 +180,7 @@ type Container struct {
 	ResellerAccountingLedger      *reseller.AccountingLedgerService
 	ResellerOrderService          *reseller.OrderQueryService
 	ResellerOperationsService     *reseller.OperationsService
+	ResellerCustomerWalletService *reseller.CustomerWalletService
 	ApiCredentialService          *apicredentialapp.Service
 	SiteConnectionService         *siteconnectionapp.Service
 	ProductMappingService         *mappingapp.Service

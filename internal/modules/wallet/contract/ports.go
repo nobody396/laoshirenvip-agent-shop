@@ -16,11 +16,21 @@ type Repository interface {
 	CreateAccount(account *walletdomain.Account) error
 	UpdateAccount(account *walletdomain.Account) error
 	ListAccounts(filter AccountListFilter) ([]walletdomain.Account, int64, error)
+	GetResellerAccount(resellerID, userID uint) (*walletdomain.ResellerAccount, error)
+	GetResellerAccountForUpdate(resellerID, userID uint) (*walletdomain.ResellerAccount, error)
+	GetResellerAccountsByUserIDs(resellerID uint, userIDs []uint) ([]walletdomain.ResellerAccount, error)
+	CreateResellerAccount(account *walletdomain.ResellerAccount) error
+	UpdateResellerAccount(account *walletdomain.ResellerAccount) error
+	ListResellerAccounts(filter ResellerAccountListFilter) ([]walletdomain.ResellerAccount, int64, error)
 
 	CreateTransaction(transaction *walletdomain.Transaction) error
 	GetTransactionByReference(reference string) (*walletdomain.Transaction, error)
 	CountOrderTransactionsByType(orderID uint, transactionType string) (int64, error)
 	ListTransactions(filter TransactionListFilter) ([]walletdomain.Transaction, int64, error)
+	CreateResellerTransaction(transaction *walletdomain.ResellerTransaction) error
+	GetResellerTransactionByReference(reference string) (*walletdomain.ResellerTransaction, error)
+	CountResellerOrderTransactionsByType(orderID uint, transactionType string) (int64, error)
+	ListResellerTransactions(filter ResellerTransactionListFilter) ([]walletdomain.ResellerTransaction, int64, error)
 
 	CreateRechargeOrder(order *walletdomain.RechargeOrder) error
 	UpdateRechargeOrder(order *walletdomain.RechargeOrder) error
@@ -52,6 +62,9 @@ type UseCase interface {
 	GetRechargeOrderByRechargeNo(userID uint, rechargeNo string) (*walletdomain.RechargeOrder, error)
 	GetRechargeOrderByPaymentIDAndUser(paymentID, userID uint) (*walletdomain.RechargeOrder, error)
 	GetBalancesByUserIDs(userIDs []uint) (map[uint]money.Amount, error)
+	GetResellerAccount(resellerID, userID uint) (*walletdomain.ResellerAccount, error)
+	GetResellerBalancesByUserIDs(resellerID uint, userIDs []uint) (map[uint]money.Amount, error)
+	ListResellerTransactions(filter ResellerTransactionListFilter) ([]walletdomain.ResellerTransaction, int64, error)
 
 	Recharge(input RechargeInput) (*walletdomain.Account, *walletdomain.Transaction, error)
 	AdminAdjustBalance(input AdjustBalanceInput) (*walletdomain.Account, *walletdomain.Transaction, error)
@@ -59,6 +72,10 @@ type UseCase interface {
 	ApplyRechargePayment(tx Transaction, recharge *walletdomain.RechargeOrder) (*walletdomain.Transaction, error)
 	ApplyOrderBalance(tx Transaction, input OrderBalanceInput) (money.Amount, error)
 	ReleaseOrderBalance(tx Transaction, input OrderReleaseInput, claim ReleaseClaim) (money.Amount, error)
+	TransferToResellerAccount(input ResellerTransferInput) (*ResellerTransferResult, error)
+	ApplyResellerOrderBalance(tx Transaction, input ResellerOrderBalanceInput) (money.Amount, error)
+	ReleaseResellerOrderBalance(tx Transaction, input ResellerOrderReleaseInput, claim ReleaseClaim) (money.Amount, error)
+	CreditResellerInTransaction(tx Transaction, input ResellerCreditInput) (*walletdomain.ResellerAccount, *walletdomain.ResellerTransaction, error)
 }
 
 // ReleaseClaim atomically clears the order-side wallet allocation before the

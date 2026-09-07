@@ -24,6 +24,7 @@ import (
 	orderriskapp "github.com/dujiao-next/internal/modules/orderrisk/application"
 	orderrisklimiter "github.com/dujiao-next/internal/modules/orderrisk/infrastructure/redislimiter"
 	promotionapp "github.com/dujiao-next/internal/modules/promotion/application"
+	reseller "github.com/dujiao-next/internal/modules/reseller/application"
 	sitemapapp "github.com/dujiao-next/internal/modules/sitemap/application"
 	sitemapcontract "github.com/dujiao-next/internal/modules/sitemap/contract"
 	sitemapcache "github.com/dujiao-next/internal/modules/sitemap/infrastructure/cacheadapter"
@@ -77,6 +78,11 @@ func (c *Container) initApplicationServices() {
 	c.WalletService = walletapp.NewService(walletapp.Options{
 		Repository: c.WalletRepo, Transactions: c.WalletRepo,
 	})
+	c.ResellerCustomerWalletService = reseller.NewCustomerWalletService(
+		c.ResellerStore,
+		c.UserStore,
+		c.WalletService,
+	)
 	c.OrderRefundService = orderrefund.New(
 		c.OrderStore,
 		c.UserStore,

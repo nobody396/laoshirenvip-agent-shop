@@ -71,6 +71,12 @@ func (s *Service) LoginVerifiedGoogle(verified *googleauthapp.VerifiedIdentity) 
 	return s.loginVerifiedGoogle(context.Background(), verified)
 }
 
+// LoginVerifiedGoogleForTenant preserves the request tenant after a trusted
+// Google verifier has authenticated the identity.
+func (s *Service) LoginVerifiedGoogleForTenant(ctx context.Context, verified *googleauthapp.VerifiedIdentity) (*UserLoginResult, error) {
+	return s.loginVerifiedGoogle(ctx, verified)
+}
+
 func (s *Service) loginVerifiedGoogle(ctx context.Context, verified *googleauthapp.VerifiedIdentity) (*UserLoginResult, error) {
 	if s == nil || s.userOAuthIdentityRepo == nil || s.authUnitOfWork == nil {
 		return nil, googleauthapp.ErrGoogleAuthConfigInvalid
@@ -255,7 +261,7 @@ func (s *Service) loginGoogleTransaction(
 			if err = settingsapp.CheckRegistrationEmailDomainAllowed(verified.Email, registration.EmailDomain); err != nil {
 				return err
 			}
-			user, err = newGoogleUser(verified)
+			user, err = newGoogleUser(verified, registrationResellerID(ctx))
 			if err != nil {
 				return err
 			}
@@ -336,7 +342,7 @@ func (s *Service) loadGoogleRegistrationSnapshot() (googleRegistrationSnapshot, 
 	return snapshot, nil
 }
 
-func newGoogleUser(verified *googleauthapp.VerifiedIdentity) (*userdomain.User, error) {
+func newGoogleUser(verified *googleauthapp.VerifiedIdentity, resellerID *uint) (*userdomain.User, error) {
 	passwordHash, err := generateGooglePlaceholderPassword()
 	if err != nil {
 		return nil, err
@@ -347,14 +353,15 @@ func newGoogleUser(verified *googleauthapp.VerifiedIdentity) (*userdomain.User, 
 		displayName = resolveNicknameFromEmail(verified.Email)
 	}
 	return &userdomain.User{
-		Email:                 verified.Email,
-		PasswordHash:          passwordHash,
-		PasswordSetupRequired: true,
-		DisplayName:           displayName,
-		Status:                constants.UserStatusActive,
-		EmailVerifiedAt:       &now,
-		CreatedAt:             now,
-		UpdatedAt:             now,
+		RegistrationResellerID: resellerID,
+		Email:                  verified.Email,
+		PasswordHash:           passwordHash,
+		PasswordSetupRequired:  true,
+		DisplayName:            displayName,
+		Status:                 constants.UserStatusActive,
+		EmailVerifiedAt:        &now,
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}, nil
 }
 

@@ -14,6 +14,7 @@ import (
 	telegramauthapp "github.com/dujiao-next/internal/modules/identity/telegramauth/application"
 	userdomain "github.com/dujiao-next/internal/modules/identity/user/domain"
 	userauthapp "github.com/dujiao-next/internal/modules/identity/userauth/application"
+	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
 	settingsapp "github.com/dujiao-next/internal/modules/settings/application"
 
 	"golang.org/x/crypto/bcrypt"
@@ -90,6 +91,20 @@ func TestLoginVerifiedGoogleCreatesVerifiedUserAndIdentity(t *testing.T) {
 	}
 	if identity.UserID != res.User.ID || identity.Username != "buyer@gmail.com" {
 		t.Fatalf("unexpected Google identity: %+v", identity)
+	}
+}
+
+func TestGoogleRegistrationCapturesResellerTenantOrigin(t *testing.T) {
+	svc, _, _ := setupTelegramOAuthTestService(t)
+	tenant := resellercontract.ResellerTenantContext("nova.example.test", 51, 9, "nova.example.test")
+	ctx := resellercontract.WithTenantContext(context.Background(), tenant)
+
+	res, err := svc.LoginVerifiedGoogleForTenant(ctx, verifiedGoogleIdentity("tenant-google@gmail.com", "google-tenant-origin", true))
+	if err != nil {
+		t.Fatalf("tenant Google registration: %v", err)
+	}
+	if res.User.RegistrationResellerID == nil || *res.User.RegistrationResellerID != 51 {
+		t.Fatalf("registration_reseller_id = %v, want 51", res.User.RegistrationResellerID)
 	}
 }
 

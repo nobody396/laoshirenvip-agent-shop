@@ -25,6 +25,7 @@ type Order struct {
 	WholesaleDiscountAmount money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"wholesale_discount_amount"`           // 批发价优惠金额
 	TotalAmount             money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"total_amount"`                        // 实付金额
 	WalletPaidAmount        money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"wallet_paid_amount"`                  // 钱包支付金额
+	WalletResellerID        *uint        `gorm:"index" json:"wallet_reseller_id,omitempty"`                                        // 非空表示从该子站专属钱包扣款
 	OnlinePaidAmount        money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"online_paid_amount"`                  // 在线支付金额
 	RefundedAmount          money.Amount `gorm:"type:decimal(20,2);not null;default:0" json:"refunded_amount"`                     // 已退款金额（退回钱包）
 	MemberLevelID           *uint        `gorm:"index" json:"member_level_id,omitempty"`                                           // 下单时等级快照

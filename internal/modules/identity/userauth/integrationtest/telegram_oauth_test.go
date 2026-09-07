@@ -29,6 +29,7 @@ import (
 	userauthgormstore "github.com/dujiao-next/internal/modules/identity/userauth/infrastructure/gormstore"
 	memberlevelapp "github.com/dujiao-next/internal/modules/memberlevel/application"
 	memberlevelgormstore "github.com/dujiao-next/internal/modules/memberlevel/infrastructure/gormstore"
+	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
 	"github.com/dujiao-next/internal/shared/jsonmap"
 	"github.com/dujiao-next/internal/telegramidentity"
 
@@ -251,7 +252,7 @@ func TestLoginWithTelegramAllowsExistingIdentityWhenRegistrationDisabled(t *test
 		t.Fatalf("disable registration failed: %v", err)
 	}
 
-	res, err := svc.LoginVerifiedTelegram(&telegramauthapp.IdentityVerified{
+	res, err := svc.LoginVerifiedTelegram(context.Background(), &telegramauthapp.IdentityVerified{
 		Provider:       constants.UserOAuthProviderTelegram,
 		ProviderUserID: "10002",
 		Username:       "tg_existing",
@@ -299,7 +300,7 @@ func TestLoginWithTelegramMigratesOIDCSubjectIdentityToTelegramID(t *testing.T) 
 		t.Fatalf("create identity failed: %v", err)
 	}
 
-	res, err := svc.LoginVerifiedTelegram(&telegramauthapp.IdentityVerified{
+	res, err := svc.LoginVerifiedTelegram(context.Background(), &telegramauthapp.IdentityVerified{
 		Provider:              constants.UserOAuthProviderTelegram,
 		ProviderUserID:        "987654321",
 		ProviderUserIDAliases: []string{"1234123412341234123"},
@@ -322,6 +323,23 @@ func TestLoginWithTelegramMigratesOIDCSubjectIdentityToTelegramID(t *testing.T) 
 	}
 	if migrated.Username != "new_oidc" {
 		t.Fatalf("username not updated: %q", migrated.Username)
+	}
+}
+
+func TestTelegramRegistrationCapturesResellerTenantOrigin(t *testing.T) {
+	svc, _, _ := setupTelegramOAuthTestService(t)
+	tenant := resellercontract.ResellerTenantContext("spark.example.test", 52, 9, "spark.example.test")
+	ctx := resellercontract.WithTenantContext(context.Background(), tenant)
+
+	res, err := svc.LoginVerifiedTelegram(ctx, &telegramauthapp.IdentityVerified{
+		Provider: constants.UserOAuthProviderTelegram, ProviderUserID: "tenant-origin-telegram",
+		Username: "tenant_origin", AuthAt: time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("tenant Telegram registration: %v", err)
+	}
+	if res.User.RegistrationResellerID == nil || *res.User.RegistrationResellerID != 52 {
+		t.Fatalf("registration_reseller_id = %v, want 52", res.User.RegistrationResellerID)
 	}
 }
 
@@ -379,7 +397,7 @@ func TestLoginWithTelegramAssignsDefaultMemberLevel(t *testing.T) {
 		userstore.New(db),
 	))
 
-	res, err := svc.LoginVerifiedTelegram(&telegramauthapp.IdentityVerified{
+	res, err := svc.LoginVerifiedTelegram(context.Background(), &telegramauthapp.IdentityVerified{
 		Provider:       constants.UserOAuthProviderTelegram,
 		ProviderUserID: "20001",
 		Username:       "tg_level_user",

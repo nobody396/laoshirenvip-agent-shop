@@ -457,11 +457,21 @@ func (s *OrderService) createOrder(input orderCreateParams) (*orderdomain.Order,
 		if s.walletService == nil {
 			return nil, walletcontract.ErrOnlyPaymentRequired
 		}
-		account, accErr := s.walletService.GetAccount(input.UserID)
-		if accErr != nil {
-			return nil, walletcontract.ErrOnlyPaymentRequired
+		var balance decimal.Decimal
+		if input.Tenant.IsReseller() && input.Tenant.ResellerID != nil {
+			account, accErr := s.walletService.GetResellerAccount(*input.Tenant.ResellerID, input.UserID)
+			if accErr != nil {
+				return nil, walletcontract.ErrOnlyPaymentRequired
+			}
+			balance = account.Balance.Decimal
+		} else {
+			account, accErr := s.walletService.GetAccount(input.UserID)
+			if accErr != nil {
+				return nil, walletcontract.ErrOnlyPaymentRequired
+			}
+			balance = account.Balance.Decimal
 		}
-		if account.Balance.Decimal.LessThan(result.TotalAmount) {
+		if balance.LessThan(result.TotalAmount) {
 			return nil, walletcontract.ErrInsufficientBalance
 		}
 	}

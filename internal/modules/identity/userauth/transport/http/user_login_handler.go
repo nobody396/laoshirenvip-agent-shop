@@ -1,6 +1,7 @@
 package userauthhttp
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -30,7 +31,7 @@ type UserLoginSettings interface {
 
 // UserLoginAuth 是注册/登录端点所需的认证端口。
 type UserLoginAuth interface {
-	Register(email, password, code string, agreementAccepted, emailVerificationEnabled bool) (*userdomain.User, string, time.Time, error)
+	Register(ctx context.Context, email, password, code string, agreementAccepted, emailVerificationEnabled bool) (*userdomain.User, string, time.Time, error)
 	LoginStep1(email, password string, rememberMe bool) (*AuthLoginResult, error)
 }
 
@@ -105,7 +106,7 @@ func (h *UserLoginHandler) UserRegister(c *gin.Context) {
 		return
 	}
 
-	user, token, expiresAt, err := h.auth.Register(req.Email, req.Password, req.Code, req.AgreementAccepted, emailVerificationEnabled)
+	user, token, expiresAt, err := h.auth.Register(c.Request.Context(), req.Email, req.Password, req.Code, req.AgreementAccepted, emailVerificationEnabled)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrInvalidEmail):

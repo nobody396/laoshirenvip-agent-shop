@@ -13,6 +13,7 @@ type Handlers struct {
 	UserProductSetting  *userhttp.UserProductSettingHandler
 	UserFinance         *userhttp.UserFinanceHandler
 	UserOrder           *userhttp.UserOrderHandler
+	UserCustomerWallet  *userhttp.UserCustomerWalletHandler
 	AdminManagement     *adminhttp.AdminManagementHandler
 	AdminProfileDetail  *adminhttp.AdminProfileDetailHandler
 	AdminSiteConfig     *adminhttp.AdminSiteConfigHandler
@@ -34,7 +35,8 @@ func New(c *container.Container) Handlers {
 			c.ResellerAccountingQuery,
 			c.ResellerAccountingWithdraw,
 		),
-		UserOrder: userhttp.NewUserOrderHandler(c.ResellerOrderService),
+		UserOrder:          userhttp.NewUserOrderHandler(c.ResellerOrderService),
+		UserCustomerWallet: userhttp.NewUserCustomerWalletHandler(c.ResellerCustomerWalletService),
 		AdminManagement: adminhttp.NewAdminManagementHandler(
 			c.ResellerManagementService, c.ResellerStore, c.AuthzAuditService,
 		),

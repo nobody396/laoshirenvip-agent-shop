@@ -93,20 +93,41 @@ func (s *Service) AdminRefundToWallet(
 			return walletcontract.ErrRefundExceeded
 		}
 
-		_, transaction, err := s.wallets.CreditInTransaction(
-			tx.Wallets(),
-			walletcontract.CreditInput{
-				UserID:    order.UserID,
-				Amount:    money.FromDecimal(amount),
-				Currency:  order.Currency,
-				Type:      constants.WalletTxnTypeAdminRefund,
-				Reference: reference,
-				Remark:    walletRemark,
-				OrderID:   &order.ID,
-			},
-		)
-		if err != nil {
-			return err
+		var transaction *walletdomain.Transaction
+		if order.ResellerID != nil && *order.ResellerID > 0 {
+			_, resellerTransaction, creditErr := s.wallets.CreditResellerInTransaction(
+				tx.Wallets(),
+				walletcontract.ResellerCreditInput{
+					ResellerID: *order.ResellerID, UserID: order.UserID,
+					Amount: money.FromDecimal(amount), Currency: order.Currency,
+					Type: constants.WalletTxnTypeAdminRefund, Reference: reference,
+					Remark: walletRemark, OrderID: &order.ID,
+				},
+			)
+			if creditErr != nil {
+				return creditErr
+			}
+			transaction = &walletdomain.Transaction{
+				ID: resellerTransaction.ID, UserID: resellerTransaction.UserID,
+				OrderID: resellerTransaction.OrderID, Type: resellerTransaction.Type,
+				Direction: resellerTransaction.Direction, Amount: resellerTransaction.Amount,
+				BalanceBefore: resellerTransaction.BalanceBefore, BalanceAfter: resellerTransaction.BalanceAfter,
+				Currency: resellerTransaction.Currency, Reference: resellerTransaction.Reference,
+				Remark: resellerTransaction.Remark, CreatedAt: resellerTransaction.CreatedAt, UpdatedAt: resellerTransaction.UpdatedAt,
+			}
+		} else {
+			_, globalTransaction, creditErr := s.wallets.CreditInTransaction(
+				tx.Wallets(),
+				walletcontract.CreditInput{
+					UserID: order.UserID, Amount: money.FromDecimal(amount), Currency: order.Currency,
+					Type: constants.WalletTxnTypeAdminRefund, Reference: reference,
+					Remark: walletRemark, OrderID: &order.ID,
+				},
+			)
+			if creditErr != nil {
+				return creditErr
+			}
+			transaction = globalTransaction
 		}
 
 		newRefunded := refundedBefore.Add(amount).Round(2)

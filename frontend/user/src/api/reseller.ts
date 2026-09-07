@@ -2,6 +2,7 @@ import { userApi } from './client'
 import type {
     ResellerApplyPayload,
     ResellerCustomDomainPayload,
+    ResellerCustomerWalletTopUpPayload,
     ResellerOrderListParams,
     ResellerOrderStatsParams,
     ResellerProductSettingUpdatePayload,
@@ -39,4 +40,10 @@ export const resellerAPI = {
     withdraws: (params?: any) => userApi.get('/reseller/withdraws', { params }),
     applyWithdraw: (data: ResellerWithdrawApplyPayload) =>
         userApi.post('/reseller/withdraws', data),
+    customers: (params?: { page?: number; page_size?: number; keyword?: string }) =>
+        userApi.get('/reseller/customers', { params }),
+    topUpCustomerWallet: (customerId: number, data: ResellerCustomerWalletTopUpPayload) =>
+        userApi.post(`/reseller/customers/${customerId}/wallet/topup`, data),
+    customerWalletTransactions: (customerId: number, params?: { page?: number; page_size?: number }) =>
+        userApi.get(`/reseller/customers/${customerId}/wallet/transactions`, { params }),
 }

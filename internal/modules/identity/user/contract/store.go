@@ -10,17 +10,18 @@ import (
 
 // ListFilter describes the administration user-directory query.
 type ListFilter struct {
-	Page          int
-	PageSize      int
-	UserID        uint
-	Keyword       string
-	Status        string
-	CreatedFrom   *time.Time
-	CreatedTo     *time.Time
-	LastLoginFrom *time.Time
-	LastLoginTo   *time.Time
-	SortBy        string
-	SortOrder     string
+	Page                   int
+	PageSize               int
+	UserID                 uint
+	RegistrationResellerID uint
+	Keyword                string
+	Status                 string
+	CreatedFrom            *time.Time
+	CreatedTo              *time.Time
+	LastLoginFrom          *time.Time
+	LastLoginTo            *time.Time
+	SortBy                 string
+	SortOrder              string
 }
 
 // Store is the persistence port for user accounts and their authentication state.

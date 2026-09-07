@@ -465,6 +465,31 @@ export interface ResellerWithdrawApplyPayload {
     currency: string
 }
 
+export interface ResellerCustomerWalletRow {
+    id: number
+    email: string
+    display_name: string
+    status: string
+    wallet_balance: string
+}
+
+export interface ResellerCustomerWalletTopUpPayload {
+    amount: string
+    request_id: string
+    remark?: string
+}
+
+export interface ResellerCustomerWalletTransaction {
+    id: number
+    type: string
+    direction: string
+    amount: string
+    balance_before: string
+    balance_after: string
+    remark?: string
+    created_at: string
+}
+
 export interface CreatePaymentPayload {
     order_no: string
     channel_id?: number

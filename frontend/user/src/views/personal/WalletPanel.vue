@@ -8,7 +8,13 @@
       :total-pages="pagination.total_page"
     />
 
+    <Card v-if="walletScope === 'reseller'" class="border-primary/20 bg-primary/5 p-5">
+      <p class="text-sm font-semibold text-foreground">{{ t('personalCenter.wallet.resellerWalletTitle') }}</p>
+      <p class="mt-1 text-sm text-muted-foreground">{{ t('personalCenter.wallet.resellerWalletManagedHint') }}</p>
+    </Card>
+
     <WalletRechargeForm
+      v-else-if="walletScope === 'global'"
       :amount="rechargeForm.amount"
       :channel-id="rechargeForm.channelId"
       :remark="rechargeForm.remark"
@@ -48,6 +54,7 @@ import { amountToCents, basisPointsToPercent, calculateFeeCents, centsToAmount, 
 import WalletBalanceCard from '../../components/wallet/WalletBalanceCard.vue'
 import WalletRechargeForm from '../../components/wallet/WalletRechargeForm.vue'
 import WalletTransactionList from '../../components/wallet/WalletTransactionList.vue'
+import { Card } from '@/components/ui/card'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -272,6 +279,7 @@ const selectedChannelFeeAmountDisplay = computed(() => {
   return formatMoney(centsToAmount(variableFeeCents + fixedFeeCents), selectedChannelCurrency.value)
 })
 const balanceDisplay = computed(() => formatMoney(wallet.value?.balance, String(appStore.config?.currency || 'CNY')))
+const walletScope = computed(() => wallet.value ? String(wallet.value.scope || 'global') : 'loading')
 
 const loadWallet = async () => {
   const response = await walletAPI.account()

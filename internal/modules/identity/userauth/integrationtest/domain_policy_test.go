@@ -122,6 +122,20 @@ func TestRegisterAllowsExactEmailDomain(t *testing.T) {
 	}
 }
 
+func TestRegisterForTenantCapturesTheOriginReseller(t *testing.T) {
+	svc, _, _ := newRegistrationDomainPolicyAuthService(t)
+	tenant := resellercontract.ResellerTenantContext("nova.example.test", 41, 9, "nova.example.test")
+	ctx := resellercontract.WithTenantContext(context.Background(), tenant)
+
+	user, _, _, err := svc.RegisterForTenant(ctx, "tenant-buyer@example.com", "secret123", "", true, false)
+	if err != nil {
+		t.Fatalf("register for reseller tenant: %v", err)
+	}
+	if user.RegistrationResellerID == nil || *user.RegistrationResellerID != 41 {
+		t.Fatalf("registration_reseller_id = %v, want 41", user.RegistrationResellerID)
+	}
+}
+
 func TestSendVerifyCodeRejectsEmailDomainBeforeEmailSend(t *testing.T) {
 	svc, settings, _ := newRegistrationDomainPolicyAuthService(t)
 	if _, err := settings.Update(constants.SettingKeyRegistrationConfig, map[string]interface{}{

@@ -33,6 +33,7 @@ func TestWalletOwnsCompleteVerticalSlice(t *testing.T) {
 	assertFileDeclaresTypes(t, filepath.Join(domainRoot, "account.go"), []string{"Account"})
 	assertFileDeclaresTypes(t, filepath.Join(domainRoot, "transaction.go"), []string{"Transaction"})
 	assertFileDeclaresTypes(t, filepath.Join(domainRoot, "recharge_order.go"), []string{"RechargeOrder"})
+	assertFileDeclaresTypes(t, filepath.Join(domainRoot, "reseller_account.go"), []string{"ResellerAccount", "ResellerTransaction"})
 
 	assertFileDeclaresTypes(t, filepath.Join(applicationRoot, "service.go"), []string{"Options", "Service"})
 	assertFileDeclaresFunctions(t, filepath.Join(applicationRoot, "service.go"), []string{"NewService"})
@@ -52,6 +53,9 @@ func TestWalletOwnsCompleteVerticalSlice(t *testing.T) {
 	})
 	assertFileDeclaresFunctions(t, filepath.Join(applicationRoot, "recharge.go"), []string{
 		"ApplyRechargePayment",
+	})
+	assertFileDeclaresFunctions(t, filepath.Join(applicationRoot, "reseller.go"), []string{
+		"TransferToResellerAccount", "ApplyResellerOrderBalance", "ReleaseResellerOrderBalance",
 	})
 
 	assertFileDeclaresTypes(t, filepath.Join(storeRoot, "store.go"), []string{"Store"})
@@ -87,7 +91,7 @@ func TestWalletOwnsCompleteVerticalSlice(t *testing.T) {
 	assertDirectoryGoFileBudget(t, contractRoot, 4)
 	assertDirectoryGoFileBudget(t, domainRoot, 4)
 	assertDirectoryGoFileBudget(t, storeRoot, 2)
-	assertDirectoryGoFileBudget(t, transportRoot, 6)
+	assertDirectoryGoFileBudget(t, transportRoot, 7)
 	assertDirectoryGoFileBudget(t, presenterRoot, 2)
 	assertDirectoryGoFileBudget(t, bootstrapRoot, 3)
 

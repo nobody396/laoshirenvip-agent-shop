@@ -36,7 +36,7 @@ func (s *Service) LoginWithTelegram(input LoginWithTelegramInput) (*UserLoginRes
 	if err != nil {
 		return nil, err
 	}
-	return s.LoginVerifiedTelegram(verified)
+	return s.LoginVerifiedTelegram(ctx, verified)
 }
 
 // LoginWithTelegramMiniApp Telegram Mini App 登录（已启用 2FA 的账号会返回挑战 token，不直接发 JWT）
@@ -52,12 +52,12 @@ func (s *Service) LoginWithTelegramMiniApp(input LoginWithTelegramMiniAppInput) 
 	if err != nil {
 		return nil, err
 	}
-	return s.LoginVerifiedTelegram(verified)
+	return s.LoginVerifiedTelegram(ctx, verified)
 }
 
 // LoginVerifiedTelegram completes a login after a trusted Telegram verifier
 // has authenticated and normalized the upstream identity.
-func (s *Service) LoginVerifiedTelegram(verified *telegramauthapp.IdentityVerified) (*UserLoginResult, error) {
+func (s *Service) LoginVerifiedTelegram(ctx context.Context, verified *telegramauthapp.IdentityVerified) (*UserLoginResult, error) {
 	identity, err := s.getTelegramIdentityByVerifiedID(verified)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func (s *Service) LoginVerifiedTelegram(verified *telegramauthapp.IdentityVerifi
 			}
 		}
 	} else {
-		user, err = s.findOrCreateTelegramUser(verified)
+		user, err = s.findOrCreateTelegramUser(ctx, verified)
 		if err != nil {
 			return nil, err
 		}

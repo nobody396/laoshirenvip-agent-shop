@@ -57,6 +57,7 @@ func TestRouteDomainFilesPreserveTrustBoundaries(t *testing.T) {
 				`resellertransport.RegisterUserProductSettingRoutes(resellerConsole, userResellerProductSettingHandler)`,
 				`resellertransport.RegisterUserFinanceRoutes(resellerConsole, userResellerFinanceHandler)`,
 				`resellertransport.RegisterUserOrderRoutes(resellerConsole, userResellerOrderHandler)`,
+				`resellertransport.RegisterUserCustomerWalletRoutes(resellerConsole, userResellerCustomerWalletHandler)`,
 				`apicredentialtransport.RegisterUserRoutes(user, userApiCredentialHandler)`,
 				`auditlogtransport.RegisterUserRoutes(user, userAuditLogHandler)`,
 				`giftcardtransport.RegisterUserRoutes(user, userGiftCardHandler)`,

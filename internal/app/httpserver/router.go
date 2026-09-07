@@ -168,6 +168,7 @@ func SetupRouter(cfg *config.Config, c *container.Container) *gin.Engine {
 	userResellerProductSettingHandler := resellerHandlers.UserProductSetting
 	userResellerFinanceHandler := resellerHandlers.UserFinance
 	userResellerOrderHandler := resellerHandlers.UserOrder
+	userResellerCustomerWalletHandler := resellerHandlers.UserCustomerWallet
 	adminResellerManagementHandler := resellerHandlers.AdminManagement
 	adminResellerProfileDetailHandler := resellerHandlers.AdminProfileDetail
 	adminResellerSiteConfigHandler := resellerHandlers.AdminSiteConfig
@@ -237,7 +238,7 @@ func SetupRouter(cfg *config.Config, c *container.Container) *gin.Engine {
 		middleware.SharedStockAPIAuthMiddleware(c.ApiCredentialRepo),
 		middleware.RateLimitMiddleware(redisClient, upstreamAPIRule, middleware.KeyByIP),
 	)
-	registerStorefrontRoutes(apiV1, cfg, c, publicContentHandler, publicCatalogHandler, publicCategoryHandler, publicResellerTLSHandler, userResellerHandler, userResellerProductSettingHandler, userResellerFinanceHandler, userResellerOrderHandler, userApiCredentialHandler, userAuditLogHandler, userGiftCardHandler, publicMemberLevelHandler, userProfileHandler, userEmailHandler, userPasswordHandler, userVerifyHandler, userTelegramOIDCHandler, userTelegramHandler, userGoogleHandler, userLoginHandler, user2FAHandler, publicConfigHandler, userCartHandler, userOrderHandler, guestOrderHandler, orderPreviewHandler, orderCreateHandler, paymentLatestHandler, paymentWriteHandler, userWalletHandler, redisClient, loginRule, guestReadRule, guestWriteRule)
+	registerStorefrontRoutes(apiV1, cfg, c, publicContentHandler, publicCatalogHandler, publicCategoryHandler, publicResellerTLSHandler, userResellerHandler, userResellerProductSettingHandler, userResellerFinanceHandler, userResellerOrderHandler, userResellerCustomerWalletHandler, userApiCredentialHandler, userAuditLogHandler, userGiftCardHandler, publicMemberLevelHandler, userProfileHandler, userEmailHandler, userPasswordHandler, userVerifyHandler, userTelegramOIDCHandler, userTelegramHandler, userGoogleHandler, userLoginHandler, user2FAHandler, publicConfigHandler, userCartHandler, userOrderHandler, guestOrderHandler, orderPreviewHandler, orderCreateHandler, paymentLatestHandler, paymentWriteHandler, userWalletHandler, redisClient, loginRule, guestReadRule, guestWriteRule)
 	registerUpstreamRoutes(apiV1, c, upstreamHandler, redisClient, upstreamAPIRule)
 	registerChannelRoutes(apiV1, c, channelHandler, channelMemberLevelHandler, channelGiftCardHandler, channelAffiliateHandler, channelTelegramBotHandler, channelWalletHandler)
 	registerPaymentCallbackRoutes(apiV1, paymentCallbackHandler, paymentWebhookHandler)

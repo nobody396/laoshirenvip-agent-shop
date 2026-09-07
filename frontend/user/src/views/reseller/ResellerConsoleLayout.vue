@@ -67,6 +67,7 @@ import {
   ShoppingBag,
   Tag,
   Upload,
+  UsersRound,
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -89,6 +90,7 @@ const groupDefs: Array<{ key: string; titleKey: string; items: NavDef[] }> = [
     items: [
       { to: '/reseller', label: 'resellerConsole.nav.dashboard', icon: LayoutGrid },
       { to: '/reseller/orders', label: 'resellerConsole.nav.orders', icon: ShoppingBag },
+      { to: '/reseller/customers', label: 'resellerConsole.nav.customers', icon: UsersRound },
       { to: '/reseller/finance', label: 'resellerConsole.nav.finance', icon: Banknote },
       { to: '/reseller/ledger', label: 'resellerConsole.nav.ledger', icon: FileText },
       { to: '/reseller/withdraws', label: 'resellerConsole.nav.withdraws', icon: Upload },

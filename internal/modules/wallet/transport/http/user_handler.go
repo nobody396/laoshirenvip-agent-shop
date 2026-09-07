@@ -9,6 +9,7 @@ import (
 	walletdomain "github.com/dujiao-next/internal/modules/wallet/domain"
 
 	userdomain "github.com/dujiao-next/internal/modules/identity/user/domain"
+	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
 
 	"github.com/dujiao-next/internal/constants"
 	walletpresenter "github.com/dujiao-next/internal/modules/wallet/transport/presenter"
@@ -45,7 +46,9 @@ var (
 // WalletService 是用户钱包查询所需的最小端口。
 type WalletService interface {
 	GetAccount(userID uint) (*walletdomain.Account, error)
+	GetResellerAccount(resellerID, userID uint) (*walletdomain.ResellerAccount, error)
 	ListTransactions(userID uint, page, pageSize int) ([]walletdomain.Transaction, int64, error)
+	ListResellerTransactions(resellerID, userID uint, page, pageSize int) ([]walletdomain.ResellerTransaction, int64, error)
 	ListUserRechargeOrders(userID uint, page, pageSize int, status, rechargeNo string) ([]walletdomain.RechargeOrder, int64, error)
 	StatsUserRechargeOrders(userID uint, rechargeNo string) (map[string]int64, error)
 	GetRechargeOrderByRechargeNo(userID uint, rechargeNo string) (*walletdomain.RechargeOrder, error)
@@ -122,6 +125,10 @@ func (h *UserHandler) GetPaymentChannels(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if _, resellerScope := resellerWalletScope(c); resellerScope {
+		response.Success(c, []map[string]interface{}{})
+		return
+	}
 	var req walletPaymentChannelsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		ginutil.RespondBindError(c, err)
@@ -150,6 +157,16 @@ func (h *UserHandler) GetWallet(c *gin.Context) {
 	if !ok {
 		return
 	}
+	resellerID, resellerScope := resellerWalletScope(c)
+	if resellerScope {
+		account, err := h.wallets.GetResellerAccount(resellerID, uid)
+		if err != nil {
+			ginutil.RespondError(c, response.CodeInternal, "error.user_fetch_failed", err)
+			return
+		}
+		response.Success(c, walletpresenter.NewResellerWalletAccountResp(account))
+		return
+	}
 	account, err := h.wallets.GetAccount(uid)
 	if err != nil {
 		ginutil.RespondError(c, response.CodeInternal, "error.user_fetch_failed", err)
@@ -164,6 +181,15 @@ func (h *UserHandler) GetTransactions(c *gin.Context) {
 		return
 	}
 	page, pageSize := ginutil.ParsePagination(c)
+	if resellerID, ok := resellerWalletScope(c); ok {
+		transactions, total, err := h.wallets.ListResellerTransactions(resellerID, uid, page, pageSize)
+		if err != nil {
+			ginutil.RespondError(c, response.CodeInternal, "error.user_fetch_failed", err)
+			return
+		}
+		response.SuccessWithPage(c, walletpresenter.NewResellerWalletTransactionRespList(transactions), response.BuildPagination(page, pageSize, total))
+		return
+	}
 	transactions, total, err := h.wallets.ListTransactions(uid, page, pageSize)
 	if err != nil {
 		ginutil.RespondError(c, response.CodeInternal, "error.user_fetch_failed", err)
@@ -172,9 +198,23 @@ func (h *UserHandler) GetTransactions(c *gin.Context) {
 	response.SuccessWithPage(c, walletpresenter.NewWalletTransactionRespList(transactions), response.BuildPagination(page, pageSize, total))
 }
 
+func resellerWalletScope(c *gin.Context) (uint, bool) {
+	if c == nil || c.Request == nil {
+		return 0, false
+	}
+	tenant, ok := resellercontract.TenantFromContext(c.Request.Context())
+	if !ok || !tenant.IsReseller() || tenant.ResellerID == nil || *tenant.ResellerID == 0 {
+		return 0, false
+	}
+	return *tenant.ResellerID, true
+}
+
 func (h *UserHandler) Recharge(c *gin.Context) {
 	uid, ok := ginutil.GetUserID(c)
 	if !ok {
+		return
+	}
+	if rejectResellerManagedWallet(c) {
 		return
 	}
 	var req walletRechargeRequest
@@ -221,6 +261,9 @@ func (h *UserHandler) GetRecharge(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if rejectResellerManagedWallet(c) {
+		return
+	}
 	rechargeNo := strings.TrimSpace(c.Param("recharge_no"))
 	if rechargeNo == "" {
 		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", nil)
@@ -253,6 +296,9 @@ func (h *UserHandler) ListRecharges(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if rejectResellerManagedWallet(c) {
+		return
+	}
 	page, pageSize := ginutil.ParsePagination(c)
 	orders, total, err := h.wallets.ListUserRechargeOrders(uid, page, pageSize, strings.TrimSpace(c.Query("status")), strings.TrimSpace(c.Query("recharge_no")))
 	if err != nil {
@@ -265,6 +311,9 @@ func (h *UserHandler) ListRecharges(c *gin.Context) {
 func (h *UserHandler) RechargeStats(c *gin.Context) {
 	uid, ok := ginutil.GetUserID(c)
 	if !ok {
+		return
+	}
+	if rejectResellerManagedWallet(c) {
 		return
 	}
 	stats, err := h.wallets.StatsUserRechargeOrders(uid, strings.TrimSpace(c.Query("recharge_no")))
@@ -282,6 +331,9 @@ func (h *UserHandler) RechargeStats(c *gin.Context) {
 func (h *UserHandler) CaptureRechargePayment(c *gin.Context) {
 	uid, ok := ginutil.GetUserID(c)
 	if !ok {
+		return
+	}
+	if rejectResellerManagedWallet(c) {
 		return
 	}
 	paymentID, err := ginutil.ParseParamUint(c, "id")
@@ -321,6 +373,14 @@ func (h *UserHandler) CaptureRechargePayment(c *gin.Context) {
 		return
 	}
 	response.Success(c, walletpresenter.NewWalletRechargePaymentPayload(recharge, payment, account))
+}
+
+func rejectResellerManagedWallet(c *gin.Context) bool {
+	if _, ok := resellerWalletScope(c); !ok {
+		return false
+	}
+	ginutil.RespondError(c, response.CodeForbidden, "error.forbidden", nil)
+	return true
 }
 
 func requestSchemeFromContext(c *gin.Context) string {

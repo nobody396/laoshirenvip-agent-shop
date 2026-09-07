@@ -588,7 +588,9 @@
         "rechargeQueryFailed": "Failed to query recharge status, please try again later",
         "checkPayStatusFailed": "Failed to check payment status, please try again later",
         "rechargeStateFailed": "Recharge payment was not successful, please try again with another channel"
-      }
+      },
+      "resellerWalletTitle": "Store-specific wallet",
+      "resellerWalletManagedHint": "This balance is funded by the current reseller and can only be spent on this storefront, not on the main site or another reseller site."
     },
     "affiliate": {
       "title": "Affiliate Center",
@@ -1384,7 +1386,8 @@
       "orders": "Sales orders",
       "finance": "Finance",
       "ledger": "Ledger",
-      "withdraws": "Withdrawals"
+      "withdraws": "Withdrawals",
+      "customers": "Customer wallets"
     },
     "navGroups": {
       "operations": "Operations",
@@ -1620,6 +1623,33 @@
       "tlCompleted": "Completed",
       "tlRefunded": "Refunded / canceled",
       "tlPending": "Pending"
+    },
+    "customers": {
+      "title": "Customer wallets",
+      "description": "View customers registered on this storefront and transfer funds from your purchasing wallet to their store-specific wallet.",
+      "scopeHint": "Only customers registered on this storefront appear here. Every top-up deducts the same amount from your purchasing wallet, and the customer balance can only be spent on this storefront.",
+      "searchPlaceholder": "Search customer email or name",
+      "empty": "No customers have registered on this storefront",
+      "account": "Customer",
+      "status": "Status",
+      "balance": "Store wallet balance",
+      "actions": "Actions",
+      "topUp": "Top up",
+      "topUpTitle": "Top up customer wallet",
+      "amount": "Amount",
+      "remark": "Note",
+      "remarkPlaceholder": "For example: offline payment received",
+      "debitHint": "Confirmation atomically deducts the same amount from your purchasing wallet and credits this customer’s store-specific wallet.",
+      "submitting": "Topping up…",
+      "confirmTopUp": "Confirm top-up",
+      "confirmPrompt": "Top up {email} by ¥{amount}? The same amount will be deducted from your purchasing wallet.",
+      "invalidAmount": "Enter a positive amount with at most two decimals",
+      "success": "Top-up of ¥{amount} succeeded. Customer balance: ¥{balance}; purchasing wallet remaining: ¥{ownerBalance}",
+      "failed": "Top-up failed. Check your purchasing wallet balance and try again.",
+      "previous": "Previous",
+      "next": "Next",
+      "transactions": "Wallet activity",
+      "noTransactions": "No top-up or spending activity yet"
     }
   },
   "orders": {

@@ -14,13 +14,19 @@ import (
 // WalletAccountResp 钱包账户响应
 type WalletAccountResp struct {
 	Balance money.Amount `json:"balance"`
+	Scope   string       `json:"scope"`
 }
 
 // NewWalletAccountResp 从 walletdomain.Account 构造响应
 func NewWalletAccountResp(a *walletdomain.Account) WalletAccountResp {
 	return WalletAccountResp{
 		Balance: a.Balance,
+		Scope:   "global",
 	}
+}
+
+func NewResellerWalletAccountResp(a *walletdomain.ResellerAccount) WalletAccountResp {
+	return WalletAccountResp{Balance: a.Balance, Scope: "reseller"}
 }
 
 // WalletTransactionResp 钱包流水响应
@@ -53,6 +59,21 @@ func NewWalletTransactionRespList(txns []walletdomain.Transaction) []WalletTrans
 	result := make([]WalletTransactionResp, 0, len(txns))
 	for i := range txns {
 		result = append(result, NewWalletTransactionResp(&txns[i]))
+	}
+	return result
+}
+
+func NewResellerWalletTransactionResp(t *walletdomain.ResellerTransaction) WalletTransactionResp {
+	return WalletTransactionResp{
+		ID: t.ID, Type: t.Type, Direction: t.Direction, Amount: t.Amount,
+		BalanceAfter: t.BalanceAfter, Remark: t.Remark, CreatedAt: t.CreatedAt,
+	}
+}
+
+func NewResellerWalletTransactionRespList(txns []walletdomain.ResellerTransaction) []WalletTransactionResp {
+	result := make([]WalletTransactionResp, 0, len(txns))
+	for i := range txns {
+		result = append(result, NewResellerWalletTransactionResp(&txns[i]))
 	}
 	return result
 }

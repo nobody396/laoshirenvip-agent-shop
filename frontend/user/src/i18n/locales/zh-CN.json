@@ -541,7 +541,9 @@
         "rechargeQueryFailed": "查询充值状态失败，请稍后重试",
         "checkPayStatusFailed": "检查支付状态失败，请稍后重试",
         "rechargeStateFailed": "充值支付未成功，请更换渠道后重试"
-      }
+      },
+      "resellerWalletTitle": "子站专属钱包",
+      "resellerWalletManagedHint": "此余额由当前子站代理充值，只能在当前子站下单使用，不能在总站或其他子站消费。"
     },
     "affiliate": {
       "title": "推广返利",
@@ -1337,7 +1339,8 @@
       "orders": "销售订单",
       "finance": "财务概览",
       "ledger": "账务流水",
-      "withdraws": "提现管理"
+      "withdraws": "提现管理",
+      "customers": "客户钱包"
     },
     "navGroups": {
       "operations": "经营",
@@ -1573,6 +1576,33 @@
       "tlCompleted": "已完成",
       "tlRefunded": "已退款/取消",
       "tlPending": "待处理"
+    },
+    "customers": {
+      "title": "客户钱包",
+      "description": "查看从本子站注册的客户，并从你的采购钱包向其子站专属钱包转入余额。",
+      "scopeHint": "这里只显示从本子站注册的客户。每次充值都会从你的采购钱包等额扣除，客户余额只能在本子站使用。",
+      "searchPlaceholder": "搜索客户邮箱或昵称",
+      "empty": "暂无从本子站注册的客户",
+      "account": "客户账号",
+      "status": "状态",
+      "balance": "子站钱包余额",
+      "actions": "操作",
+      "topUp": "充值",
+      "topUpTitle": "给客户充值子站余额",
+      "amount": "充值金额",
+      "remark": "备注",
+      "remarkPlaceholder": "例如：微信收款",
+      "debitHint": "确认后将从你的采购钱包 1:1 扣除，并原子转入该客户的子站专属钱包。",
+      "submitting": "充值中…",
+      "confirmTopUp": "确认充值",
+      "confirmPrompt": "确认给 {email} 充值 ¥{amount}？将从你的采购钱包等额扣除。",
+      "invalidAmount": "请输入最多两位小数的正数金额",
+      "success": "充值 ¥{amount} 成功，客户余额 ¥{balance}，你的采购钱包剩余 ¥{ownerBalance}",
+      "failed": "充值失败，请核对采购钱包余额后重试",
+      "previous": "上一页",
+      "next": "下一页",
+      "transactions": "充值流水",
+      "noTransactions": "暂无充值或消费流水"
     }
   },
   "orders": {

@@ -30,9 +30,21 @@ func (a walletTransportAdapter) GetAccount(userID uint) (*walletdomain.Account, 
 	return account, mapWalletTransportError(err)
 }
 
+func (a walletTransportAdapter) GetResellerAccount(resellerID, userID uint) (*walletdomain.ResellerAccount, error) {
+	account, err := a.wallets.GetResellerAccount(resellerID, userID)
+	return account, mapWalletTransportError(err)
+}
+
 func (a walletTransportAdapter) ListTransactions(userID uint, page, pageSize int) ([]walletdomain.Transaction, int64, error) {
 	transactions, total, err := a.wallets.ListTransactions(walletcontract.TransactionListFilter{
 		Page: page, PageSize: pageSize, UserID: userID,
+	})
+	return transactions, total, mapWalletTransportError(err)
+}
+
+func (a walletTransportAdapter) ListResellerTransactions(resellerID, userID uint, page, pageSize int) ([]walletdomain.ResellerTransaction, int64, error) {
+	transactions, total, err := a.wallets.ListResellerTransactions(walletcontract.ResellerTransactionListFilter{
+		Page: page, PageSize: pageSize, ResellerID: resellerID, UserID: userID,
 	})
 	return transactions, total, mapWalletTransportError(err)
 }

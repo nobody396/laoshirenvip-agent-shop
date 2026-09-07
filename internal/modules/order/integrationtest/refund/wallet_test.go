@@ -381,6 +381,162 @@ func TestWalletServiceApplyAndReleaseOrderBalance(t *testing.T) {
 	}
 }
 
+func TestResellerOrderUsesOnlyItsTenantWalletAndRefundsToTheSameTenant(t *testing.T) {
+	_, db := setupOrderRefundWalletTest(t)
+	if err := db.AutoMigrate(&walletdomain.ResellerAccount{}, &walletdomain.ResellerTransaction{}); err != nil {
+		t.Fatalf("migrate reseller wallet: %v", err)
+	}
+	createTestUser(t, db, 305)
+	resellerID := uint(17)
+	otherResellerID := uint(18)
+	order := createTestOrder(t, db, 305, "DJRESELLERWALLET001", decimal.NewFromInt(30))
+	order.ResellerID = &resellerID
+	if err := db.Model(&orderdomain.Order{}).Where("id = ?", order.ID).Update("reseller_id", resellerID).Error; err != nil {
+		t.Fatalf("scope order: %v", err)
+	}
+	wallets := walletServiceForTest(db)
+	if _, _, err := wallets.Recharge(walletcontract.RechargeInput{
+		UserID: 305, Amount: money.FromDecimal(decimal.NewFromInt(50)),
+	}); err != nil {
+		t.Fatalf("fund global wallet: %v", err)
+	}
+	if err := db.Create(&walletdomain.ResellerAccount{
+		ResellerID: resellerID, UserID: 305, Balance: money.FromDecimal(decimal.NewFromInt(40)),
+	}).Error; err != nil {
+		t.Fatalf("fund reseller wallet: %v", err)
+	}
+
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		deducted, err := orderapp.ApplyWalletBalance(wallets, ordergormstore.UseTransaction(tx, "test-guest-credential-secret-with-32-bytes"), order, true)
+		if err != nil {
+			return err
+		}
+		if !deducted.Equal(decimal.NewFromInt(30)) {
+			t.Fatalf("deducted = %s, want 30", deducted)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("apply reseller wallet: %v", err)
+	}
+	global, _ := wallets.GetAccount(305)
+	if global.Balance.String() != "50.00" {
+		t.Fatalf("global wallet changed: %s", global.Balance.String())
+	}
+	tenant, _ := wallets.GetResellerAccount(resellerID, 305)
+	if tenant.Balance.String() != "10.00" {
+		t.Fatalf("tenant wallet = %s, want 10.00", tenant.Balance.String())
+	}
+	var stored orderdomain.Order
+	if err := db.First(&stored, order.ID).Error; err != nil {
+		t.Fatalf("reload order: %v", err)
+	}
+	if stored.WalletResellerID == nil || *stored.WalletResellerID != resellerID {
+		t.Fatalf("wallet_reseller_id = %v, want %d", stored.WalletResellerID, resellerID)
+	}
+
+	otherOrder := createTestOrder(t, db, 305, "DJRESELLERWALLET002", decimal.NewFromInt(20))
+	otherOrder.ResellerID = &otherResellerID
+	if err := db.Model(&orderdomain.Order{}).Where("id = ?", otherOrder.ID).Update("reseller_id", otherResellerID).Error; err != nil {
+		t.Fatalf("scope other order: %v", err)
+	}
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		deducted, err := orderapp.ApplyWalletBalance(wallets, ordergormstore.UseTransaction(tx, "test-guest-credential-secret-with-32-bytes"), otherOrder, true)
+		if err != nil {
+			return err
+		}
+		if !deducted.IsZero() {
+			t.Fatalf("other tenant deducted %s, want 0", deducted)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("apply other reseller wallet: %v", err)
+	}
+
+	createTestUser(t, db, 307)
+	if err := db.Create(&walletdomain.ResellerAccount{
+		ResellerID: resellerID, UserID: 307, Balance: money.FromDecimal(decimal.NewFromInt(50)),
+	}).Error; err != nil {
+		t.Fatalf("fund tenant-only user: %v", err)
+	}
+	mainOrAPIOrder := createTestOrder(t, db, 307, "DJGLOBALORDER001", decimal.NewFromInt(20))
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		deducted, err := orderapp.ApplyWalletBalance(wallets, ordergormstore.UseTransaction(tx, "test-guest-credential-secret-with-32-bytes"), mainOrAPIOrder, true)
+		if err != nil {
+			return err
+		}
+		if !deducted.IsZero() {
+			t.Fatalf("main/API order consumed tenant wallet: %s", deducted)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("apply main/API wallet: %v", err)
+	}
+	tenantOnly, _ := wallets.GetResellerAccount(resellerID, 307)
+	if tenantOnly.Balance.String() != "50.00" {
+		t.Fatalf("main/API order changed tenant wallet: %s", tenantOnly.Balance.String())
+	}
+
+	order.WalletPaidAmount = stored.WalletPaidAmount
+	order.OnlinePaidAmount = stored.OnlinePaidAmount
+	order.WalletResellerID = stored.WalletResellerID
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		refunded, err := orderapp.ReleaseWalletBalance(wallets, ordergormstore.UseTransaction(tx, "test-guest-credential-secret-with-32-bytes"), order, constants.WalletTxnTypeOrderRefund, "取消退回")
+		if err != nil {
+			return err
+		}
+		if !refunded.Equal(decimal.NewFromInt(30)) {
+			t.Fatalf("refunded = %s, want 30", refunded)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("release reseller wallet: %v", err)
+	}
+	tenant, _ = wallets.GetResellerAccount(resellerID, 305)
+	if tenant.Balance.String() != "40.00" {
+		t.Fatalf("tenant wallet after refund = %s, want 40.00", tenant.Balance.String())
+	}
+}
+
+func TestAdminWalletRefundForResellerOrderCreditsOnlyThatTenant(t *testing.T) {
+	svc, db := setupOrderRefundWalletTest(t)
+	if err := db.AutoMigrate(&walletdomain.ResellerAccount{}, &walletdomain.ResellerTransaction{}); err != nil {
+		t.Fatalf("migrate reseller wallet: %v", err)
+	}
+	createTestUser(t, db, 306)
+	resellerID := uint(19)
+	order := createTestOrder(t, db, 306, "DJRESELLERREFUND001", decimal.NewFromInt(40))
+	now := time.Now()
+	if err := db.Model(&orderdomain.Order{}).Where("id = ?", order.ID).Updates(map[string]interface{}{
+		"reseller_id": resellerID, "status": constants.OrderStatusCompleted, "paid_at": now,
+	}).Error; err != nil {
+		t.Fatalf("mark order paid: %v", err)
+	}
+
+	_, txn, _, err := svc.AdminRefundToWallet(AdminRefundToWalletInput{
+		OrderID: order.ID, Amount: money.FromDecimal(decimal.NewFromInt(10)), Remark: "售后退款",
+	})
+	if err != nil {
+		t.Fatalf("refund to reseller wallet: %v", err)
+	}
+	if txn == nil || txn.Amount.String() != "10.00" {
+		t.Fatalf("unexpected refund transaction: %+v", txn)
+	}
+	global, err := walletServiceForTest(db).GetAccount(306)
+	if err != nil {
+		t.Fatalf("get global wallet: %v", err)
+	}
+	if global.Balance.String() != "0.00" {
+		t.Fatalf("global wallet received tenant refund: %s", global.Balance.String())
+	}
+	tenant, err := walletServiceForTest(db).GetResellerAccount(resellerID, 306)
+	if err != nil {
+		t.Fatalf("get reseller wallet: %v", err)
+	}
+	if tenant.Balance.String() != "10.00" {
+		t.Fatalf("tenant refund balance = %s, want 10.00", tenant.Balance.String())
+	}
+}
+
 func TestWalletServiceAdminRefundToWallet(t *testing.T) {
 	svc, db := setupOrderRefundWalletTest(t)
 	createTestUser(t, db, 104)

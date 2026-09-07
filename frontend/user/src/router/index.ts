@@ -230,6 +230,7 @@ const router = createRouter({
                 { path: 'site', name: 'reseller-site', component: () => import('../views/reseller/ResellerSiteConfig.vue') },
                 { path: 'products', name: 'reseller-products', component: () => import('../views/reseller/ResellerProducts.vue') },
                 { path: 'orders', name: 'reseller-orders', component: () => import('../views/reseller/ResellerOrders.vue') },
+                { path: 'customers', name: 'reseller-customers', component: () => import('../views/reseller/ResellerCustomers.vue') },
                 { path: 'orders/:order_no', name: 'reseller-order-detail', component: () => import('../views/reseller/ResellerOrderDetail.vue') },
                 { path: 'finance', name: 'reseller-finance', component: () => import('../views/reseller/ResellerFinance.vue') },
                 { path: 'ledger', name: 'reseller-ledger', component: () => import('../views/reseller/ResellerLedger.vue') },

@@ -51,3 +51,12 @@ func RegisterUserOrderRoutes(console gin.IRoutes, handler *UserOrderHandler) {
 	console.GET("/orders/stats", handler.GetOrderStats)
 	console.GET("/orders/:order_no", handler.GetOrderDetail)
 }
+
+func RegisterUserCustomerWalletRoutes(console gin.IRoutes, handler *UserCustomerWalletHandler) {
+	if console == nil || handler == nil {
+		panic("reseller customer wallet routes: required dependency is nil")
+	}
+	console.GET("/customers", handler.ListCustomers)
+	console.POST("/customers/:id/wallet/topup", handler.TopUp)
+	console.GET("/customers/:id/wallet/transactions", handler.ListTransactions)
+}
