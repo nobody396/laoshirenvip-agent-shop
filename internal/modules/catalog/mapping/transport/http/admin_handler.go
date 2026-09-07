@@ -24,11 +24,45 @@ type ProductMappingService interface {
 	BatchImportUpstreamProducts(connectionID uint, upstreamProductIDs []uint, categoryID uint, autoCreateCategory bool) ([]mappingapp.BatchUpstreamProductImportOutcome, error)
 	SyncProduct(mappingID uint) error
 	SetActive(id uint, active bool) error
+	SetSupplyMode(id uint, mode string) error
 	Delete(id uint) error
 	ListUpstreamProducts(connectionID uint, page, pageSize int) (*upstream.ProductListResult, error)
 	GetMappedUpstreamIDs(connectionID uint) ([]uint, error)
 	ListUpstreamCategories(connectionID uint) ([]upstream.UpstreamCategory, bool, error)
 	BatchImportByCategory(connectionID, upstreamCategoryID uint, autoCreateCategory bool, localCategoryID uint) (*mappingapp.BatchImportByCategoryResult, error)
+}
+
+type UpdateProductMappingSupplyModeRequest struct {
+	Mode string `json:"mode" binding:"required,oneof=upstream auto"`
+}
+
+// UpdateProductMappingSupplyMode switches only future orders between the
+// retained upstream mapping and preloaded local card inventory.
+func (h *AdminHandler) UpdateProductMappingSupplyMode(c *gin.Context) {
+	id, err := ginutil.ParseParamUint(c, "id")
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.bad_request", err)
+		return
+	}
+	var req UpdateProductMappingSupplyModeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		ginutil.RespondBindError(c, err)
+		return
+	}
+	if err := h.service.SetSupplyMode(id, req.Mode); err != nil {
+		switch {
+		case errors.Is(err, mappingcontract.ErrMappingNotFound):
+			ginutil.RespondError(c, response.CodeNotFound, "error.mapping_not_found", nil)
+		case errors.Is(err, mappingcontract.ErrLocalStockUnavailable):
+			ginutil.RespondError(c, response.CodeConflict, "error.local_card_stock_unavailable", nil)
+		case errors.Is(err, mappingcontract.ErrUpstreamStockInsufficient):
+			ginutil.RespondError(c, response.CodeConflict, "error.upstream_stock_insufficient", nil)
+		default:
+			ginutil.RespondError(c, response.CodeInternal, "error.mapping_update_failed", err)
+		}
+		return
+	}
+	response.Success(c, gin.H{"updated": true, "mode": req.Mode})
 }
 
 // AdminHandler 处理后台商品映射管理请求。

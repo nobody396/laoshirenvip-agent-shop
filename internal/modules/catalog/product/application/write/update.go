@@ -96,9 +96,15 @@ func (s *WriteService) Update(id string, input CreateProductInput) (*productdoma
 	if fulfillmentType == "" {
 		return nil, productcontract.ErrFulfillmentInvalid
 	}
-	// 对接商品的真实交付类型必须保持 upstream，后台返回的 auto/manual 仅用于展示。
+	// Mapped products normally remain upstream. A dedicated supply-mode action
+	// may place one in local auto-stock mode; ordinary edits must preserve that
+	// override instead of silently restoring upstream purchasing.
 	if product.IsMapped {
-		fulfillmentType = constants.FulfillmentTypeUpstream
+		if product.FulfillmentType == constants.FulfillmentTypeAuto {
+			fulfillmentType = constants.FulfillmentTypeAuto
+		} else {
+			fulfillmentType = constants.FulfillmentTypeUpstream
+		}
 	}
 	product.FulfillmentType = fulfillmentType
 	if fulfillmentType == constants.FulfillmentTypeManual {

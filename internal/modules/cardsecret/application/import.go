@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/rand"
 	"mime/multipart"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +27,7 @@ type CreateCardSecretBatchInput struct {
 	Source      string
 	AdminID     uint
 	Deduplicate *bool
+	UsageURL    string
 }
 
 // CreateCardSecretBatch 批量录入卡密
@@ -52,6 +54,23 @@ func (s *Service) CreateCardSecretBatch(input CreateCardSecretBatchInput) (*card
 	normalized := normalizeSecrets(input.Secrets, shouldDeduplicateCardSecrets(input.Deduplicate))
 	if len(normalized) == 0 {
 		return nil, 0, ErrInvalid
+	}
+	usageURL := strings.TrimSpace(input.UsageURL)
+	if usageURL != "" {
+		if len(usageURL) > 2048 {
+			return nil, 0, ErrInvalid
+		}
+		parsed, err := url.Parse(usageURL)
+		if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil {
+			return nil, 0, ErrInvalid
+		}
+		for key := range parsed.Query() {
+			switch strings.ToLower(strings.TrimSpace(key)) {
+			case "token", "api_key", "key", "sign", "authorization", "password", "secret":
+				return nil, 0, ErrInvalid
+			}
+		}
+		usageURL = parsed.String()
 	}
 	if s.batchRepo == nil {
 		return nil, 0, ErrBatchCreateFailed
@@ -90,11 +109,15 @@ func (s *Service) CreateCardSecretBatch(input CreateCardSecretBatchInput) (*card
 		}
 		items := make([]cardsecretdomain.Secret, 0, len(normalized))
 		for _, secret := range normalized {
+			delivery := secret
+			if usageURL != "" {
+				delivery = fmt.Sprintf("CDK：%s\n兑换地址：%s", secret, usageURL)
+			}
 			items = append(items, cardsecretdomain.Secret{
 				ProductID: input.ProductID,
 				SKUID:     sku.ID,
 				BatchID:   &batch.ID,
-				Secret:    secret,
+				Secret:    delivery,
 				Status:    cardsecretdomain.StatusAvailable,
 				CreatedAt: now,
 				UpdatedAt: now,
@@ -123,6 +146,7 @@ type ImportCardSecretCSVInput struct {
 	Note        string
 	AdminID     uint
 	Deduplicate *bool
+	UsageURL    string
 }
 
 // ImportCardSecretCSV 从 CSV 导入卡密
@@ -150,6 +174,7 @@ func (s *Service) ImportCardSecretCSV(input ImportCardSecretCSVInput) (*cardsecr
 		Source:      constants.CardSecretSourceCSV,
 		AdminID:     input.AdminID,
 		Deduplicate: input.Deduplicate,
+		UsageURL:    input.UsageURL,
 	})
 }
 

@@ -47,6 +47,7 @@ type CreateCardSecretBatchRequest struct {
 	BatchNo     string   `json:"batch_no"`
 	Note        string   `json:"note"`
 	Deduplicate *bool    `json:"deduplicate"`
+	UsageURL    string   `json:"usage_url"`
 }
 
 // UpdateCardSecretRequest 更新卡密请求
@@ -133,6 +134,7 @@ func (h *AdminHandler) CreateCardSecretBatch(c *gin.Context) {
 		Source:      constants.CardSecretSourceManual,
 		AdminID:     adminID,
 		Deduplicate: req.Deduplicate,
+		UsageURL:    req.UsageURL,
 	})
 	if err != nil {
 		switch {
@@ -184,6 +186,7 @@ func (h *AdminHandler) ImportCardSecretCSV(c *gin.Context) {
 	}
 	batchNo := strings.TrimSpace(c.PostForm("batch_no"))
 	note := strings.TrimSpace(c.PostForm("note"))
+	usageURL := strings.TrimSpace(c.PostForm("usage_url"))
 	deduplicate, err := ginutil.ParseOptionalBoolValue(c.PostForm("deduplicate"))
 	if err != nil {
 		ginutil.RespondError(c, response.CodeBadRequest, "error.card_secret_invalid", nil)
@@ -198,6 +201,7 @@ func (h *AdminHandler) ImportCardSecretCSV(c *gin.Context) {
 		Note:        note,
 		AdminID:     adminID,
 		Deduplicate: deduplicate,
+		UsageURL:    usageURL,
 	})
 	if err != nil {
 		switch {

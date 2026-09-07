@@ -79,6 +79,7 @@ type resellerAccountingTransactions interface {
 // upstreamStockEnsurer 是下单校验依赖的最小 Catalog Mapping 用例端口。
 type upstreamStockEnsurer interface {
 	EnsureUpstreamStockForOrder(localSKUID uint, quantity int) error
+	ResolveFulfillmentType(localSKUID uint, quantity int, configured string) (string, error)
 }
 
 // OrderServiceOptions 订单服务构造参数

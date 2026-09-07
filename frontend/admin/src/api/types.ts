@@ -584,7 +584,7 @@ export interface AdminProductMapping {
   connection_name?: string
   local_product_title?: string
   last_synced_at?: string
-  product?: { id: number; title?: LocalizedText; skus?: AdminProductSKU[] }
+  product?: { id: number; title?: LocalizedText; fulfillment_type?: 'upstream' | 'auto' | 'manual'; skus?: AdminProductSKU[] }
   [key: string]: unknown
 }
 

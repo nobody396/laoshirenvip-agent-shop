@@ -545,7 +545,7 @@ export const adminAPI = {
   deleteMemberLevelPrice: (id: number) => api.delete(`/admin/member-level-prices/${id}`),
   setUserMemberLevel: (userId: number, memberLevelId: number) => api.put(`/admin/users/${userId}/member-level`, { member_level_id: memberLevelId }),
   backfillMemberLevels: () => api.post('/admin/member-levels/backfill'),
-  createCardSecretBatch: (data: { product_id: number; sku_id?: number; name?: string; secrets: string[]; batch_no?: string; note?: string; deduplicate?: boolean }) => api.post('/admin/card-secrets/batch', data),
+  createCardSecretBatch: (data: { product_id: number; sku_id?: number; name?: string; secrets: string[]; batch_no?: string; note?: string; usage_url?: string; deduplicate?: boolean }) => api.post('/admin/card-secrets/batch', data),
   importCardSecretCSV: (formData: FormData) =>
     api.post('/admin/card-secrets/import', formData),
   getCardSecrets: (params?: Record<string, unknown>) => api.get('/admin/card-secrets', { params }),
@@ -581,6 +581,7 @@ export const adminAPI = {
   batchSyncProductMappings: (ids: number[]) => api.post('/admin/product-mappings/batch-sync', { ids }),
   batchUpdateProductMappingStatus: (ids: number[], isActive: boolean) => api.post('/admin/product-mappings/batch-status', { ids, is_active: isActive }),
   batchDeleteProductMappings: (ids: number[]) => api.post('/admin/product-mappings/batch-delete', { ids }),
+  updateProductMappingSupplyMode: (id: number, mode: 'upstream' | 'auto') => api.put(`/admin/product-mappings/${id}/supply-mode`, { mode }),
   getUpstreamProducts: (params?: Record<string, unknown>) => api.get('/admin/upstream-products', { params }),
   getUpstreamCategories: (params: { connection_id: string }) => api.get('/admin/upstream-categories', { params }),
   batchImportByCategory: (data: Record<string, unknown>) => api.post('/admin/product-mappings/batch-import-by-category', data),

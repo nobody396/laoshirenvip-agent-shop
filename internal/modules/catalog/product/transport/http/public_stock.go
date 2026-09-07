@@ -97,8 +97,64 @@ func (h *PublicHandler) decorateProductStock(product *productdomain.Product, ite
 	item.AutoStockTotal = autoTotal
 	item.AutoStockLocked = autoLocked
 	item.AutoStockSold = autoSold
+	if product.IsMapped {
+		h.decorateLocalFirstStock(product, item)
+		return
+	}
 
 	item.StockStatus = domaincatalog.StorefrontStockPolicy().Status(autoAvailable)
+	item.IsSoldOut = item.StockStatus == constants.ProductStockStatusOutOfStock
+}
+
+// decorateLocalFirstStock advertises the larger available route while order
+// creation still consumes local cards whenever they cover the requested
+// quantity. A larger order can therefore fall back wholly to upstream stock.
+func (h *PublicHandler) decorateLocalFirstStock(product *productdomain.Product, item *publicProductView) {
+	mapping, err := h.mappings.GetByLocalProductID(product.ID)
+	if err != nil || mapping == nil {
+		item.StockStatus = domaincatalog.StorefrontStockPolicy().Status(item.AutoStockAvailable)
+		item.IsSoldOut = item.StockStatus == constants.ProductStockStatusOutOfStock
+		return
+	}
+	skuMappings, err := h.skuMappings.ListByProductMapping(mapping.ID)
+	if err != nil {
+		item.StockStatus = domaincatalog.StorefrontStockPolicy().Status(item.AutoStockAvailable)
+		item.IsSoldOut = item.StockStatus == constants.ProductStockStatusOutOfStock
+		return
+	}
+	byLocalSKU := make(map[uint]mappingdomain.SKUMapping, len(skuMappings))
+	for _, row := range skuMappings {
+		byLocalSKU[row.LocalSKUID] = row
+	}
+	var total int64
+	unlimited := false
+	for i := range item.Product.SKUs {
+		sku := &item.Product.SKUs[i]
+		if !sku.IsActive {
+			continue
+		}
+		upstream, ok := byLocalSKU[sku.ID]
+		if ok && upstream.UpstreamIsActive {
+			sku.UpstreamStock = upstream.UpstreamStock
+			if upstream.UpstreamStock < 0 {
+				sku.AutoStockAvailable = -1
+				unlimited = true
+				continue
+			}
+			if int64(upstream.UpstreamStock) > sku.AutoStockAvailable {
+				sku.AutoStockAvailable = int64(upstream.UpstreamStock)
+			}
+		}
+		total += sku.AutoStockAvailable
+	}
+	if unlimited {
+		item.AutoStockAvailable = -1
+		item.StockStatus = constants.ProductStockStatusUnlimited
+		item.IsSoldOut = false
+		return
+	}
+	item.AutoStockAvailable = total
+	item.StockStatus = domaincatalog.StorefrontStockPolicy().Status(total)
 	item.IsSoldOut = item.StockStatus == constants.ProductStockStatusOutOfStock
 }
 

@@ -2,6 +2,7 @@ package application
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/dujiao-next/internal/constants"
 	mappingcontract "github.com/dujiao-next/internal/modules/catalog/mapping/contract"
@@ -25,6 +26,7 @@ type Options struct {
 	Connections  mappingcontract.ConnectionProvider
 	Media        mappingcontract.MediaRecorder
 	Transactions mappingcontract.UnitOfWork
+	CardStock    mappingcontract.CardStockCounter
 }
 
 // Service 承载本地商品与上游站点之间的映射用例。
@@ -39,6 +41,7 @@ type Service struct {
 	transactions    mappingcontract.UnitOfWork
 	categoryCreator mappingcontract.CategoryCreator
 	settings        mappingcontract.SettingsProvider
+	cardStock       mappingcontract.CardStockCounter
 }
 
 func NewService(options Options) (*Service, error) {
@@ -54,7 +57,103 @@ func NewService(options Options) (*Service, error) {
 		connections:  options.Connections,
 		media:        options.Media,
 		transactions: options.Transactions,
+		cardStock:    options.CardStock,
 	}, nil
+}
+
+// SetSupplyMode keeps the upstream mapping intact while selecting which
+// inventory authority new orders use. Existing orders keep their item snapshot.
+func (s *Service) SetSupplyMode(id uint, mode string) error {
+	if mode != constants.FulfillmentTypeUpstream && mode != constants.FulfillmentTypeAuto {
+		return mappingcontract.ErrSupplyModeInvalid
+	}
+	mapping, err := s.mappings.GetByID(id)
+	if err != nil {
+		return err
+	}
+	if mapping == nil {
+		return mappingcontract.ErrMappingNotFound
+	}
+	product, err := s.products.GetByID(strconv.FormatUint(uint64(mapping.LocalProductID), 10))
+	if err != nil {
+		return err
+	}
+	if product == nil {
+		return mappingcontract.ErrMappingNotFound
+	}
+	if product.FulfillmentType == mode {
+		return nil
+	}
+
+	skus, err := s.skus.ListByProduct(product.ID, true)
+	if err != nil {
+		return err
+	}
+	if len(skus) == 0 {
+		return mappingcontract.ErrLocalStockUnavailable
+	}
+	if mode == constants.FulfillmentTypeAuto {
+		if s.cardStock == nil {
+			return mappingcontract.ErrLocalStockUnavailable
+		}
+		for _, sku := range skus {
+			available, err := s.cardStock.CountAvailable(product.ID, sku.ID)
+			if err != nil {
+				return err
+			}
+			if available < 1 {
+				return mappingcontract.ErrLocalStockUnavailable
+			}
+		}
+	} else {
+		if !mapping.IsActive || mapping.UpstreamStatus != mappingdomain.UpstreamStatusActive || mapping.LastSyncedAt == nil || mapping.LastSyncedAt.Before(time.Now().Add(-30*time.Minute)) {
+			return mappingcontract.ErrUpstreamStockInsufficient
+		}
+		skuMappings, err := s.skuMappings.ListByProductMapping(mapping.ID)
+		if err != nil {
+			return err
+		}
+		byLocalSKU := make(map[uint]mappingdomain.SKUMapping, len(skuMappings))
+		for _, item := range skuMappings {
+			byLocalSKU[item.LocalSKUID] = item
+		}
+		for _, sku := range skus {
+			item, ok := byLocalSKU[sku.ID]
+			if !ok || !item.UpstreamIsActive || item.UpstreamStock == 0 {
+				return mappingcontract.ErrUpstreamStockInsufficient
+			}
+		}
+	}
+
+	product.FulfillmentType = mode
+	return s.products.Update(product)
+}
+
+// ResolveFulfillmentType turns mapped auto mode into local-first routing:
+// reserve owned cards when enough are available, otherwise validate and use
+// the retained upstream mapping before the order is created.
+func (s *Service) ResolveFulfillmentType(localSKUID uint, quantity int, configured string) (string, error) {
+	if configured != constants.FulfillmentTypeAuto || localSKUID == 0 || quantity <= 0 {
+		return configured, nil
+	}
+	skuMapping, err := s.skuMappings.GetByLocalSKUID(localSKUID)
+	if err != nil || skuMapping == nil {
+		return configured, err
+	}
+	sku, err := s.skus.GetByID(localSKUID)
+	if err != nil || sku == nil {
+		return configured, err
+	}
+	if s.cardStock != nil {
+		available, err := s.cardStock.CountAvailable(sku.ProductID, localSKUID)
+		if err != nil {
+			return configured, err
+		}
+		if available >= int64(quantity) {
+			return constants.FulfillmentTypeAuto, nil
+		}
+	}
+	return constants.FulfillmentTypeUpstream, nil
 }
 
 // SetCategoryCreator 注入分类创建端口（装配时调用）。

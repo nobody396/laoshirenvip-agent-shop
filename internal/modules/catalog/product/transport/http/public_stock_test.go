@@ -3,10 +3,23 @@ package producthttp
 import (
 	"testing"
 
+	mappingdomain "github.com/dujiao-next/internal/modules/catalog/mapping/domain"
 	productdomain "github.com/dujiao-next/internal/modules/catalog/product/domain"
 
 	"github.com/dujiao-next/internal/constants"
 )
+
+type localFirstMappingReader struct{ mapping *mappingdomain.Mapping }
+
+func (r localFirstMappingReader) GetByLocalProductID(uint) (*mappingdomain.Mapping, error) {
+	return r.mapping, nil
+}
+
+type localFirstSKUMappingReader struct{ rows []mappingdomain.SKUMapping }
+
+func (r localFirstSKUMappingReader) ListByProductMapping(uint) ([]mappingdomain.SKUMapping, error) {
+	return r.rows, nil
+}
 
 func TestDecorateProductStock_AutoSkipsInactiveSKUs(t *testing.T) {
 	h := &PublicHandler{}
@@ -52,6 +65,38 @@ func TestDecorateProductStock_AutoSkipsInactiveSKUs(t *testing.T) {
 	}
 	if item.IsSoldOut {
 		t.Fatalf("expected product not sold out when active sku has stock")
+	}
+}
+
+func TestDecorateProductStock_MappedAutoAdvertisesLargerFallbackRoute(t *testing.T) {
+	h := &PublicHandler{
+		mappings: localFirstMappingReader{mapping: &mappingdomain.Mapping{ID: 7}},
+		skuMappings: localFirstSKUMappingReader{
+			rows: []mappingdomain.SKUMapping{
+				{
+					ProductMappingID: 7,
+					LocalSKUID:       11,
+					UpstreamStock:    9,
+					UpstreamIsActive: true,
+				},
+			},
+		},
+	}
+	product := &productdomain.Product{
+		ID: 1, IsMapped: true, FulfillmentType: constants.FulfillmentTypeAuto,
+		SKUs: []productdomain.ProductSKU{
+			{
+				ID: 11, IsActive: true, AutoStockAvailable: 2, AutoStockTotal: 2,
+			},
+		},
+	}
+	item := publicProductView{Product: *product}
+	h.decorateProductStock(product, &item)
+	if item.AutoStockAvailable != 9 || item.Product.SKUs[0].AutoStockAvailable != 9 {
+		t.Fatalf("expected upstream capacity 9 with local stock still preferred, got product=%d sku=%d", item.AutoStockAvailable, item.Product.SKUs[0].AutoStockAvailable)
+	}
+	if item.IsSoldOut {
+		t.Fatal("mapped local-first product should remain purchasable")
 	}
 }
 

@@ -209,6 +209,7 @@ func TestCreateCardSecretBatchAutoSingleActiveFallsBackToOnlyActiveSKU(t *testin
 		Secrets:   []string{"AAA-101", "AAA-102"},
 		Source:    constants.CardSecretSourceManual,
 		AdminID:   1,
+		UsageURL:  "https://redeem.example/path",
 	})
 	if err != nil {
 		t.Fatalf("create card secret batch failed: %v", err)
@@ -218,6 +219,18 @@ func TestCreateCardSecretBatchAutoSingleActiveFallsBackToOnlyActiveSKU(t *testin
 	}
 	if batch.SKUID != onlyActiveSKU.ID {
 		t.Fatalf("batch sku_id want active %d got %d", onlyActiveSKU.ID, batch.SKUID)
+	}
+	items, _, err := svc.ListCardSecrets(ListCardSecretInput{
+		ProductID: product.ID,
+		SKUID:     onlyActiveSKU.ID,
+		Page:      1,
+		PageSize:  10,
+	})
+	if err != nil {
+		t.Fatalf("list card secrets failed: %v", err)
+	}
+	if got := items[0].Secret; got != "CDK：AAA-101\n兑换地址：https://redeem.example/path" {
+		t.Fatalf("delivery secret = %q", got)
 	}
 }
 

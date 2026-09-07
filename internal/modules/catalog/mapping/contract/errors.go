@@ -9,4 +9,6 @@ var (
 	ErrMappingInactive           = errors.New("product mapping is inactive")
 	ErrMediaRecorderRequired     = errors.New("product mapping media recorder is required")
 	ErrUpstreamStockInsufficient = errors.New("upstream stock insufficient")
+	ErrLocalStockUnavailable     = errors.New("local card stock unavailable")
+	ErrSupplyModeInvalid         = errors.New("supply mode invalid")
 )
