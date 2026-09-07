@@ -234,3 +234,14 @@ func buildOrderSubject(order *orderdomain.Order) string {
 	}
 	return "老实人 AI 伙伴"
 }
+
+func resellerPaymentFeeDeficit(order *orderdomain.Order, feeAmount decimal.Decimal, feePolicy string) decimal.Decimal {
+	if order == nil || order.ResellerID == nil || *order.ResellerID == 0 || feePolicy != constants.PaymentFeePolicyMerchantAbsorbed {
+		return decimal.Zero
+	}
+	deficit := feeAmount.Round(2).Sub(order.ResellerProfitAmount.Decimal.Round(2)).Round(2)
+	if deficit.LessThanOrEqual(decimal.Zero) {
+		return decimal.Zero
+	}
+	return deficit
+}

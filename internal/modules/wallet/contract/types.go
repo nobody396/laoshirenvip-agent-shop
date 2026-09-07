@@ -66,6 +66,14 @@ type CreditInput struct {
 	OrderID   *uint
 }
 
+type ResellerPaymentFeeReserveInput struct {
+	OwnerUserID uint
+	OrderID     uint
+	PaymentID   uint
+	Amount      money.Amount
+	Currency    string
+}
+
 type OrderBalanceInput struct {
 	OrderID          uint
 	UserID           uint

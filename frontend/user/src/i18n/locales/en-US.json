@@ -579,7 +579,9 @@
         "gift_card_redeem": "Gift card redeem",
         "admin_adjust": "Admin adjustment",
         "admin_refund": "Admin refund",
-        "order_underpaid_credit": "Underpaid order credit"
+        "order_underpaid_credit": "Underpaid order credit",
+        "reseller_payment_fee_reserve": "Child-site payment fee hold",
+        "reseller_payment_fee_release": "Child-site payment fee release"
       },
       "errors": {
         "loadFailed": "Failed to load wallet data, please try again later",
@@ -762,7 +764,7 @@
           "enabled": "Enabled by default",
           "usdt": "USDT · optional per reseller",
           "absorbFeeTitle": "Reseller absorbs payment fees",
-          "absorbFeeEnabled": "Customers pay only your listed price; the actual channel fee is deducted from this order's reseller profit.",
+          "absorbFeeEnabled": "Customers pay only your listed price. The fee is deducted from this order's reseller profit first; any deficit is held from your wallet and automatically returned if the payment fails or expires.",
           "absorbFeeDisabled": "Customers pay the channel fee on top of your listed price; this order's reseller profit is not reduced by that fee.",
           "agentPays": "Reseller pays",
           "customerPays": "Customer pays",

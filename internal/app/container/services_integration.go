@@ -121,6 +121,7 @@ func (c *Container) initIntegrationServices() {
 		PaymentProviderRegistry: c.PaymentProviderRegistry,
 		ResellerAccounting:      c.ResellerAccountingLedger,
 		ResellerChannels:        resellerPaymentChannelSelector{store: c.ResellerStore},
+		ResellerFeeWalletOwners: resellerPaymentChannelSelector{store: c.ResellerStore},
 	})
 	c.ProcurementOrderService = procurementapp.NewService(procurementapp.Options{
 		Repository:         c.ProcurementOrderRepo,
@@ -153,6 +154,7 @@ func (c *Container) initIntegrationServices() {
 
 type resellerSiteConfigReader interface {
 	GetSiteConfigByResellerID(resellerID uint) (*resellerdomain.SiteConfig, error)
+	GetProfileByID(resellerID uint) (*resellerdomain.Profile, error)
 }
 
 type resellerPaymentChannelSelector struct {
@@ -182,4 +184,15 @@ func (s resellerPaymentChannelSelector) GetResellerPaymentFeePolicy(resellerID u
 		return constants.PaymentFeePolicyCustomerSurcharge, nil
 	}
 	return constants.PaymentFeePolicyMerchantAbsorbed, nil
+}
+
+func (s resellerPaymentChannelSelector) GetResellerFeeWalletOwnerUserID(resellerID uint) (uint, error) {
+	if s.store == nil || resellerID == 0 {
+		return 0, nil
+	}
+	profile, err := s.store.GetProfileByID(resellerID)
+	if err != nil || profile == nil {
+		return 0, err
+	}
+	return profile.UserID, nil
 }

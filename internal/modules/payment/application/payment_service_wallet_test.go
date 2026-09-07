@@ -89,6 +89,8 @@ func setupPaymentServiceWalletTest(t *testing.T) (*PaymentService, *gorm.DB) {
 		&productdomain.ProductSKU{},
 		&walletdomain.Account{},
 		&walletdomain.Transaction{},
+		&walletdomain.ResellerAccount{},
+		&walletdomain.ResellerTransaction{},
 		&walletdomain.RechargeOrder{},
 		&paymentdomain.PaymentChannel{},
 		&paymentdomain.Payment{},
@@ -138,6 +140,58 @@ func setupPaymentServiceWalletTest(t *testing.T) (*PaymentService, *gorm.DB) {
 	})
 
 	return paymentSvc, db
+}
+
+func TestResellerBuyerPartialWalletReducesFeeBeforeDeficitCheck(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	channel, order := createFeePolicyOrderFixture(t, db, "Partial Wallet Reseller Gateway", "DJ-RESELLER-PARTIAL-WALLET")
+	channel.FeeRate = money.FromDecimal(decimal.RequireFromString("4.00"))
+	channel.FixedFee = money.FromDecimal(decimal.Zero)
+	if err := db.Save(channel).Error; err != nil {
+		t.Fatalf("update hosted reseller fee: %v", err)
+	}
+	resellerID := uint(31)
+	const buyerUserID uint = 310
+	order.ResellerID = &resellerID
+	order.UserID = buyerUserID
+	order.ResellerProfitAmount = money.FromDecimal(decimal.NewFromInt(3))
+	if err := db.Save(order).Error; err != nil {
+		t.Fatalf("mark reseller order: %v", err)
+	}
+	if err := db.Create(&walletdomain.ResellerAccount{
+		ResellerID: resellerID,
+		UserID:     buyerUserID,
+		Balance:    money.FromDecimal(decimal.NewFromInt(50)),
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}).Error; err != nil {
+		t.Fatalf("create reseller buyer wallet: %v", err)
+	}
+	svc.resellerChannels = fixedResellerPaymentConfig{feePolicy: constants.PaymentFeePolicyMerchantAbsorbed}
+	registerTestGateway(t, svc, channel.ProviderType, channel.ChannelType, emptyProviderRefProvider{})
+
+	result, err := svc.CreatePayment(CreatePaymentInput{
+		OrderID: order.ID, ChannelID: channel.ID, UseBalance: true, Context: context.Background(),
+	})
+	if err != nil {
+		t.Fatalf("create mixed wallet payment: %v", err)
+	}
+	if got := result.WalletPaidAmount.StringFixed(2); got != "50.00" {
+		t.Fatalf("wallet paid amount = %s, want 50.00", got)
+	}
+	if got := result.OnlinePayAmount.StringFixed(2); got != "50.00" {
+		t.Fatalf("online paid amount = %s, want 50.00", got)
+	}
+	if got := result.Payment.FeeAmount.StringFixed(2); got != "2.00" {
+		t.Fatalf("online payment fee = %s, want 2.00", got)
+	}
+	var reserveCount int64
+	if err := db.Model(&walletdomain.Transaction{}).Where("order_id = ? AND type = ?", order.ID, constants.WalletTxnTypeResellerPaymentFeeReserve).Count(&reserveCount).Error; err != nil {
+		t.Fatalf("count fee reserves: %v", err)
+	}
+	if reserveCount != 0 {
+		t.Fatalf("partial wallet payment unexpectedly reserved fee deficit")
+	}
 }
 
 func TestCreatePaymentWalletFullAmountCreatesPaymentRecord(t *testing.T) {

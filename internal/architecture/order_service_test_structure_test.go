@@ -30,7 +30,7 @@ func TestOrderServiceTestsAreSplitByResponsibility(t *testing.T) {
 			"TestResolveManualFormSubmissionFallbackLegacyProductKey",
 		},
 		filepath.Join(integrationDirectory, "order_service_cancel_test.go"): {
-			"TestCancelExpiredOrderExpiresPendingPayments", "setupCancelPaymentTestDB",
+			"TestCancelExpiredOrderExpiresPendingPayments", "TestCancelExpiredOrderReleasesResellerPaymentFeeReserve", "setupCancelPaymentTestDB",
 			"newPendingOrderForCancel", "newPaymentForOrder", "TestCancelOrderExpiresPendingPayments",
 			"TestUpdateOrderStatusAdminCancelExpiresPendingPaymentsSingleOrder",
 			"TestCancelExpiredOrderExpiresPaymentsForParentAndChildren",

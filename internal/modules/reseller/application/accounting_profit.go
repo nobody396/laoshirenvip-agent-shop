@@ -68,22 +68,25 @@ func (s *AccountingLedgerService) PostOrderProfit(store resellercontract.Account
 		}
 	}
 	profit := grossProfit.Sub(paymentFee).Round(2)
-	if profit.LessThanOrEqual(decimal.Zero) {
-		return nil
+	walletFee := decimal.Zero
+	if profit.LessThan(decimal.Zero) {
+		walletFee = profit.Abs().Round(2)
+		profit = decimal.Zero
 	}
 	now := time.Now()
 	availableAt := now.AddDate(0, 0, s.confirmDays)
 	orderID := order.ID
 	metadata := jsonmap.JSON{
-		"order_no":            order.OrderNo,
-		"reseller_domain":     snapshot.Domain,
-		"gross_profit_amount": grossProfit.StringFixed(2),
-		"payment_fee_amount":  paymentFee.StringFixed(2),
-		"net_profit_amount":   profit.StringFixed(2),
-		"wallet_paid_amount":  order.WalletPaidAmount.String(),
-		"online_paid_amount":  order.OnlinePaidAmount.String(),
-		"snapshot_id":         snapshot.ID,
-		"profit_block_reason": snapshot.ProfitBlockReason,
+		"order_no":                  order.OrderNo,
+		"reseller_domain":           snapshot.Domain,
+		"gross_profit_amount":       grossProfit.StringFixed(2),
+		"payment_fee_amount":        paymentFee.StringFixed(2),
+		"payment_fee_wallet_amount": walletFee.StringFixed(2),
+		"net_profit_amount":         profit.StringFixed(2),
+		"wallet_paid_amount":        order.WalletPaidAmount.String(),
+		"online_paid_amount":        order.OnlinePaidAmount.String(),
+		"snapshot_id":               snapshot.ID,
+		"profit_block_reason":       snapshot.ProfitBlockReason,
 	}
 	if payment != nil {
 		metadata["payment_id"] = payment.ID

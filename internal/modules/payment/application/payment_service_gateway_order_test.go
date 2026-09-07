@@ -16,6 +16,7 @@ import (
 
 	userdomain "github.com/dujiao-next/internal/modules/identity/user/domain"
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
+	walletdomain "github.com/dujiao-next/internal/modules/wallet/domain"
 
 	"github.com/dujiao-next/internal/constants"
 	"github.com/dujiao-next/internal/shared/jsonmap"
@@ -1231,7 +1232,8 @@ func createFeePolicyOrderFixture(t *testing.T, db *gorm.DB, channelName, orderNo
 }
 
 type fixedResellerPaymentConfig struct {
-	feePolicy string
+	feePolicy   string
+	ownerUserID uint
 }
 
 func (s fixedResellerPaymentConfig) GetResellerPaymentChannelIDs(uint) ([]uint, error) {
@@ -1240,6 +1242,23 @@ func (s fixedResellerPaymentConfig) GetResellerPaymentChannelIDs(uint) ([]uint, 
 
 func (s fixedResellerPaymentConfig) GetResellerPaymentFeePolicy(uint) (string, error) {
 	return s.feePolicy, nil
+}
+
+func (s fixedResellerPaymentConfig) GetResellerFeeWalletOwnerUserID(uint) (uint, error) {
+	return s.ownerUserID, nil
+}
+
+func seedResellerFeeWallet(t *testing.T, db *gorm.DB, userID uint, balance string) {
+	t.Helper()
+	account := &walletdomain.Account{
+		UserID:    userID,
+		Balance:   money.FromDecimal(decimal.RequireFromString(balance)),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := db.Create(account).Error; err != nil {
+		t.Fatalf("create reseller fee wallet: %v", err)
+	}
 }
 
 func TestCreateOrderPaymentSnapshotsCustomerSurchargeCompatibilityMode(t *testing.T) {
@@ -1343,7 +1362,7 @@ func TestCreateResellerOrderPaymentCanChargeCustomerSurcharge(t *testing.T) {
 	}
 }
 
-func TestCreateResellerOrderPaymentRejectsFeeAboveResellerMargin(t *testing.T) {
+func TestCreateResellerOrderPaymentReservesFeeDeficitFromOwnerWallet(t *testing.T) {
 	svc, db := setupPaymentServiceWalletTest(t)
 	channel, order := createFeePolicyOrderFixture(t, db, "Loss Making Reseller Gateway", "DJ-RESELLER-FEE-LOSS")
 	channel.FeeRate = money.FromDecimal(decimal.RequireFromString("4.00"))
@@ -1357,18 +1376,301 @@ func TestCreateResellerOrderPaymentRejectsFeeAboveResellerMargin(t *testing.T) {
 	if err := db.Save(order).Error; err != nil {
 		t.Fatalf("mark order as loss-making reseller sale: %v", err)
 	}
+	const ownerUserID uint = 230
+	seedResellerFeeWallet(t, db, ownerUserID, "10.00")
+	feeConfig := fixedResellerPaymentConfig{feePolicy: constants.PaymentFeePolicyMerchantAbsorbed, ownerUserID: ownerUserID}
+	svc.resellerChannels = feeConfig
+	svc.resellerFeeWalletOwners = feeConfig
+	registerTestGateway(t, svc, channel.ProviderType, channel.ChannelType, emptyProviderRefProvider{})
+
+	result, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: context.Background()})
+	if err != nil {
+		t.Fatalf("create loss-making reseller payment with funded wallet: %v", err)
+	}
+	if result == nil || result.Payment == nil {
+		t.Fatal("expected gateway payment")
+	}
+	var account walletdomain.Account
+	if err := db.Where("user_id = ?", ownerUserID).First(&account).Error; err != nil {
+		t.Fatalf("reload reseller fee wallet: %v", err)
+	}
+	if got := account.Balance.StringFixed(2); got != "9.00" {
+		t.Fatalf("reseller fee wallet balance = %s, want 9.00", got)
+	}
+	var reserve walletdomain.Transaction
+	if err := db.Where("order_id = ? AND type = ?", order.ID, constants.WalletTxnTypeResellerPaymentFeeReserve).First(&reserve).Error; err != nil {
+		t.Fatalf("load fee reserve transaction: %v", err)
+	}
+	if reserve.Type != constants.WalletTxnTypeResellerPaymentFeeReserve || reserve.Direction != constants.WalletTxnDirectionOut || reserve.Amount.StringFixed(2) != "1.00" {
+		t.Fatalf("unexpected fee reserve transaction: %+v", reserve)
+	}
+	reused, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: context.Background()})
+	if err != nil {
+		t.Fatalf("reuse funded payment: %v", err)
+	}
+	if reused.Payment == nil || reused.Payment.ID != result.Payment.ID {
+		t.Fatalf("reused payment = %+v, want payment %d", reused.Payment, result.Payment.ID)
+	}
+	if err := db.Where("user_id = ?", ownerUserID).First(&account).Error; err != nil {
+		t.Fatalf("reload reseller fee wallet after reuse: %v", err)
+	}
+	if got := account.Balance.StringFixed(2); got != "9.00" {
+		t.Fatalf("reused payment reserved fee twice, balance %s", got)
+	}
+	var reserveCount int64
+	if err := db.Model(&walletdomain.Transaction{}).Where("order_id = ? AND type = ?", order.ID, constants.WalletTxnTypeResellerPaymentFeeReserve).Count(&reserveCount).Error; err != nil {
+		t.Fatalf("count fee reserves: %v", err)
+	}
+	if reserveCount != 1 {
+		t.Fatalf("reused payment created %d fee reserves", reserveCount)
+	}
+}
+
+func TestCreateResellerOrderPaymentRejectsWhenOwnerWalletCannotCoverFeeDeficit(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	channel, order := createFeePolicyOrderFixture(t, db, "Unfunded Reseller Gateway", "DJ-RESELLER-FEE-UNFUNDED")
+	channel.FeeRate = money.FromDecimal(decimal.RequireFromString("4.00"))
+	channel.FixedFee = money.FromDecimal(decimal.Zero)
+	if err := db.Save(channel).Error; err != nil {
+		t.Fatalf("update hosted reseller fee: %v", err)
+	}
+	resellerID := uint(24)
+	order.ResellerID = &resellerID
+	order.ResellerProfitAmount = money.FromDecimal(decimal.NewFromInt(3))
+	if err := db.Save(order).Error; err != nil {
+		t.Fatalf("mark order as loss-making reseller sale: %v", err)
+	}
+	const ownerUserID uint = 240
+	seedResellerFeeWallet(t, db, ownerUserID, "0.50")
+	feeConfig := fixedResellerPaymentConfig{feePolicy: constants.PaymentFeePolicyMerchantAbsorbed, ownerUserID: ownerUserID}
+	svc.resellerChannels = feeConfig
+	svc.resellerFeeWalletOwners = feeConfig
 	registerTestGateway(t, svc, channel.ProviderType, channel.ChannelType, emptyProviderRefProvider{})
 
 	_, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: context.Background()})
-	if !errors.Is(err, ErrResellerProfitInsufficientForFee) {
-		t.Fatalf("loss-making reseller payment error = %v, want ErrResellerProfitInsufficientForFee", err)
+	if !errors.Is(err, ErrResellerFeeWalletInsufficient) {
+		t.Fatalf("unfunded reseller payment error = %v, want ErrResellerFeeWalletInsufficient", err)
 	}
-	var count int64
-	if err := db.Model(&paymentdomain.Payment{}).Where("order_id = ?", order.ID).Count(&count).Error; err != nil {
+	var paymentCount int64
+	if err := db.Model(&paymentdomain.Payment{}).Where("order_id = ?", order.ID).Count(&paymentCount).Error; err != nil {
 		t.Fatalf("count rejected payments: %v", err)
 	}
-	if count != 0 {
-		t.Fatalf("loss-making reseller payment persisted %d rows", count)
+	if paymentCount != 0 {
+		t.Fatalf("unfunded reseller payment persisted %d rows", paymentCount)
+	}
+	var account walletdomain.Account
+	if err := db.Where("user_id = ?", ownerUserID).First(&account).Error; err != nil {
+		t.Fatalf("reload reseller fee wallet: %v", err)
+	}
+	if got := account.Balance.StringFixed(2); got != "0.50" {
+		t.Fatalf("rejected payment changed reseller wallet to %s", got)
+	}
+}
+
+func TestCreateResellerOrderPaymentReleasesFeeReserveWhenGatewayCreationFails(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	channel, order := createFeePolicyOrderFixture(t, db, "Failing Reseller Gateway", "DJ-RESELLER-FEE-ROLLBACK")
+	channel.FeeRate = money.FromDecimal(decimal.RequireFromString("4.00"))
+	channel.FixedFee = money.FromDecimal(decimal.Zero)
+	if err := db.Save(channel).Error; err != nil {
+		t.Fatalf("update hosted reseller fee: %v", err)
+	}
+	resellerID := uint(25)
+	order.ResellerID = &resellerID
+	order.ResellerProfitAmount = money.FromDecimal(decimal.NewFromInt(3))
+	if err := db.Save(order).Error; err != nil {
+		t.Fatalf("mark order as loss-making reseller sale: %v", err)
+	}
+	const ownerUserID uint = 250
+	seedResellerFeeWallet(t, db, ownerUserID, "10.00")
+	feeConfig := fixedResellerPaymentConfig{feePolicy: constants.PaymentFeePolicyMerchantAbsorbed, ownerUserID: ownerUserID}
+	svc.resellerChannels = feeConfig
+	svc.resellerFeeWalletOwners = feeConfig
+	registerTestGateway(t, svc, channel.ProviderType, channel.ChannelType, emptyProviderRefProvider{createErr: errors.New("gateway unavailable")})
+
+	if _, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: context.Background()}); err == nil {
+		t.Fatal("expected gateway creation failure")
+	}
+	var account walletdomain.Account
+	if err := db.Where("user_id = ?", ownerUserID).First(&account).Error; err != nil {
+		t.Fatalf("reload reseller fee wallet: %v", err)
+	}
+	if got := account.Balance.StringFixed(2); got != "10.00" {
+		t.Fatalf("failed gateway left reseller funds reserved: %s", got)
+	}
+	var reserveCount, releaseCount int64
+	if err := db.Model(&walletdomain.Transaction{}).Where("order_id = ? AND type = ?", order.ID, constants.WalletTxnTypeResellerPaymentFeeReserve).Count(&reserveCount).Error; err != nil {
+		t.Fatalf("count fee reserves: %v", err)
+	}
+	if err := db.Model(&walletdomain.Transaction{}).Where("order_id = ? AND type = ?", order.ID, constants.WalletTxnTypeResellerPaymentFeeRelease).Count(&releaseCount).Error; err != nil {
+		t.Fatalf("count fee releases: %v", err)
+	}
+	if reserveCount != 1 || releaseCount != 1 {
+		t.Fatalf("fee reserve lifecycle counts = %d/%d, want 1/1", reserveCount, releaseCount)
+	}
+}
+
+func TestResellerPaymentTerminalFailureCallbacksReleaseFeeReserve(t *testing.T) {
+	for _, status := range []string{constants.PaymentStatusFailed, constants.PaymentStatusExpired} {
+		t.Run(status, func(t *testing.T) {
+			svc, db := setupPaymentServiceWalletTest(t)
+			channel, order := createFeePolicyOrderFixture(t, db, "Terminal Reseller Gateway", "DJ-RESELLER-FEE-"+strings.ToUpper(status))
+			channel.FeeRate = money.FromDecimal(decimal.RequireFromString("4.00"))
+			channel.FixedFee = money.FromDecimal(decimal.Zero)
+			if err := db.Save(channel).Error; err != nil {
+				t.Fatalf("update hosted reseller fee: %v", err)
+			}
+			resellerID := uint(26)
+			order.ResellerID = &resellerID
+			order.ResellerProfitAmount = money.FromDecimal(decimal.NewFromInt(3))
+			if err := db.Save(order).Error; err != nil {
+				t.Fatalf("mark order as loss-making reseller sale: %v", err)
+			}
+			const ownerUserID uint = 260
+			seedResellerFeeWallet(t, db, ownerUserID, "10.00")
+			feeConfig := fixedResellerPaymentConfig{feePolicy: constants.PaymentFeePolicyMerchantAbsorbed, ownerUserID: ownerUserID}
+			svc.resellerChannels = feeConfig
+			svc.resellerFeeWalletOwners = feeConfig
+			registerTestGateway(t, svc, channel.ProviderType, channel.ChannelType, emptyProviderRefProvider{})
+
+			created, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: context.Background()})
+			if err != nil {
+				t.Fatalf("create payment: %v", err)
+			}
+			if _, err := svc.HandleCallback(PaymentCallbackInput{
+				PaymentID: created.Payment.ID,
+				OrderNo:   order.OrderNo,
+				ChannelID: channel.ID,
+				Status:    status,
+			}); err != nil {
+				t.Fatalf("handle %s callback: %v", status, err)
+			}
+			var account walletdomain.Account
+			if err := db.Where("user_id = ?", ownerUserID).First(&account).Error; err != nil {
+				t.Fatalf("reload reseller fee wallet: %v", err)
+			}
+			if got := account.Balance.StringFixed(2); got != "10.00" {
+				t.Fatalf("%s callback left reseller funds reserved: %s", status, got)
+			}
+		})
+	}
+}
+
+func TestResellerPaymentSuccessKeepsFeeDeficitDebited(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	channel, order := createFeePolicyOrderFixture(t, db, "Successful Reseller Gateway", "DJ-RESELLER-FEE-SUCCESS")
+	channel.FeeRate = money.FromDecimal(decimal.RequireFromString("4.00"))
+	channel.FixedFee = money.FromDecimal(decimal.Zero)
+	if err := db.Save(channel).Error; err != nil {
+		t.Fatalf("update hosted reseller fee: %v", err)
+	}
+	resellerID := uint(27)
+	order.ResellerID = &resellerID
+	order.ResellerProfitAmount = money.FromDecimal(decimal.NewFromInt(3))
+	if err := db.Save(order).Error; err != nil {
+		t.Fatalf("mark order as loss-making reseller sale: %v", err)
+	}
+	const ownerUserID uint = 270
+	seedResellerFeeWallet(t, db, ownerUserID, "10.00")
+	feeConfig := fixedResellerPaymentConfig{feePolicy: constants.PaymentFeePolicyMerchantAbsorbed, ownerUserID: ownerUserID}
+	svc.resellerChannels = feeConfig
+	svc.resellerFeeWalletOwners = feeConfig
+	registerTestGateway(t, svc, channel.ProviderType, channel.ChannelType, emptyProviderRefProvider{})
+
+	created, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: channel.ID, Context: context.Background()})
+	if err != nil {
+		t.Fatalf("create payment: %v", err)
+	}
+	paidAt := time.Now()
+	if _, err := svc.HandleCallback(PaymentCallbackInput{
+		PaymentID: created.Payment.ID,
+		OrderNo:   order.OrderNo,
+		ChannelID: channel.ID,
+		Status:    constants.PaymentStatusSuccess,
+		Amount:    created.Payment.Amount,
+		Currency:  created.Payment.Currency,
+		PaidAt:    &paidAt,
+	}); err != nil {
+		t.Fatalf("handle success callback: %v", err)
+	}
+	var account walletdomain.Account
+	if err := db.Where("user_id = ?", ownerUserID).First(&account).Error; err != nil {
+		t.Fatalf("reload reseller fee wallet: %v", err)
+	}
+	if got := account.Balance.StringFixed(2); got != "9.00" {
+		t.Fatalf("successful payment did not keep fee deficit debit: %s", got)
+	}
+	var releaseCount int64
+	if err := db.Model(&walletdomain.Transaction{}).Where("order_id = ? AND type = ?", order.ID, constants.WalletTxnTypeResellerPaymentFeeRelease).Count(&releaseCount).Error; err != nil {
+		t.Fatalf("count fee releases: %v", err)
+	}
+	if releaseCount != 0 {
+		t.Fatalf("successful payment released fee deficit %d times", releaseCount)
+	}
+}
+
+func TestReplacingResellerPaymentMovesFeeHoldToCurrentLink(t *testing.T) {
+	svc, db := setupPaymentServiceWalletTest(t)
+	firstChannel, order := createFeePolicyOrderFixture(t, db, "First Reseller Gateway", "DJ-RESELLER-FEE-REPLACE")
+	firstChannel.FeeRate = money.FromDecimal(decimal.RequireFromString("4.00"))
+	firstChannel.FixedFee = money.FromDecimal(decimal.Zero)
+	if err := db.Save(firstChannel).Error; err != nil {
+		t.Fatalf("update first hosted reseller fee: %v", err)
+	}
+	secondChannel := *firstChannel
+	secondChannel.ID = 0
+	secondChannel.Name = "Second Reseller Gateway"
+	secondChannel.FeeRate = money.FromDecimal(decimal.RequireFromString("5.00"))
+	if err := db.Create(&secondChannel).Error; err != nil {
+		t.Fatalf("create second hosted reseller channel: %v", err)
+	}
+	resellerID := uint(28)
+	order.ResellerID = &resellerID
+	order.ResellerProfitAmount = money.FromDecimal(decimal.NewFromInt(3))
+	if err := db.Save(order).Error; err != nil {
+		t.Fatalf("mark reseller order: %v", err)
+	}
+	const ownerUserID uint = 280
+	seedResellerFeeWallet(t, db, ownerUserID, "10.00")
+	feeConfig := fixedResellerPaymentConfig{feePolicy: constants.PaymentFeePolicyMerchantAbsorbed, ownerUserID: ownerUserID}
+	svc.resellerChannels = feeConfig
+	svc.resellerFeeWalletOwners = feeConfig
+	registerTestGateway(t, svc, firstChannel.ProviderType, firstChannel.ChannelType, emptyProviderRefProvider{})
+
+	first, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: firstChannel.ID, Context: context.Background()})
+	if err != nil {
+		t.Fatalf("create first payment: %v", err)
+	}
+	second, err := svc.CreatePayment(CreatePaymentInput{OrderID: order.ID, ChannelID: secondChannel.ID, Context: context.Background()})
+	if err != nil {
+		t.Fatalf("create replacement payment: %v", err)
+	}
+	if first.Payment.ID == second.Payment.ID {
+		t.Fatal("replacement payment reused old link")
+	}
+	var account walletdomain.Account
+	if err := db.Where("user_id = ?", ownerUserID).First(&account).Error; err != nil {
+		t.Fatalf("reload reseller fee wallet: %v", err)
+	}
+	if got := account.Balance.StringFixed(2); got != "8.00" {
+		t.Fatalf("replacement should hold only current 2.00 deficit, balance %s", got)
+	}
+	var reserveCount, releaseCount int64
+	if err := db.Model(&walletdomain.Transaction{}).Where("order_id = ? AND type = ?", order.ID, constants.WalletTxnTypeResellerPaymentFeeReserve).Count(&reserveCount).Error; err != nil {
+		t.Fatalf("count fee reserves: %v", err)
+	}
+	if err := db.Model(&walletdomain.Transaction{}).Where("order_id = ? AND type = ?", order.ID, constants.WalletTxnTypeResellerPaymentFeeRelease).Count(&releaseCount).Error; err != nil {
+		t.Fatalf("count fee releases: %v", err)
+	}
+	if reserveCount != 2 || releaseCount != 1 {
+		t.Fatalf("replacement fee lifecycle counts = %d/%d, want 2/1", reserveCount, releaseCount)
+	}
+	var oldPayment paymentdomain.Payment
+	if err := db.First(&oldPayment, first.Payment.ID).Error; err != nil {
+		t.Fatalf("reload first payment: %v", err)
+	}
+	if oldPayment.Status != constants.PaymentStatusExpired || oldPayment.SupersededByPaymentID == nil || *oldPayment.SupersededByPaymentID != second.Payment.ID {
+		t.Fatalf("old payment was not superseded by current link: %+v", oldPayment)
 	}
 }
 

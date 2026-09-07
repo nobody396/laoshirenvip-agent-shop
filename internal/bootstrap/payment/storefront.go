@@ -123,6 +123,7 @@ func mapTransportError(err error) error {
 		{paymentapp.ErrPaymentStatusInvalid, paymenttransport.ErrPaymentStatusInvalid},
 		{paymentapp.ErrPaymentAmountMismatch, paymenttransport.ErrPaymentAmountMismatch},
 		{paymentapp.ErrResellerProfitInsufficientForFee, paymenttransport.ErrResellerProfitInsufficientForFee},
+		{paymentapp.ErrResellerFeeWalletInsufficient, paymenttransport.ErrResellerFeeWalletInsufficient},
 	} {
 		if errors.Is(err, mapping.source) {
 			return fmt.Errorf("%w: %v", mapping.target, err)
