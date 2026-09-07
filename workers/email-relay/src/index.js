@@ -1,4 +1,4 @@
-const sender = { email: "no-reply@laoshirenvip.com", name: "老实人AI VIP" };
+const sender = { email: "no-reply@laoshirenvip.com", name: "lsrai.shop" };
 const allowedPurposes = new Set(["register", "reset", "telegram_bind", "change_email_old", "change_email_new"]);
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

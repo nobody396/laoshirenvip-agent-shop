@@ -21,7 +21,7 @@ test("sends a verification email only from the fixed VIP sender", async () => {
   }), envFor(calls));
   assert.equal(response.status, 200);
   assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0].from, { email: "no-reply@laoshirenvip.com", name: "老实人AI VIP" });
+  assert.deepEqual(calls[0].from, { email: "no-reply@laoshirenvip.com", name: "lsrai.shop" });
   assert.equal(calls[0].to, "buyer@example.com");
 });
 
