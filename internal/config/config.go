@@ -419,6 +419,7 @@ func Load() *Config {
 	viper.SetDefault("email.use_ssl", false)
 	viper.SetDefault("email.verification_relay_url", "")
 	viper.SetDefault("email.verification_relay_token", "")
+	viper.SetDefault("notification.feishu_app_secret", "")
 	viper.SetDefault("email.verify_code.expire_minutes", 10)
 	viper.SetDefault("email.verify_code.send_interval_seconds", 60)
 	viper.SetDefault("email.verify_code.max_attempts", 5)
