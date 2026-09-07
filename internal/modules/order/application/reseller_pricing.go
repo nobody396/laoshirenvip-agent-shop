@@ -15,10 +15,11 @@ import (
 )
 
 const (
-	resellerRuleSourceSKU     = resellerapplication.RuleSourceSKU
-	resellerRuleSourceProduct = resellerapplication.RuleSourceProduct
-	resellerRuleSourceProfile = resellerapplication.RuleSourceProfile
-	resellerRuleSourceInherit = resellerapplication.RuleSourceInherit
+	resellerRuleSourceSKU         = resellerapplication.RuleSourceSKU
+	resellerRuleSourceProduct     = resellerapplication.RuleSourceProduct
+	resellerRuleSourceProfile     = resellerapplication.RuleSourceProfile
+	resellerRuleSourceInherit     = resellerapplication.RuleSourceInherit
+	resellerRuleSourceCustomerSKU = "customer_sku"
 )
 
 // ResellerPricingResolver resolves reseller-facing prices before order transactions.
@@ -29,6 +30,7 @@ type ResellerPricingResolver struct {
 type resellerPricingStore interface {
 	GetProfileByID(id uint) (*resellerdomain.Profile, error)
 	ListProductSettingsForPricing(resellerID uint, productIDs, skuIDs []uint) ([]resellerdomain.ProductSetting, error)
+	ListCustomerPriceSettingsForPricing(resellerID, customerUserID uint, productIDs, skuIDs []uint) ([]resellerdomain.CustomerPriceSetting, error)
 	IsActiveRelatedAccount(resellerID, userID uint) (bool, error)
 }
 
@@ -53,6 +55,10 @@ func (r *ResellerPricingResolver) ApplyToOrderBuildResult(tenant resellercontrac
 		return nil, err
 	}
 	settingsByProduct, settingsBySKU := buildSettingIndexes(settings)
+	customerSettingsBySKU, err := r.loadCustomerPriceSettings(*tenant.ResellerID, buyerUserID, productIDs, skuIDs)
+	if err != nil {
+		return nil, err
+	}
 
 	ctx := &resellercontract.OrderPricingContext{
 		ResellerID:     *tenant.ResellerID,
@@ -79,12 +85,25 @@ func (r *ResellerPricingResolver) ApplyToOrderBuildResult(tenant resellercontrac
 		}
 
 		baseUnit := plan.SKU.PriceAmount.Decimal.Round(2)
-		resellerUnit, rule, err := resolveResellerUnitAmount(profile, productSetting, skuSetting, baseUnit)
+		regularUnit, rule, err := resolveResellerUnitAmount(profile, productSetting, skuSetting, baseUnit)
 		if err != nil {
 			return nil, err
 		}
-		if err := validateResellerUnitAmount(profile, plan.SKU, baseUnit, resellerUnit); err != nil {
+		if err := validateResellerUnitAmount(profile, plan.SKU, baseUnit, regularUnit); err != nil {
 			return nil, err
+		}
+		resellerUnit := regularUnit
+		var customerSettingID *uint
+		if customerSetting, ok := customerSettingsBySKU[resellercontract.SettingKey{ProductID: plan.Product.ID, SKUID: plan.SKU.ID}]; ok {
+			special := customerSetting.FixedPriceAmount.Decimal.Round(2)
+			if err := validateCustomerUnitAmount(profile, plan.SKU, baseUnit, regularUnit, special); err != nil {
+				return nil, err
+			}
+			resellerUnit = special
+			settingID := customerSetting.ID
+			customerSettingID = &settingID
+			rule.Mode = resellerdomain.PricingModeFixedPrice
+			rule.Source = resellerRuleSourceCustomerSKU
 		}
 		quantity := decimal.NewFromInt(int64(plan.Item.Quantity))
 		baseTotal := baseUnit.Mul(quantity).Round(2)
@@ -115,6 +134,7 @@ func (r *ResellerPricingResolver) ApplyToOrderBuildResult(tenant resellercontrac
 			SKUID:               plan.SKU.ID,
 			Quantity:            plan.Item.Quantity,
 			BaseUnitAmount:      baseUnit,
+			RetailUnitAmount:    regularUnit,
 			ResellerUnitAmount:  resellerUnit,
 			BaseTotalAmount:     baseTotal,
 			ResellerTotalAmount: resellerTotal,
@@ -122,6 +142,7 @@ func (r *ResellerPricingResolver) ApplyToOrderBuildResult(tenant resellercontrac
 			PricingMode:         rule.Mode,
 			RuleSource:          rule.Source,
 			SettingID:           rule.SettingID,
+			CustomerSettingID:   customerSettingID,
 		})
 	}
 
@@ -152,7 +173,7 @@ func (r *ResellerPricingResolver) ApplyToOrderBuildResult(tenant resellercontrac
 	return ctx, nil
 }
 
-func (r *ResellerPricingResolver) LoadDisplayPricingBatch(tenant resellercontract.TenantContext, products []productdomain.Product) (*resellercontract.DisplayPricingBatch, error) {
+func (r *ResellerPricingResolver) LoadDisplayPricingBatch(tenant resellercontract.TenantContext, buyerUserID uint, products []productdomain.Product) (*resellercontract.DisplayPricingBatch, error) {
 	if !isResellerOrderContext(tenant) {
 		return nil, nil
 	}
@@ -172,10 +193,16 @@ func (r *ResellerPricingResolver) LoadDisplayPricingBatch(tenant resellercontrac
 	for _, setting := range settings {
 		byProduct[setting.ProductID] = append(byProduct[setting.ProductID], setting)
 	}
+	customerSettings, err := r.loadCustomerPriceSettings(*tenant.ResellerID, buyerUserID, productIDs, skuIDs)
+	if err != nil {
+		return nil, err
+	}
 	return &resellercontract.DisplayPricingBatch{
-		Tenant:            tenant,
-		Profile:           profile,
-		SettingsByProduct: byProduct,
+		Tenant:                tenant,
+		Profile:               profile,
+		BuyerUserID:           buyerUserID,
+		SettingsByProduct:     byProduct,
+		CustomerSettingsBySKU: customerSettings,
 	}, nil
 }
 
@@ -193,10 +220,12 @@ func (r *ResellerPricingResolver) ResolveDisplayPrices(tenant resellercontract.T
 	}
 
 	result := &resellercontract.DisplayPriceResult{
-		Visible:      false,
-		ProductID:    product.ID,
-		SKUPrices:    map[uint]money.Amount{},
-		HiddenSKUIDs: map[uint]bool{},
+		Visible:           false,
+		ProductID:         product.ID,
+		SKUPrices:         map[uint]money.Amount{},
+		RegularSKUPrices:  map[uint]money.Amount{},
+		CustomerPriceSKUs: map[uint]bool{},
+		HiddenSKUIDs:      map[uint]bool{},
 	}
 	for _, sku := range product.SKUs {
 		if !sku.IsActive {
@@ -207,9 +236,10 @@ func (r *ResellerPricingResolver) ResolveDisplayPrices(tenant resellercontract.T
 			result.HiddenSKUIDs[sku.ID] = true
 			continue
 		}
-		price, _, err := resolveResellerUnitAmount(batch.Profile, productSetting, skuSetting, sku.PriceAmount.Decimal.Round(2))
+		base := sku.PriceAmount.Decimal.Round(2)
+		regularPrice, _, err := resolveResellerUnitAmount(batch.Profile, productSetting, skuSetting, base)
 		if err == nil {
-			err = validateResellerUnitAmount(batch.Profile, &sku, sku.PriceAmount.Decimal.Round(2), price)
+			err = validateResellerUnitAmount(batch.Profile, &sku, base, regularPrice)
 		}
 		if err != nil {
 			// 定价配置可能在保存后因基准价/成本价/上限调整而失效；
@@ -223,12 +253,38 @@ func (r *ResellerPricingResolver) ResolveDisplayPrices(tenant resellercontract.T
 			result.HiddenSKUIDs[sku.ID] = true
 			continue
 		}
-		money := money.FromDecimal(price)
-		result.SKUPrices[sku.ID] = money
+		price := regularPrice
+		customerApplied := false
+		if customerSetting, ok := batch.CustomerSettingsBySKU[resellercontract.SettingKey{ProductID: product.ID, SKUID: sku.ID}]; ok {
+			special := customerSetting.FixedPriceAmount.Decimal.Round(2)
+			if customerErr := validateCustomerUnitAmount(batch.Profile, &sku, base, regularPrice, special); customerErr != nil {
+				logger.Warnw("reseller_customer_display_price_sku_hidden",
+					"reseller_id", batch.Profile.ID,
+					"buyer_user_id", batch.BuyerUserID,
+					"product_id", product.ID,
+					"sku_id", sku.ID,
+					"error", customerErr.Error(),
+				)
+				result.HiddenSKUIDs[sku.ID] = true
+				continue
+			}
+			price = special
+			customerApplied = true
+		}
+		amount := money.FromDecimal(price)
+		regularAmount := money.FromDecimal(regularPrice)
+		result.SKUPrices[sku.ID] = amount
+		result.RegularSKUPrices[sku.ID] = regularAmount
+		result.CustomerPriceSKUs[sku.ID] = customerApplied
 		if !result.Visible {
 			result.Visible = true
 			result.DisplaySKUID = sku.ID
-			result.DisplayPrice = money
+			result.DisplayPrice = amount
+			if customerApplied {
+				regularCopy := regularAmount
+				result.DisplayRegularPrice = &regularCopy
+				result.CustomerPriceApplied = true
+			}
 		}
 	}
 	if len(product.SKUs) == 0 {
@@ -271,6 +327,34 @@ func (r *ResellerPricingResolver) applySelfDealingRisk(ctx *resellercontract.Ord
 		relatedMatch = matched
 	}
 	resellercontract.ApplySelfDealingRisk(ctx, profile, relatedMatch)
+	return nil
+}
+
+func (r *ResellerPricingResolver) loadCustomerPriceSettings(resellerID, buyerUserID uint, productIDs, skuIDs []uint) (map[resellercontract.SettingKey]resellerdomain.CustomerPriceSetting, error) {
+	result := map[resellercontract.SettingKey]resellerdomain.CustomerPriceSetting{}
+	if buyerUserID == 0 {
+		return result, nil
+	}
+	rows, err := r.repo.ListCustomerPriceSettingsForPricing(resellerID, buyerUserID, productIDs, skuIDs)
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		if row.ProductID == 0 || row.SKUID == 0 {
+			continue
+		}
+		result[resellercontract.SettingKey{ProductID: row.ProductID, SKUID: row.SKUID}] = row
+	}
+	return result, nil
+}
+
+func validateCustomerUnitAmount(profile *resellerdomain.Profile, sku *productdomain.ProductSKU, baseUnit, regularUnit, specialUnit decimal.Decimal) error {
+	if err := validateResellerUnitAmount(profile, sku, baseUnit, specialUnit); err != nil {
+		return resellercontract.ErrCustomerPriceInvalid
+	}
+	if specialUnit.GreaterThan(regularUnit.Round(2)) {
+		return resellercontract.ErrCustomerPriceAboveRetail
+	}
 	return nil
 }
 

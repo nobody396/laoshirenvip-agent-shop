@@ -60,3 +60,12 @@ func RegisterUserCustomerWalletRoutes(console gin.IRoutes, handler *UserCustomer
 	console.POST("/customers/:id/wallet/topup", handler.TopUp)
 	console.GET("/customers/:id/wallet/transactions", handler.ListTransactions)
 }
+
+func RegisterUserCustomerPriceRoutes(console gin.IRoutes, handler *UserCustomerPriceHandler) {
+	if console == nil || handler == nil {
+		panic("reseller customer price routes: required dependency is nil")
+	}
+	console.GET("/customers/:id/prices", handler.List)
+	console.PUT("/customers/:id/prices/:product_id/:sku_id", handler.Set)
+	console.DELETE("/customers/:id/prices/:product_id/:sku_id", handler.Delete)
+}

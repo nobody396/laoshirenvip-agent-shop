@@ -41,6 +41,7 @@ type OrderPricingItem struct {
 	Quantity            int
 	ChildOrderID        uint
 	BaseUnitAmount      decimal.Decimal
+	RetailUnitAmount    decimal.Decimal
 	ResellerUnitAmount  decimal.Decimal
 	BaseTotalAmount     decimal.Decimal
 	ResellerTotalAmount decimal.Decimal
@@ -48,25 +49,32 @@ type OrderPricingItem struct {
 	PricingMode         string
 	RuleSource          string
 	SettingID           *uint
+	CustomerSettingID   *uint
 	OrderID             uint
 	OrderItemID         uint
 }
 
 // DisplayPriceResult 分销站商品展示价结果。
 type DisplayPriceResult struct {
-	Visible      bool
-	ProductID    uint
-	DisplaySKUID uint
-	DisplayPrice money.Amount
-	SKUPrices    map[uint]money.Amount
-	HiddenSKUIDs map[uint]bool
+	Visible              bool
+	ProductID            uint
+	DisplaySKUID         uint
+	DisplayPrice         money.Amount
+	DisplayRegularPrice  *money.Amount
+	CustomerPriceApplied bool
+	SKUPrices            map[uint]money.Amount
+	RegularSKUPrices     map[uint]money.Amount
+	CustomerPriceSKUs    map[uint]bool
+	HiddenSKUIDs         map[uint]bool
 }
 
 // DisplayPricingBatch 分销站批量展示定价所需配置。
 type DisplayPricingBatch struct {
-	Tenant            TenantContext
-	Profile           *resellerdomain.Profile
-	SettingsByProduct map[uint][]resellerdomain.ProductSetting
+	Tenant                TenantContext
+	Profile               *resellerdomain.Profile
+	BuyerUserID           uint
+	SettingsByProduct     map[uint][]resellerdomain.ProductSetting
+	CustomerSettingsBySKU map[SettingKey]resellerdomain.CustomerPriceSetting
 }
 
 // SettingKey 商品/SKU 配置索引键。
@@ -126,6 +134,7 @@ func (ctx *OrderPricingContext) BuildPricingSnapshotJSON() jsonmap.JSON {
 			"quantity":              item.Quantity,
 			"child_order_id":        item.ChildOrderID,
 			"base_unit_amount":      MoneyString(item.BaseUnitAmount),
+			"retail_unit_amount":    MoneyString(item.RetailUnitAmount),
 			"reseller_unit_amount":  MoneyString(item.ResellerUnitAmount),
 			"base_total_amount":     MoneyString(item.BaseTotalAmount),
 			"reseller_total_amount": MoneyString(item.ResellerTotalAmount),
@@ -139,6 +148,11 @@ func (ctx *OrderPricingContext) BuildPricingSnapshotJSON() jsonmap.JSON {
 			entry["setting_id"] = *item.SettingID
 		} else {
 			entry["setting_id"] = nil
+		}
+		if item.CustomerSettingID != nil {
+			entry["customer_price_setting_id"] = *item.CustomerSettingID
+		} else {
+			entry["customer_price_setting_id"] = nil
 		}
 		items = append(items, entry)
 	}

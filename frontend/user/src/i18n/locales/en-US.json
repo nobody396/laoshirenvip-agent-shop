@@ -173,6 +173,7 @@
     "searchLabel": "Search",
     "searchPlaceholder": "Search products",
     "promotionTag": "Promo",
+    "customerPriceTag": "Special price",
     "wholesaleTag": "Wholesale",
     "memberPriceTag": "VIP",
     "saveAmount": "Save",
@@ -1649,7 +1650,28 @@
       "previous": "Previous",
       "next": "Next",
       "transactions": "Wallet activity",
-      "noTransactions": "No top-up or spending activity yet"
+      "noTransactions": "No top-up or spending activity yet",
+      "specialPrices": "Special prices"
+    },
+    "customerPrices": {
+      "title": "Customer special prices",
+      "description": "Set fixed per-SKU prices for an authenticated customer.",
+      "back": "Back to customers",
+      "hint": "SKUs without an override keep the regular retail price. A special price cannot be below the platform settlement price or above your retail price. Gross profit excludes payment fees.",
+      "empty": "No listed products are available",
+      "sku": "Product option",
+      "basePrice": "Settlement price",
+      "retailPrice": "Retail price",
+      "specialPrice": "Fixed special price",
+      "grossProfit": "Est. gross profit",
+      "save": "Save",
+      "reset": "Use retail price",
+      "invalid": "Enter a positive price with at most two decimals",
+      "belowBase": "Cannot be below the settlement price",
+      "aboveRetail": "Cannot be above the retail price",
+      "saved": "Special price saved",
+      "resetDone": "Regular retail price restored",
+      "failed": "Unable to save. Try again."
     }
   },
   "orders": {

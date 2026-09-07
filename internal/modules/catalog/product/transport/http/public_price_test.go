@@ -17,7 +17,7 @@ type stubResellerDisplayPricer struct {
 	err    error
 }
 
-func (s stubResellerDisplayPricer) LoadDisplayPricingBatch(tenant reseller.TenantContext, products []productdomain.Product) (*reseller.DisplayPricingBatch, error) {
+func (s stubResellerDisplayPricer) LoadDisplayPricingBatch(tenant reseller.TenantContext, buyerUserID uint, products []productdomain.Product) (*reseller.DisplayPricingBatch, error) {
 	return &reseller.DisplayPricingBatch{Tenant: tenant}, nil
 }
 
@@ -130,6 +130,36 @@ func TestDecoratePublicProductForTenantHiddenProduct(t *testing.T) {
 	_, err := h.decoratePublicProductForTenant(product, nil, tenant, &reseller.DisplayPricingBatch{})
 	if !errors.Is(err, productcontract.ErrResellerProductNotListed) {
 		t.Fatalf("expected ErrResellerProductNotListed, got %v", err)
+	}
+}
+
+func TestDecoratePublicProductForTenantExposesCustomerPriceWithoutLeakingItAsPromotion(t *testing.T) {
+	regular := money.FromDecimal(decimal.NewFromInt(130))
+	h := &PublicHandler{pricer: stubResellerDisplayPricer{result: &reseller.DisplayPriceResult{
+		Visible: true, ProductID: 1, DisplaySKUID: 11,
+		DisplayPrice:        money.FromDecimal(decimal.NewFromInt(122)),
+		DisplayRegularPrice: &regular, CustomerPriceApplied: true,
+		SKUPrices:         map[uint]money.Amount{11: money.FromDecimal(decimal.NewFromInt(122))},
+		RegularSKUPrices:  map[uint]money.Amount{11: regular},
+		CustomerPriceSKUs: map[uint]bool{11: true},
+		HiddenSKUIDs:      map[uint]bool{},
+	}}}
+	product := &productdomain.Product{
+		ID: 1, PriceAmount: money.FromDecimal(decimal.NewFromInt(100)),
+		SKUs: []productdomain.ProductSKU{{ID: 11, ProductID: 1, IsActive: true, PriceAmount: money.FromDecimal(decimal.NewFromInt(100))}},
+	}
+	item, err := h.decoratePublicProductForTenant(product, nil, reseller.ResellerTenantContext("shop.example.test", 10, 99, "shop.example.test"), &reseller.DisplayPricingBatch{})
+	if err != nil {
+		t.Fatalf("decoratePublicProductForTenant failed: %v", err)
+	}
+	if !item.CustomerPriceApplied || item.RegularPriceAmount == nil || item.RegularPriceAmount.String() != "130.00" || item.PriceAmount.String() != "122.00" {
+		t.Fatalf("unexpected product customer price response: %+v", item)
+	}
+	if len(item.SKUs) != 1 || !item.SKUs[0].CustomerPriceApplied || item.SKUs[0].RegularPriceAmount == nil || item.SKUs[0].RegularPriceAmount.String() != "130.00" {
+		t.Fatalf("unexpected sku customer price response: %+v", item.SKUs)
+	}
+	if item.PromotionPriceAmount != nil || item.SKUs[0].PromotionPriceAmount != nil {
+		t.Fatalf("customer price must not be exposed as a promotion: %+v", item)
 	}
 }
 

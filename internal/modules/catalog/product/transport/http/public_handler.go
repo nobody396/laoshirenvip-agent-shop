@@ -36,7 +36,7 @@ type PublicProductQueries interface {
 
 // ResellerDisplayPricer 是分销站展示价解析端口。
 type ResellerDisplayPricer interface {
-	LoadDisplayPricingBatch(tenant reseller.TenantContext, products []productdomain.Product) (*reseller.DisplayPricingBatch, error)
+	LoadDisplayPricingBatch(tenant reseller.TenantContext, buyerUserID uint, products []productdomain.Product) (*reseller.DisplayPricingBatch, error)
 	ResolveDisplayPrices(tenant reseller.TenantContext, product *productdomain.Product, batch *reseller.DisplayPricingBatch) (*reseller.DisplayPriceResult, error)
 }
 
@@ -110,12 +110,40 @@ func isResellerTenant(tenant reseller.TenantContext) bool {
 	return tenant.ResellerID != nil && !tenant.IsMain && !tenant.Unavailable
 }
 
+func optionalBuyerUserID(c *gin.Context) uint {
+	if c == nil {
+		return 0
+	}
+	value, ok := c.Get("user_id")
+	if !ok {
+		return 0
+	}
+	switch id := value.(type) {
+	case uint:
+		return id
+	case int:
+		if id > 0 {
+			return uint(id)
+		}
+	}
+	return 0
+}
+
+func markPrivateCatalogResponse(c *gin.Context, buyerUserID uint) {
+	if c != nil && buyerUserID > 0 {
+		c.Header("Cache-Control", "private, no-store")
+		c.Header("Vary", "Authorization")
+	}
+}
+
 // GetProducts 获取商品列表
 func (h *PublicHandler) GetProducts(c *gin.Context) {
 	page, pageSize := ginutil.ParsePagination(c)
 	categoryID := c.Query("category_id")
 	search := strings.TrimSpace(c.Query("search"))
 	tenant := tenantFromRequest(c)
+	buyerUserID := optionalBuyerUserID(c)
+	markPrivateCatalogResponse(c, buyerUserID)
 
 	products, total, err := h.products.ListPublicForTenant(tenant, categoryID, search, page, pageSize)
 	if err != nil {
@@ -134,7 +162,7 @@ func (h *PublicHandler) GetProducts(c *gin.Context) {
 			ginutil.RespondError(c, response.CodeNotFound, "error.product_not_found", nil)
 			return
 		}
-		resellerBatch, err = h.pricer.LoadDisplayPricingBatch(tenant, products)
+		resellerBatch, err = h.pricer.LoadDisplayPricingBatch(tenant, buyerUserID, products)
 		if err != nil {
 			ginutil.RespondError(c, response.CodeInternal, "error.product_fetch_failed", err)
 			return
@@ -162,6 +190,8 @@ func (h *PublicHandler) GetProducts(c *gin.Context) {
 func (h *PublicHandler) GetProductBySlug(c *gin.Context) {
 	slug := c.Param("slug")
 	tenant := tenantFromRequest(c)
+	buyerUserID := optionalBuyerUserID(c)
+	markPrivateCatalogResponse(c, buyerUserID)
 
 	product, err := h.products.GetPublicBySlugForTenant(tenant, slug)
 	if err != nil {
@@ -186,7 +216,7 @@ func (h *PublicHandler) GetProductBySlug(c *gin.Context) {
 			ginutil.RespondError(c, response.CodeNotFound, "error.product_not_found", nil)
 			return
 		}
-		resellerBatch, err = h.pricer.LoadDisplayPricingBatch(tenant, []productdomain.Product{*product})
+		resellerBatch, err = h.pricer.LoadDisplayPricingBatch(tenant, buyerUserID, []productdomain.Product{*product})
 		if err != nil {
 			ginutil.RespondError(c, response.CodeInternal, "error.product_fetch_failed", err)
 			return

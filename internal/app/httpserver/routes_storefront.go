@@ -41,6 +41,7 @@ func registerStorefrontRoutes(
 	userResellerFinanceHandler *resellertransport.UserFinanceHandler,
 	userResellerOrderHandler *resellertransport.UserOrderHandler,
 	userResellerCustomerWalletHandler *resellertransport.UserCustomerWalletHandler,
+	userResellerCustomerPriceHandler *resellertransport.UserCustomerPriceHandler,
 	userApiCredentialHandler *apicredentialtransport.UserHandler,
 	userAuditLogHandler *auditlogtransport.UserHandler,
 	userGiftCardHandler *giftcardtransport.UserHandler,
@@ -120,6 +121,7 @@ func registerStorefrontRoutes(
 	user.Use(middleware.UserJWTAuthMiddleware(cfg.UserJWT.SecretKey, c.UserStore))
 	{
 		userauthtransport.RegisterUserProfileRoutes(user, userProfileHandler)
+		producthttp.RegisterAuthenticatedRoutes(user, publicCatalogHandler)
 		auditlogtransport.RegisterUserRoutes(user, userAuditLogHandler)
 		userauthtransport.RegisterUserPasswordRoutes(user, userPasswordHandler)
 		userauthtransport.RegisterUserTelegramRoutes(user, userTelegramHandler)
@@ -152,6 +154,7 @@ func registerStorefrontRoutes(
 			resellertransport.RegisterUserFinanceRoutes(resellerConsole, userResellerFinanceHandler)
 			resellertransport.RegisterUserOrderRoutes(resellerConsole, userResellerOrderHandler)
 			resellertransport.RegisterUserCustomerWalletRoutes(resellerConsole, userResellerCustomerWalletHandler)
+			resellertransport.RegisterUserCustomerPriceRoutes(resellerConsole, userResellerCustomerPriceHandler)
 		}
 
 		// API 对接权限（用户中心）

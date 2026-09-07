@@ -83,6 +83,7 @@ func (c *Container) initApplicationServices() {
 		c.UserStore,
 		c.WalletService,
 	)
+	c.ResellerCustomerPriceService = reseller.NewCustomerPriceService(c.ResellerStore, c.UserStore)
 	c.OrderRefundService = orderrefund.New(
 		c.OrderStore,
 		c.UserStore,

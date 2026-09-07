@@ -19,12 +19,13 @@ import (
 )
 
 type resellerPricingRepoStub struct {
-	profile         *resellerdomain.Profile
-	settings        []resellerdomain.ProductSetting
-	related         map[uint]bool
-	profileQueries  int
-	settingsQueries int
-	relatedQueries  int
+	profile          *resellerdomain.Profile
+	settings         []resellerdomain.ProductSetting
+	customerSettings []resellerdomain.CustomerPriceSetting
+	related          map[uint]bool
+	profileQueries   int
+	settingsQueries  int
+	relatedQueries   int
 }
 
 func (r *resellerPricingRepoStub) GetProfileByID(id uint) (*resellerdomain.Profile, error) {
@@ -40,6 +41,12 @@ func (r *resellerPricingRepoStub) ListProductSettingsForPricing(resellerID uint,
 	r.settingsQueries++
 	rows := make([]resellerdomain.ProductSetting, len(r.settings))
 	copy(rows, r.settings)
+	return rows, nil
+}
+
+func (r *resellerPricingRepoStub) ListCustomerPriceSettingsForPricing(resellerID, customerUserID uint, productIDs, skuIDs []uint) ([]resellerdomain.CustomerPriceSetting, error) {
+	rows := make([]resellerdomain.CustomerPriceSetting, len(r.customerSettings))
+	copy(rows, r.customerSettings)
 	return rows, nil
 }
 
@@ -579,7 +586,7 @@ func TestResellerPricingResolverDisplayBatchUsesSingleSettingsLookup(t *testing.
 		},
 	}
 
-	batch, err := resolver.LoadDisplayPricingBatch(testResellerTenant(), products)
+	batch, err := resolver.LoadDisplayPricingBatch(testResellerTenant(), 0, products)
 	if err != nil {
 		t.Fatalf("LoadDisplayPricingBatch failed: %v", err)
 	}
@@ -625,7 +632,7 @@ func TestResellerPricingResolverDisplayHidesInvalidSKUWithoutFailing(t *testing.
 			},
 		},
 	}
-	batch, err := resolver.LoadDisplayPricingBatch(testResellerTenant(), products)
+	batch, err := resolver.LoadDisplayPricingBatch(testResellerTenant(), 0, products)
 	if err != nil {
 		t.Fatalf("LoadDisplayPricingBatch failed: %v", err)
 	}
@@ -644,5 +651,62 @@ func TestResellerPricingResolverDisplayHidesInvalidSKUWithoutFailing(t *testing.
 	}
 	if result.DisplaySKUID != 11 || !result.DisplayPrice.Decimal.Equal(decimal.NewFromInt(130)) {
 		t.Fatalf("expected display fall back to valid sku 11@130, got %+v", result)
+	}
+}
+
+func TestResellerPricingResolverAppliesAuthenticatedCustomerSKUPrice(t *testing.T) {
+	profile := testResellerProfile()
+	repo := &resellerPricingRepoStub{
+		profile: profile,
+		settings: []resellerdomain.ProductSetting{{
+			ID: 41, ResellerID: profile.ID, ProductID: 1, SKUID: 11, IsListed: true,
+			PricingMode:      resellerdomain.PricingModeFixedPrice,
+			FixedPriceAmount: money.FromDecimal(decimal.NewFromInt(130)),
+		}},
+		customerSettings: []resellerdomain.CustomerPriceSetting{{
+			ID: 51, ResellerID: profile.ID, CustomerUserID: 123, ProductID: 1, SKUID: 11,
+			FixedPriceAmount: money.FromDecimal(decimal.NewFromInt(122)),
+		}},
+		related: map[uint]bool{},
+	}
+	resolver := NewResellerPricingResolver(repo)
+	result := testOrderBuildResult(struct {
+		productID uint
+		skuID     uint
+		base      decimal.Decimal
+		cost      decimal.Decimal
+		quantity  int
+	}{productID: 1, skuID: 11, base: decimal.NewFromInt(120), cost: decimal.NewFromInt(100), quantity: 1})
+	ctx, err := resolver.ApplyToOrderBuildResult(testResellerTenant(), 123, result)
+	if err != nil {
+		t.Fatalf("ApplyToOrderBuildResult failed: %v", err)
+	}
+	if !result.TotalAmount.Equal(decimal.NewFromInt(122)) || !ctx.ProfitAmount.Equal(decimal.NewFromInt(2)) {
+		t.Fatalf("unexpected customer total/profit: total=%s profit=%s", result.TotalAmount, ctx.ProfitAmount)
+	}
+	item := ctx.Items[0]
+	if !item.RetailUnitAmount.Equal(decimal.NewFromInt(130)) || item.CustomerSettingID == nil || *item.CustomerSettingID != 51 || item.RuleSource != resellerRuleSourceCustomerSKU {
+		t.Fatalf("unexpected customer price item: %+v", item)
+	}
+	snapshotItems := ctx.PricingSnapshot["items"].([]interface{})
+	snapshotItem := snapshotItems[0].(jsonmap.JSON)
+	if snapshotItem["retail_unit_amount"] != "130.00" || snapshotItem["customer_price_setting_id"] != uint(51) {
+		t.Fatalf("customer price snapshot mismatch: %+v", snapshotItem)
+	}
+
+	products := []productdomain.Product{{
+		ID:   1,
+		SKUs: []productdomain.ProductSKU{{ID: 11, ProductID: 1, IsActive: true, PriceAmount: money.FromDecimal(decimal.NewFromInt(120)), CostPriceAmount: money.FromDecimal(decimal.NewFromInt(100))}},
+	}}
+	batch, err := resolver.LoadDisplayPricingBatch(testResellerTenant(), 123, products)
+	if err != nil {
+		t.Fatalf("LoadDisplayPricingBatch failed: %v", err)
+	}
+	display, err := resolver.ResolveDisplayPrices(testResellerTenant(), &products[0], batch)
+	if err != nil {
+		t.Fatalf("ResolveDisplayPrices failed: %v", err)
+	}
+	if !display.SKUPrices[11].Decimal.Equal(decimal.NewFromInt(122)) || !display.RegularSKUPrices[11].Decimal.Equal(decimal.NewFromInt(130)) || !display.CustomerPriceSKUs[11] {
+		t.Fatalf("unexpected display pricing: %+v", display)
 	}
 }

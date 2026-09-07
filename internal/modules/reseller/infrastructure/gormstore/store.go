@@ -32,6 +32,7 @@ func Migrate(db *gorm.DB) error {
 		&resellerdomain.WithdrawRequest{},
 		&resellerdomain.BalanceAccount{},
 		&resellerdomain.RelatedAccount{},
+		&resellerdomain.CustomerPriceSetting{},
 	); err != nil {
 		return err
 	}
@@ -41,6 +42,7 @@ func Migrate(db *gorm.DB) error {
 		"CREATE UNIQUE INDEX IF NOT EXISTS idx_reseller_product_settings_active_scope ON reseller_product_settings(reseller_id, product_id, sku_id) WHERE deleted_at IS NULL",
 		"CREATE UNIQUE INDEX IF NOT EXISTS idx_reseller_balance_accounts_active_currency ON reseller_balance_accounts(reseller_id, currency) WHERE deleted_at IS NULL",
 		"CREATE UNIQUE INDEX IF NOT EXISTS idx_reseller_related_accounts_active_user ON reseller_related_accounts(reseller_id, user_id) WHERE deleted_at IS NULL",
+		"CREATE UNIQUE INDEX IF NOT EXISTS idx_reseller_customer_price_active_scope ON reseller_customer_price_settings(reseller_id, customer_user_id, product_id, sku_id) WHERE deleted_at IS NULL",
 	}
 	for _, statement := range statements {
 		if err := db.Exec(statement).Error; err != nil {
@@ -72,6 +74,10 @@ func (s *Store) WithinManagementTransaction(run func(resellercontract.Management
 }
 
 func (s *Store) WithinProductSettingTransaction(run func(resellercontract.ProductSettingStore) error) error {
+	return s.transaction(func(tx *Store) error { return run(tx) })
+}
+
+func (s *Store) WithinCustomerPriceSettingTransaction(run func(resellercontract.CustomerPriceSettingStore) error) error {
 	return s.transaction(func(tx *Store) error { return run(tx) })
 }
 

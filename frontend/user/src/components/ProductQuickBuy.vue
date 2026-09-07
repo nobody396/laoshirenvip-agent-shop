@@ -97,6 +97,9 @@
                   <Badge :variant="getStockBadgeVariant(product.stock_status)" size="xs">
                     {{ getStockStatusLabel(product) }}
                   </Badge>
+                  <Badge v-if="selectedSku?.customer_price_applied || product.customer_price_applied" variant="success" size="xs">
+                    {{ t('products.customerPriceTag') }}
+                  </Badge>
                   <Badge v-if="hasSelectedSkuWholesalePrice" variant="success" size="xs">
                     {{ t('products.wholesaleTag') }}
                   </Badge>
@@ -107,7 +110,11 @@
 
                 <!-- Price -->
                 <div class="mt-auto pt-1">
-                  <template v-if="selectedSku && hasSelectedSkuWholesalePrice">
+                  <template v-if="selectedSku && selectedSku.customer_price_applied">
+                    <span class="text-lg md:text-xl font-bold text-emerald-600 dark:text-emerald-300">{{ formatPrice(selectedSku.price_amount, siteCurrency) }}</span>
+                    <span class="ml-1.5 text-xs text-muted-foreground line-through">{{ formatPrice(selectedSku.regular_price_amount, siteCurrency) }}</span>
+                  </template>
+                  <template v-else-if="selectedSku && hasSelectedSkuWholesalePrice">
                     <span
                       class="text-lg md:text-xl font-bold"
                       :class="selectedSkuWholesaleFinalIsMember ? 'text-amber-600 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-400'"
@@ -141,6 +148,10 @@
                     <span class="text-lg md:text-xl font-bold text-primary">
                       {{ formatPrice(selectedSku.price_amount, siteCurrency) }}
                     </span>
+                  </template>
+                  <template v-else-if="product.customer_price_applied">
+                    <span class="text-lg md:text-xl font-bold text-emerald-600 dark:text-emerald-300">{{ formatPrice(product.price_amount, siteCurrency) }}</span>
+                    <span class="ml-1.5 text-xs text-muted-foreground line-through">{{ formatPrice(product.regular_price_amount, siteCurrency) }}</span>
                   </template>
                   <template v-else-if="hasPromotionPrice(product)">
                     <span class="text-lg md:text-xl font-bold text-rose-600 dark:text-rose-400">

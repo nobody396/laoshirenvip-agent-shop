@@ -71,7 +71,16 @@
     <div class="flex-shrink-0 flex items-center gap-1 sm:gap-3 pr-1.5 sm:pr-4">
       <!-- Price -->
       <div class="text-right">
-        <div v-if="hasPromotionPrice(product)" class="flex flex-col items-end">
+        <div v-if="product.customer_price_applied" class="flex flex-col items-end">
+          <span class="text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-300 whitespace-nowrap">
+            {{ formatPrice(product.price_amount, siteCurrency) }}
+          </span>
+          <div class="flex items-center gap-1">
+            <span class="text-[10px] text-muted-foreground line-through">{{ formatPrice(product.regular_price_amount, siteCurrency) }}</span>
+            <Badge variant="success" size="xs" class="px-1 py-0 text-[9px] leading-tight">{{ t('products.customerPriceTag') }}</Badge>
+          </div>
+        </div>
+        <div v-else-if="hasPromotionPrice(product)" class="flex flex-col items-end">
           <span class="text-xs sm:text-sm font-bold text-destructive whitespace-nowrap">
             {{ formatPrice(getPromotionPriceAmount(product), siteCurrency) }}
           </span>

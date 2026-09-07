@@ -490,6 +490,26 @@ export interface ResellerCustomerWalletTransaction {
     created_at: string
 }
 
+export interface ResellerCustomerPriceSetting {
+    id: number
+    reseller_id: number
+    customer_user_id: number
+    product_id: number
+    sku_id: number
+    fixed_price_amount: string
+    updated_at: string
+}
+
+export interface ResellerCustomerPriceListData {
+    customer: {
+        id: number
+        email: string
+        display_name: string
+        status: string
+    }
+    settings: ResellerCustomerPriceSetting[]
+}
+
 export interface CreatePaymentPayload {
     order_no: string
     channel_id?: number
