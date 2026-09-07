@@ -138,6 +138,8 @@ func (h *AdminHandler) CreateCardSecretBatch(c *gin.Context) {
 	})
 	if err != nil {
 		switch {
+		case errors.Is(err, cardsecretapp.ErrUsageURLRequired):
+			ginutil.RespondError(c, response.CodeBadRequest, "error.card_secret_usage_url_required", nil)
 		case errors.Is(err, cardsecretapp.ErrProductSKURequired):
 			ginutil.RespondError(c, response.CodeBadRequest, "error.card_secret_invalid", nil)
 		case errors.Is(err, cardsecretapp.ErrProductSKUInvalid):
@@ -205,6 +207,8 @@ func (h *AdminHandler) ImportCardSecretCSV(c *gin.Context) {
 	})
 	if err != nil {
 		switch {
+		case errors.Is(err, cardsecretapp.ErrUsageURLRequired):
+			ginutil.RespondError(c, response.CodeBadRequest, "error.card_secret_usage_url_required", nil)
 		case errors.Is(err, cardsecretapp.ErrProductSKURequired):
 			ginutil.RespondError(c, response.CodeBadRequest, "error.card_secret_invalid", nil)
 		case errors.Is(err, cardsecretapp.ErrProductSKUInvalid):

@@ -72,6 +72,9 @@ func (s *Service) CreateCardSecretBatch(input CreateCardSecretBatchInput) (*card
 		}
 		usageURL = parsed.String()
 	}
+	if product.IsMapped && usageURL == "" {
+		return nil, 0, ErrUsageURLRequired
+	}
 	if s.batchRepo == nil {
 		return nil, 0, ErrBatchCreateFailed
 	}
@@ -111,7 +114,7 @@ func (s *Service) CreateCardSecretBatch(input CreateCardSecretBatchInput) (*card
 		for _, secret := range normalized {
 			delivery := secret
 			if usageURL != "" {
-				delivery = fmt.Sprintf("CDK：%s\n兑换地址：%s", secret, usageURL)
+				delivery = fmt.Sprintf("CDK：%s\n充值地址：%s", secret, usageURL)
 			}
 			items = append(items, cardsecretdomain.Secret{
 				ProductID: input.ProductID,
