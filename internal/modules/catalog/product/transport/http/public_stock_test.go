@@ -1,6 +1,8 @@
 package producthttp
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	mappingdomain "github.com/dujiao-next/internal/modules/catalog/mapping/domain"
@@ -97,6 +99,13 @@ func TestDecorateProductStock_MappedAutoAdvertisesLargerFallbackRoute(t *testing
 	}
 	if item.IsSoldOut {
 		t.Fatal("mapped local-first product should remain purchasable")
+	}
+	payload, err := json.Marshal(item.toProductResp())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(payload), "upstream") {
+		t.Fatalf("public product leaked upstream routing: %s", payload)
 	}
 }
 

@@ -59,7 +59,6 @@ func (v *publicProductView) toProductResp() productpresenter.Product {
 			ManualStockTotal:     domaincatalog.MaskStockInt(mode, sv.ManualStockTotal),
 			ManualStockSold:      domaincatalog.MaskSoldCount(mode, sv.ManualStockSold),
 			AutoStockAvailable:   domaincatalog.MaskStockInt64(mode, sv.AutoStockAvailable),
-			UpstreamStock:        domaincatalog.MaskStockInt(mode, sv.UpstreamStock),
 			StockStatus:          skuStatus,
 			StockDisplayMode:     skuDisplay.Mode,
 			StockDisplay:         skuDisplay.Display,

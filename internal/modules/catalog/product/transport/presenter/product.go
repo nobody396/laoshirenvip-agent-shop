@@ -103,7 +103,6 @@ type SKU struct {
 	ManualStockTotal    int          `json:"manual_stock_total"`
 	ManualStockSold     int          `json:"manual_stock_sold"`
 	AutoStockAvailable  int64        `json:"auto_stock_available"`
-	UpstreamStock       int          `json:"upstream_stock"`
 	StockStatus         string       `json:"stock_status"`
 	StockDisplayMode    string       `json:"stock_display_mode"`
 	StockDisplay        string       `json:"stock_display"`

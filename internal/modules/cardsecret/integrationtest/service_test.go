@@ -144,7 +144,6 @@ func TestCreateCardSecretBatchAutoMultiSKURequiresExplicitSKU(t *testing.T) {
 		productgormstore.NewProductStore(db),
 		productgormstore.NewSKUStore(db),
 	)
-
 	batch, created, err := svc.CreateCardSecretBatch(CreateCardSecretBatchInput{
 		ProductID: product.ID,
 		Secrets:   []string{"AAA-001", "AAA-002"},
@@ -169,6 +168,7 @@ func TestCreateCardSecretBatchAutoSingleActiveFallsBackToOnlyActiveSKU(t *testin
 		PriceAmount:     money.FromDecimal(decimal.NewFromInt(20)),
 		PurchaseType:    constants.ProductPurchaseMember,
 		FulfillmentType: constants.FulfillmentTypeAuto,
+		IsMapped:        true,
 		IsActive:        true,
 	}
 	if err := db.Create(product).Error; err != nil {
@@ -203,6 +203,14 @@ func TestCreateCardSecretBatchAutoSingleActiveFallsBackToOnlyActiveSKU(t *testin
 		productgormstore.NewProductStore(db),
 		productgormstore.NewSKUStore(db),
 	)
+	if _, _, err := svc.CreateCardSecretBatch(CreateCardSecretBatchInput{
+		ProductID: product.ID,
+		Secrets:   []string{"AAA-NO-URL"},
+		Source:    constants.CardSecretSourceManual,
+		AdminID:   1,
+	}); err != cardsecretapp.ErrUsageURLRequired {
+		t.Fatalf("mapped product without recharge URL error = %v", err)
+	}
 
 	batch, created, err := svc.CreateCardSecretBatch(CreateCardSecretBatchInput{
 		ProductID: product.ID,
@@ -229,7 +237,7 @@ func TestCreateCardSecretBatchAutoSingleActiveFallsBackToOnlyActiveSKU(t *testin
 	if err != nil {
 		t.Fatalf("list card secrets failed: %v", err)
 	}
-	if got := items[0].Secret; got != "CDK：AAA-101\n兑换地址：https://redeem.example/path" {
+	if got := items[0].Secret; got != "CDK：AAA-101\n充值地址：https://redeem.example/path" {
 		t.Fatalf("delivery secret = %q", got)
 	}
 }
