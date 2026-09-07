@@ -14,3 +14,12 @@ func TestLoadReadsVerificationRelayEnvironment(t *testing.T) {
 		t.Fatal("verification relay token was not loaded")
 	}
 }
+
+func TestLoadReadsFeishuNotificationSecretEnvironment(t *testing.T) {
+	t.Setenv("NOTIFICATION_FEISHU_APP_SECRET", "runtime-feishu-secret")
+
+	cfg := Load()
+	if cfg.Notification.FeishuAppSecret != "runtime-feishu-secret" {
+		t.Fatal("Feishu notification secret was not loaded")
+	}
+}
