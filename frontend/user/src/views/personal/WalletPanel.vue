@@ -51,6 +51,7 @@ import { walletAPI } from '../../api'
 import { useAppStore } from '../../stores/app'
 import type { PageAlert } from '../../utils/alerts'
 import { amountToCents, basisPointsToPercent, calculateFeeCents, centsToAmount, rateToBasisPoints } from '../../utils/money'
+import { resolveWalletRechargeChannelRequestAmount } from '../../utils/walletRechargeChannels'
 import WalletBalanceCard from '../../components/wallet/WalletBalanceCard.vue'
 import WalletRechargeForm from '../../components/wallet/WalletRechargeForm.vue'
 import WalletTransactionList from '../../components/wallet/WalletTransactionList.vue'
@@ -86,10 +87,6 @@ const rechargeForm = reactive({
 
 const hasChannels = computed(() => {
   const amount = rechargeForm.amount.trim()
-  const amountCents = amountToCents(amount)
-  if (!amount || amountCents === null || amountCents <= 0) {
-    return true
-  }
   if (channelLoading.value) {
     return true
   }
@@ -201,18 +198,17 @@ const selectedChannelAmountHint = computed(() => {
 const loadPaymentChannels = async (seq: number, amount: string) => {
   if (seq !== channelFetchSeq.value) return
   const amountCents = amountToCents(amount)
-  if (!amount || amountCents === null || amountCents <= 0) {
-    if (seq !== channelFetchSeq.value) return
-    channels.value = []
-    channelsResolvedAmount.value = ''
-    return
-  }
+  const requestAmount = resolveWalletRechargeChannelRequestAmount(amount, amountCents)
+  const requestAmountCents = amountToCents(requestAmount) || 100
 
   try {
-    const response = await walletAPI.getPaymentChannels(amount)
+    const response = await walletAPI.getPaymentChannels(requestAmount)
     if (seq !== channelFetchSeq.value) return
     const list = Array.isArray(response.data.data) ? response.data.data : []
-    channels.value = normalizeChannels(list, amountCents)
+    channels.value = normalizeChannels(
+      list,
+      amountCents !== null && amountCents > 0 ? amountCents : requestAmountCents,
+    )
   } catch {
     if (seq !== channelFetchSeq.value) return
     channels.value = []
@@ -226,18 +222,6 @@ const loadPaymentChannels = async (seq: number, amount: string) => {
 
 const scheduleLoadPaymentChannels = () => {
   const amount = rechargeForm.amount.trim()
-  const amountCents = amountToCents(amount)
-  if (!amount || amountCents === null || amountCents <= 0) {
-    channelFetchSeq.value += 1
-    if (channelFetchTimer.value) {
-      window.clearTimeout(channelFetchTimer.value)
-      channelFetchTimer.value = null
-    }
-    channelLoading.value = false
-    channelsResolvedAmount.value = ''
-    channels.value = []
-    return
-  }
 
   const seq = channelFetchSeq.value + 1
   channelFetchSeq.value = seq
@@ -390,6 +374,7 @@ const initialize = async () => {
       loadWallet(),
       loadTransactions(),
     ])
+    scheduleLoadPaymentChannels()
     redirectRechargeReturn()
   } catch (err: any) {
     walletAlert.value = {
@@ -401,7 +386,7 @@ const initialize = async () => {
 
 watch(() => rechargeForm.amount, () => {
   scheduleLoadPaymentChannels()
-}, { immediate: true })
+})
 
 watch(
   channels,
