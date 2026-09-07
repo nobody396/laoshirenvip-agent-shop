@@ -1809,5 +1809,122 @@
     "label": "购买身份",
     "member": "会员购买",
     "guest": "游客可购"
+  },
+  "integrationGuide": {
+    "badges": {
+      "dujiao": "独角兽 / Dujiao-Next",
+      "acg": "异次元 ACG SharedStock",
+      "prepaid": "预充值余额采购"
+    },
+    "eyebrow": "Reseller integration",
+    "title": "发卡系统对接教程",
+    "intro": "已有独角兽或异次元卡网，直接把本站作为上游供货站。下游先充值采购余额，客户订单进来后按代理供货价自动扣款、自动采购并返回交付内容。",
+    "copy": {
+      "guide": "复制完整教程",
+      "guideCopied": "已复制完整教程",
+      "ai": "复制给 AI 的提示词",
+      "aiCopied": "已复制 AI 提示词"
+    },
+    "siteAddress": "本站地址：",
+    "paths": {
+      "noStore": {
+        "title": "没有自己的卡网",
+        "text": "申请本站白标子站即可。服务器、上游和支付由总站统一处理，你只负责品牌、售价、推广和售后。"
+      },
+      "dujiao": {
+        "title": "已有独角兽卡网",
+        "text": "使用 Dujiao OpenAPI 对接本站，商品同步后由你的站点自主定零售价，订单按采购余额自动扣款。"
+      },
+      "acg": {
+        "title": "已有异次元卡网",
+        "text": "使用 ACG SharedStock 对接本站。新版与旧版插件路径都兼容，不需要单独开发第二套钱包。"
+      }
+    },
+    "preparation": {
+      "title": "两种系统都要先完成的准备",
+      "description": "API Key 和 API Secret 对应同一个采购钱包，两套协议不会建立重复余额或重复订单。",
+      "steps": {
+        "1": "在本站注册并登录采购账号。",
+        "2": "充值采购余额；API 订单只使用余额，不直接调用终端客户的付款渠道。",
+        "3": "进入个人中心 → API 对接，提交 API 凭证申请。",
+        "4": "管理员审核后保存 API Key；API Secret 只展示一次，丢失后需要重新生成。",
+        "5": "下游先测试连接，再同步分类、商品、SKU、价格与库存。",
+        "6": "只使用自有测试账号跑一笔最小订单，确认扣款、交付、查询和幂等后再开放销售。"
+      },
+      "secretWarningStrong": "不要把真实 API Secret 发给任何 AI 或第三方。",
+      "secretWarningBody": "教程可以直接交给 AI，凭证只在你自己的服务器配置中填写。"
+    },
+    "dujiao": {
+      "title": "独角兽 / Dujiao-Next",
+      "intro": "在下游后台进入“对接管理 → 连接管理 → 新增”，填写下面的字段。",
+      "fields": {
+        "protocol": "协议",
+        "siteAddress": "站点地址",
+        "callbackAddress": "回调地址",
+        "callbackValue": "由你的下游站点生成的 HTTPS 回调地址"
+      },
+      "endpointsTitle": "核心接口",
+      "signatureTitle": "签名规则"
+    },
+    "acg": {
+      "title": "异次元发卡",
+      "intro": "在异次元后台新增“店铺共享”。优先选择新版 SharedStock；旧版本选择 SharedStock 插件，两套路径本站都支持。",
+      "fields": {
+        "siteAddress": "店铺地址",
+        "apiType": "接口类型",
+        "apiTypeValue": "新版 SharedStock；旧站选 SharedStock 插件",
+        "merchantId": "商户 ID",
+        "purchaseMethod": "采购方式",
+        "balancePayment": "余额支付"
+      },
+      "pathsTitle": "新版 / 旧版路径",
+      "legacyCompatibility": "（旧版兼容）",
+      "signingTitle": "表单签名规则",
+      "signingRules": "1. 表单携带 app_id、app_key 和业务字段\n2. 删除 sign，忽略空值\n3. 按字段名升序排列\n4. 拼成 key=value&key=value\n5. 末尾追加 &key=APP_KEY\n6. 对完整字符串计算小写 MD5"
+    },
+    "orders": {
+      "title": "订单与重试规则",
+      "rules": {
+        "1": {
+          "title": "订单号永久唯一",
+          "text": "Dujiao 使用 downstream_order_no；SharedStock 使用 request_no。同一采购业务永远复用原编号。"
+        },
+        "2": {
+          "title": "未知结果先查询",
+          "text": "超时或“处理中”不代表失败。先查询原订单，禁止换新编号重新下单。"
+        },
+        "3": {
+          "title": "余额不足不采购",
+          "text": "下游余额不足时订单不会进入上游采购。补充余额后应使用原业务编号按协议重试。"
+        },
+        "4": {
+          "title": "交付以订单状态为准",
+          "text": "收到卡密或交付内容后保存到自己的订单。回调失败时通过查询接口轮询补偿。"
+        }
+      }
+    },
+    "ai": {
+      "title": "直接把下面这段丢给你的 AI",
+      "description": "不包含真实凭证。AI 完成代码后，先在测试环境跑连接、目录和幂等测试。",
+      "copy": "复制 AI 提示词",
+      "copied": "已复制",
+      "prompt": "你要把我的发卡系统接入“老实人 AI 伙伴”。请先阅读并遵守以下契约，然后检查现有项目类型，制定最小改动方案并完成测试。不要索要或输出真实 API Secret。\n\n上游根地址：{siteBase}\n认证占位符：YOUR_API_KEY / YOUR_API_SECRET\n\n如果项目是 Dujiao-Next：\n1. 使用 Dujiao OpenAPI。\n2. 请求头：Dujiao-Next-Api-Key、Dujiao-Next-Timestamp、Dujiao-Next-Signature。\n3. body_md5=MD5(raw body)。签名原文为 METHOD + \"\\n\" + PATH + \"\\n\" + timestamp + \"\\n\" + body_md5，使用 API Secret 做 HMAC-SHA256，输出小写十六进制。\n4. 接口：POST /api/v1/upstream/ping；GET /api/v1/upstream/categories；GET /api/v1/upstream/products；GET /api/v1/upstream/products/:id；POST /api/v1/upstream/orders；GET /api/v1/upstream/orders/:id；POST /api/v1/upstream/orders/:id/cancel。\n5. 创建订单必须传永久唯一 downstream_order_no。超时先查询原订单，禁止换编号重试。\n\n如果项目是异次元 ACG：\n1. 优先使用新版 SharedStock：/shared/authentication/connect、/shared/commodity/items、/shared/commodity/item、/shared/commodity/inventory、/shared/commodity/inventoryState、/shared/commodity/valuation、/shared/commodity/trade、/shared/commodity/query。\n2. 旧版兼容前缀：/plugin/SharedStock/api/*。\n3. 使用 application/x-www-form-urlencoded，表单携带 app_id=YOUR_API_KEY、app_key=YOUR_API_SECRET 与业务字段。\n4. 签名：删除 sign，忽略空值，按字段名升序，拼接 key=value&key=value，末尾追加 &key=YOUR_API_SECRET，计算小写 MD5。\n5. trade 必须传永久唯一 request_no。若返回处理中或请求超时，保持原 request_no 查询或重试，禁止生成新编号。\n\n共同要求：\n- 下游使用预充值采购余额；余额不足不得创建上游采购。\n- 保存上游订单号、状态和交付内容；回调失败使用查询轮询补偿。\n- 商品下架、库存不足、余额不足和未知结果必须分开处理。\n- 测试连接、目录、SKU 映射、库存、估价、余额扣款、交付、查询和幂等。\n- 给我输出：修改文件列表、配置项、测试结果、尚未验证的真实资金路径。"
+    },
+    "checklist": {
+      "title": "上线前检查",
+      "items": {
+        "1": "正式环境必须使用 HTTPS，服务器时间保持准确。",
+        "2": "API Secret 仅保存在服务器密钥管理中，不写进前端或聊天。",
+        "3": "完成连接、目录、库存、估价、下单、查询和重复请求测试。",
+        "4": "确认相同业务编号只扣一次余额、只采购一次。",
+        "5": "设置余额不足、商品下架、库存不足和上游超时告警。",
+        "6": "建立订单、钱包、上游采购和交付的每日对账。"
+      }
+    },
+    "guideText": "老实人 AI 伙伴对接教程\n\n本站地址：{siteBase}\n\n一、准备\n1. 注册采购账号并充值余额。\n2. 在个人中心申请 API 凭证，管理员审核后获取 API Key 与 API Secret。\n3. API Secret 不得发送给 AI 或第三方，只在自己的服务器配置。\n\n二、独角兽 / Dujiao-Next\n协议：Dujiao OpenAPI\n站点地址：{siteBase}\nAPI Key：YOUR_API_KEY\nAPI Secret：YOUR_API_SECRET\n连接后同步分类、商品和 SKU，再用自有测试账号完成最小订单。\n\n三、异次元 ACG\n店铺地址：{siteBase}\n接口类型：优先新版 SharedStock，旧站可选 SharedStock 插件\n商户 ID：YOUR_API_KEY\nApp Key：YOUR_API_SECRET\n本站兼容 /shared/* 与 /plugin/SharedStock/api/*。\n\n四、强制规则\n- downstream_order_no / request_no 必须永久唯一。\n- 超时或未知结果先查原订单，禁止换编号重买。\n- 余额不足不采购；所有 API 订单按采购余额结算。\n- 正式开放前必须验证扣款、交付、查询和幂等。",
+    "seo": {
+      "title": "发卡系统对接教程",
+      "description": "独角兽 Dujiao-Next 与异次元 ACG SharedStock 对接老实人 AI 伙伴的完整教程。"
+    }
   }
 }

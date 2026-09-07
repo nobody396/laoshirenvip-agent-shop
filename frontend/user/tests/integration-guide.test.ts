@@ -18,8 +18,15 @@ test('legacy blog index redirects to the integration guide', async () => {
   assert.match(router, /appStore\.isResellerTenant[\s\S]*?to\.path === '\/integration-guide'/)
 })
 
-test('guide contains both protocols and a safe AI handoff', async () => {
+test('guide localizes the complete page and both copyable handoffs', async () => {
   const guide = await read('../src/views/IntegrationGuide.vue')
+  assert.match(guide, /useI18n\(\)/)
+  assert.match(guide, /integrationGuide\.guideText/)
+  assert.match(guide, /integrationGuide\.ai\.prompt/)
+
+  const zh = JSON.parse(await read('../src/i18n/locales/zh-CN.json'))
+  const en = JSON.parse(await read('../src/i18n/locales/en-US.json'))
+
   for (const required of [
     'Dujiao OpenAPI',
     'ACG SharedStock',
@@ -27,8 +34,13 @@ test('guide contains both protocols and a safe AI handoff', async () => {
     '/shared/commodity/trade',
     'request_no',
     'downstream_order_no',
-    '不要索要或输出真实 API Secret',
+    'Never ask for or output a real API Secret',
   ]) {
-    assert.ok(guide.includes(required), `missing guide contract: ${required}`)
+    assert.ok(JSON.stringify(en.integrationGuide).includes(required) || guide.includes(required), `missing English guide contract: ${required}`)
   }
+
+  assert.equal(zh.integrationGuide.title, '发卡系统对接教程')
+  assert.equal(en.integrationGuide.title, 'Card Store Integration Guide')
+  assert.match(en.integrationGuide.guideText, /Laoshiren AI Partner Integration Guide/)
+  assert.match(en.integrationGuide.ai.prompt, /real-funds path that remains unverified/)
 })
