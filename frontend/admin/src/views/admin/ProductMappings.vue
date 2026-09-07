@@ -34,6 +34,7 @@ const categoryOptions = computed(() => flattenAdminCategories(categories.value).
 const pagination = reactive({ page: 1, page_size: 20, total: 0, total_page: 1 })
 const filters = reactive({ connection_id: '__all__', upstream_status: '__all__', product_status: '__all__', search: '' })
 const syncingId = ref<number | null>(null)
+const switchingSupplyId = ref<number | null>(null)
 
 // Expand detail
 const expandedMappingId = ref<number | null>(null)
@@ -344,6 +345,32 @@ const handleToggleStatus = async (mapping: AdminProductMapping) => {
     fetchMappings(pagination.page)
     notifySuccess()
   } catch (err: any) { notifyError(err?.response?.data?.message || err?.message) }
+}
+
+const isLocalStockMode = (mapping: AdminProductMapping) => mapping.product?.fulfillment_type === 'auto'
+
+const handleSwitchSupplyMode = async (mapping: AdminProductMapping) => {
+  const local = isLocalStockMode(mapping)
+  const mode = local ? 'upstream' : 'auto'
+  const confirmed = await confirmAction({
+    description: local
+      ? t('productMappings.supplyMode.restoreConfirm')
+      : t('productMappings.supplyMode.localConfirm'),
+    confirmText: local
+      ? t('productMappings.supplyMode.restoreUpstream')
+      : t('productMappings.supplyMode.useLocal'),
+  })
+  if (!confirmed) return
+  switchingSupplyId.value = mapping.id
+  try {
+    await adminAPI.updateProductMappingSupplyMode(mapping.id, mode)
+    notifySuccess(t('productMappings.supplyMode.success'))
+    fetchMappings(pagination.page)
+  } catch (err: any) {
+    notifyError(err?.response?.data?.msg || err?.message)
+  } finally {
+    switchingSupplyId.value = null
+  }
 }
 
 const handleDelete = async (mapping: AdminProductMapping) => {
@@ -798,6 +825,12 @@ onMounted(() => { fetchConnections(); fetchCategories(); fetchMappings() })
               >
                 {{ t('productMappings.upstreamStatus.deleted') }}
               </span>
+              <span
+                v-if="isLocalStockMode(mapping)"
+                class="shrink-0 inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] text-indigo-700"
+              >
+                {{ t('productMappings.supplyMode.localBadge') }}
+              </span>
             </div>
             <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <span>{{ t('productMappings.columns.connection') }}: <span class="text-foreground">{{ getConnectionName(mapping.connection_id) }}</span></span>
@@ -810,6 +843,9 @@ onMounted(() => { fetchConnections(); fetchCategories(); fetchMappings() })
 
           <!-- Actions -->
           <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-2 shrink-0" @click.stop>
+            <Button size="sm" :variant="isLocalStockMode(mapping) ? 'default' : 'outline'" class="w-full sm:w-auto" :disabled="switchingSupplyId === mapping.id" @click="handleSwitchSupplyMode(mapping)">
+              {{ isLocalStockMode(mapping) ? t('productMappings.supplyMode.restoreUpstream') : t('productMappings.supplyMode.useLocal') }}
+            </Button>
             <Button size="sm" variant="outline" class="w-full sm:w-auto" :disabled="syncingId === mapping.id" @click="handleSync(mapping)">
               {{ syncingId === mapping.id ? t('productMappings.actions.syncing') : t('productMappings.actions.sync') }}
             </Button>

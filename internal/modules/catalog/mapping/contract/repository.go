@@ -57,6 +57,12 @@ type SKURepository interface {
 	Update(item *productdomain.ProductSKU) error
 }
 
+// CardStockCounter exposes only the availability check required before a
+// mapped product may stop purchasing upstream.
+type CardStockCounter interface {
+	CountAvailable(productID, skuID uint) (int64, error)
+}
+
 // CategoryRepository 是映射上下文所需的分类端口。
 type CategoryRepository interface {
 	productdomain.CategoryAssignmentRepository

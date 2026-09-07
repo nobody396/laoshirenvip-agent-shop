@@ -259,7 +259,7 @@ func (s *Service) syncUpstreamWholesalePrices(mapping *mappingdomain.Mapping, lo
 func (s *Service) markUpstreamUnavailable(mapping *mappingdomain.Mapping, status string, now time.Time) error {
 	// 本地商品下架
 	localProduct, err := s.products.GetByID(strconv.FormatUint(uint64(mapping.LocalProductID), 10))
-	if err == nil && localProduct != nil && localProduct.IsActive {
+	if err == nil && localProduct != nil && localProduct.IsActive && localProduct.FulfillmentType != constants.FulfillmentTypeAuto {
 		localProduct.IsActive = false
 		_ = s.products.Update(localProduct)
 	}
@@ -273,7 +273,7 @@ func (s *Service) markUpstreamUnavailable(mapping *mappingdomain.Mapping, status
 		_ = s.skuMappings.Update(&skuMappings[i])
 
 		localSKU, _ := s.skus.GetByID(skuMappings[i].LocalSKUID)
-		if localSKU != nil && localSKU.IsActive {
+		if localSKU != nil && localSKU.IsActive && (localProduct == nil || localProduct.FulfillmentType != constants.FulfillmentTypeAuto) {
 			localSKU.IsActive = false
 			_ = s.skus.Update(localSKU)
 		}

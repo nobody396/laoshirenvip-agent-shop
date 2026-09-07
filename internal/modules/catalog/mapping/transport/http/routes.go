@@ -13,6 +13,7 @@ func RegisterAdminRoutes(admin gin.IRoutes, handler *AdminHandler) {
 	admin.POST("/product-mappings/batch-import", handler.BatchImportUpstreamProducts)
 	admin.POST("/product-mappings/:id/sync", handler.SyncProductMapping)
 	admin.PUT("/product-mappings/:id/status", handler.UpdateProductMappingStatus)
+	admin.PUT("/product-mappings/:id/supply-mode", handler.UpdateProductMappingSupplyMode)
 	admin.DELETE("/product-mappings/:id", handler.DeleteProductMapping)
 	admin.POST("/product-mappings/batch-sync", handler.BatchSyncProductMappings)
 	admin.POST("/product-mappings/batch-status", handler.BatchUpdateProductMappingStatus)

@@ -48,6 +48,7 @@ type Dependencies struct {
 	Categories  categorycontract.Repository
 	Connections *siteconnectionapp.Service
 	Media       mappingcontract.MediaRecorder
+	CardStock   mappingcontract.CardStockCounter
 }
 
 // New 创建可直接注入调用方的 Catalog Mapping 应用服务。
@@ -61,6 +62,7 @@ func New(dependencies Dependencies) (*mappingapp.Service, error) {
 		Connections:  dependencies.Connections,
 		Media:        dependencies.Media,
 		Transactions: newUnitOfWork(dependencies.Products, dependencies.SKUs, dependencies.Mappings, dependencies.SKUMappings),
+		CardStock:    dependencies.CardStock,
 	})
 	if err != nil {
 		return nil, err

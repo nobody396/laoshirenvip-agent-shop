@@ -190,6 +190,13 @@ func (s *OrderService) buildOrderResult(input orderCreateParams) (*orderBuildRes
 		if fulfillmentType == "" {
 			fulfillmentType = constants.FulfillmentTypeManual
 		}
+		if s.productMappingService != nil {
+			resolved, err := s.productMappingService.ResolveFulfillmentType(sku.ID, item.Quantity, fulfillmentType)
+			if err != nil {
+				return nil, err
+			}
+			fulfillmentType = resolved
+		}
 		if fulfillmentType != constants.FulfillmentTypeManual && fulfillmentType != constants.FulfillmentTypeAuto && fulfillmentType != constants.FulfillmentTypeUpstream {
 			return nil, ErrFulfillmentInvalid
 		}

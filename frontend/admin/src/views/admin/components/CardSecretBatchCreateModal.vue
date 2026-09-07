@@ -27,6 +27,7 @@ const batchForm = ref({
   secrets: '',
   batch_no: '',
   note: '',
+  usage_url: '',
   deduplicate: true,
 })
 const batchSubmitting = ref(false)
@@ -38,6 +39,7 @@ const importForm = ref({
   file: null as File | null,
   batch_no: '',
   note: '',
+  usage_url: '',
   deduplicate: true,
 })
 const importSubmitting = ref(false)
@@ -48,6 +50,7 @@ const resetBatchForm = () => {
   batchForm.value.secrets = ''
   batchForm.value.batch_no = ''
   batchForm.value.note = ''
+  batchForm.value.usage_url = ''
   batchForm.value.deduplicate = true
   batchError.value = ''
   batchSuccess.value = ''
@@ -81,6 +84,7 @@ const handleBatchCreate = async () => {
       secrets,
       batch_no: batchForm.value.batch_no.trim(),
       note: batchForm.value.note.trim(),
+      usage_url: batchForm.value.usage_url.trim(),
       deduplicate: batchForm.value.deduplicate,
     })
     batchSuccess.value = t('admin.cardSecrets.success.batchCreated')
@@ -105,6 +109,7 @@ const resetImportForm = () => {
   clearImportFile()
   importForm.value.batch_no = ''
   importForm.value.note = ''
+  importForm.value.usage_url = ''
   importForm.value.deduplicate = true
   importError.value = ''
   importSuccess.value = ''
@@ -135,6 +140,7 @@ const handleImport = async () => {
     }
     formData.append('batch_no', importForm.value.batch_no.trim())
     formData.append('note', importForm.value.note.trim())
+    formData.append('usage_url', importForm.value.usage_url.trim())
     formData.append('deduplicate', String(importForm.value.deduplicate))
     formData.append('file', importForm.value.file)
     await adminAPI.importCardSecretCSV(formData)
@@ -168,6 +174,11 @@ const handleImport = async () => {
             <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.cardSecrets.noteLabel') }}</label>
             <Input v-model="batchForm.note" :placeholder="t('admin.cardSecrets.notePlaceholder')" />
           </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.cardSecrets.usageUrlLabel') }}</label>
+          <Input v-model="batchForm.usage_url" type="url" :placeholder="t('admin.cardSecrets.usageUrlPlaceholder')" />
+          <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.cardSecrets.usageUrlHint') }}</p>
         </div>
         <div class="flex items-start justify-between gap-4 border-y border-border py-3">
           <div>
@@ -218,6 +229,11 @@ const handleImport = async () => {
             <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.cardSecrets.noteLabel') }}</label>
             <Input v-model="importForm.note" :placeholder="t('admin.cardSecrets.importNotePlaceholder')" />
           </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-muted-foreground mb-1.5">{{ t('admin.cardSecrets.usageUrlLabel') }}</label>
+          <Input v-model="importForm.usage_url" type="url" :placeholder="t('admin.cardSecrets.usageUrlPlaceholder')" />
+          <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.cardSecrets.usageUrlHint') }}</p>
         </div>
         <div class="flex items-start justify-between gap-4 border-y border-border py-3">
           <div>

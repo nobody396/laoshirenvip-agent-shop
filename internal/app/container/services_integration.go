@@ -80,6 +80,7 @@ func (c *Container) initIntegrationServices() {
 		Categories:  c.CategoryRepo,
 		Connections: c.SiteConnectionService,
 		Media:       mediaCore,
+		CardStock:   c.CardSecretRepo,
 	})
 	if err != nil {
 		logger.Errorw("provider_init_product_mapping_failed", "error", err)

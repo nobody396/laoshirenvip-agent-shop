@@ -545,7 +545,8 @@ func (h *AdminProductHandler) applyUpstreamDisplayTypes(products []productdomain
 	var upstreamIDs []uint
 	idxMap := make(map[uint]int) // localProductID -> products slice index
 	for i := range products {
-		if products[i].FulfillmentType == constants.FulfillmentTypeUpstream {
+		if products[i].FulfillmentType == constants.FulfillmentTypeUpstream ||
+			(products[i].IsMapped && products[i].FulfillmentType == constants.FulfillmentTypeAuto && products[i].AutoStockAvailable <= 0) {
 			upstreamIDs = append(upstreamIDs, products[i].ID)
 			idxMap[products[i].ID] = i
 		}

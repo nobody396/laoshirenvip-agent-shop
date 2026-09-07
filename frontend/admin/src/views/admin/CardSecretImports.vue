@@ -142,10 +142,11 @@ const loadProductOptions = async () => {
         page,
         page_size: 100,
         search: keyword || undefined,
-        fulfillment_type: 'auto',
       })
       const list = Array.isArray(response.data.data) ? response.data.data : []
-      rows.push(...list.filter((item: AdminProduct) => String(item?.fulfillment_type || '').trim() === 'auto'))
+      rows.push(...list.filter((item: AdminProduct) =>
+        String(item?.fulfillment_type || '').trim() === 'auto' || Boolean(item?.is_mapped),
+      ))
       totalPage = Number(response.data?.pagination?.total_page || 1)
       page += 1
     } while (page <= totalPage && page <= 20)

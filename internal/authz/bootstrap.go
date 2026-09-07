@@ -136,6 +136,7 @@ func BuiltinRoleSeeds() []RoleSeed {
 				{Object: "/admin/product-mappings/:id", Action: "*"},
 				{Object: "/admin/product-mappings/:id/sync", Action: "POST"},
 				{Object: "/admin/product-mappings/:id/status", Action: "PUT"},
+				{Object: "/admin/product-mappings/:id/supply-mode", Action: "PUT"},
 				{Object: "/admin/product-mappings/import", Action: "POST"},
 				{Object: "/admin/product-mappings/batch-import", Action: "POST"},
 				{Object: "/admin/product-mappings/batch-sync", Action: "POST"},
