@@ -19,6 +19,8 @@ type Service struct {
 	logService     *LogService
 	telegramSender contract.TelegramSender
 	feishuSender   contract.FeishuSender
+	acquireDedupe  func(context.Context, int, queue.NotificationDispatchPayload) (bool, error)
+	releaseDedupe  func(context.Context, queue.NotificationDispatchPayload) error
 }
 
 // NewService 创建通知中心服务。
@@ -39,6 +41,8 @@ func NewService(
 		logService:     logService,
 		telegramSender: telegramSender,
 		feishuSender:   feishuSender,
+		acquireDedupe:  acquireNotificationDedupe,
+		releaseDedupe:  releaseNotificationDedupe,
 	}
 }
 

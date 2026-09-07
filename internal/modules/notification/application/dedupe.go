@@ -37,6 +37,10 @@ func acquireNotificationDedupe(ctx context.Context, ttlSeconds int, payload queu
 	return cache.SetNX(ctx, key, "1", time.Duration(ttlSeconds)*time.Second)
 }
 
+func releaseNotificationDedupe(ctx context.Context, payload queue.NotificationDispatchPayload) error {
+	return cache.Del(ctx, buildNotificationDedupeKey(payload))
+}
+
 func buildNotificationDedupeKey(payload queue.NotificationDispatchPayload) string {
 	signature := strings.Builder{}
 	signature.WriteString(strings.ToLower(strings.TrimSpace(payload.EventType)))

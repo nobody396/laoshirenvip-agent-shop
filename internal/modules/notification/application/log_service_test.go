@@ -192,6 +192,42 @@ func TestServiceDispatchSingleEventRecordsPerRecipientResult(t *testing.T) {
 	}
 }
 
+func TestServiceDispatchSingleEventReleasesDedupeAfterSendFailure(t *testing.T) {
+	service, _ := setupLogService(t)
+	acquireCalls := 0
+	releaseCalls := 0
+	service.acquireDedupe = func(context.Context, int, queue.NotificationDispatchPayload) (bool, error) {
+		acquireCalls++
+		return true, nil
+	}
+	service.releaseDedupe = func(context.Context, queue.NotificationDispatchPayload) error {
+		releaseCalls++
+		return nil
+	}
+	setting, err := service.settingService.GetNotificationCenterSetting()
+	if err != nil {
+		t.Fatalf("get notification center setting failed: %v", err)
+	}
+	payload := queue.NotificationDispatchPayload{
+		EventType: constants.NotificationEventOrderPaidSuccess,
+		BizType:   constants.NotificationBizTypeOrder,
+		BizID:     188,
+		Data: map[string]interface{}{
+			"order_no": "DJ-RETRY-188",
+		},
+	}
+
+	if err := service.dispatchSingleEvent(context.Background(), setting, payload); !errors.Is(err, contract.ErrSendFailed) {
+		t.Fatalf("expected first send failure, got %v", err)
+	}
+	if err := service.dispatchSingleEvent(context.Background(), setting, payload); !errors.Is(err, contract.ErrSendFailed) {
+		t.Fatalf("expected retry send failure, got %v", err)
+	}
+	if acquireCalls != 2 || releaseCalls != 2 {
+		t.Fatalf("expected each failed attempt to release dedupe, acquire=%d release=%d", acquireCalls, releaseCalls)
+	}
+}
+
 func TestServiceDispatchSingleEventSendsFeishuAndRecordsEachRecipient(t *testing.T) {
 	logService := NewLogService(&notificationLogRepositoryStub{})
 	feishuSender := &notificationFeishuStub{}

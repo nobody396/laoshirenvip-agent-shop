@@ -126,14 +126,16 @@ func (s *Service) SendTest(ctx context.Context, input contract.TestSendInput) er
 }
 
 func (s *Service) dispatchSingleEvent(ctx context.Context, setting settingsmessaging.NotificationCenterSetting, payload queue.NotificationDispatchPayload) error {
+	dedupeAcquired := false
 	if !payload.Force {
-		ok, err := acquireNotificationDedupe(ctx, setting.DedupeTTLSeconds, payload)
+		ok, err := s.acquireDedupe(ctx, setting.DedupeTTLSeconds, payload)
 		if err != nil {
 			logger.Warnw("notification_dedupe_failed", "event_type", payload.EventType, "error", err)
 		}
 		if err == nil && !ok {
 			return nil
 		}
+		dedupeAcquired = err == nil && ok
 	}
 
 	locale := format.ResolveLocale(payload.Locale, setting.DefaultLocale)
@@ -261,6 +263,11 @@ func (s *Service) dispatchSingleEvent(ctx context.Context, setting settingsmessa
 		}
 	}
 	if firstErr != nil {
+		if dedupeAcquired {
+			if err := s.releaseDedupe(ctx, payload); err != nil {
+				logger.Warnw("notification_dedupe_release_failed", "event_type", payload.EventType, "error", err)
+			}
+		}
 		return fmt.Errorf("%w: %v", contract.ErrSendFailed, firstErr)
 	}
 	return nil
