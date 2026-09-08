@@ -51,6 +51,9 @@ const registrationForm = reactive({
   email_verification_enabled: true,
   email_domain_allowlist_enabled: false,
   allowed_email_domains_text: '',
+  main_registration_invite_required: false,
+  main_registration_invite_code_hash: '',
+  main_registration_invite_code_input: '',
 })
 const orderPaymentExpireMinutes = ref(15)
 type FooterLinkItem = {
@@ -558,6 +561,9 @@ const fetchSettings = async () => {
       registrationForm.email_verification_enabled = regData.email_verification_enabled !== false
       registrationForm.email_domain_allowlist_enabled = regData.email_domain_allowlist_enabled === true
       registrationForm.allowed_email_domains_text = joinAllowedEmailDomains(regData.allowed_email_domains)
+      registrationForm.main_registration_invite_required = regData.main_registration_invite_required === true
+      registrationForm.main_registration_invite_code_hash = String(regData.main_registration_invite_code_hash || '')
+      registrationForm.main_registration_invite_code_input = ''
     }
 
     if (orderEmailTmplRes.data && orderEmailTmplRes.data.data) {
@@ -592,7 +598,29 @@ const fetchSettings = async () => {
   }
 }
 
+const sha256Hex = async (value: string) => {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+const generateMainRegistrationInviteCode = () => {
+  const bytes = crypto.getRandomValues(new Uint8Array(12))
+  const suffix = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('').toUpperCase()
+  registrationForm.main_registration_invite_code_input = `LSRAI-${suffix}`
+}
+
 const saveRegistrationSettings = async () => {
+  const rawInviteCode = registrationForm.main_registration_invite_code_input.trim()
+  let inviteCodeHash = registrationForm.main_registration_invite_code_hash
+  if (rawInviteCode) {
+    if (rawInviteCode.length < 8) {
+      throw new Error(t('admin.settings.registration.mainInviteCodeTooShort'))
+    }
+    inviteCodeHash = await sha256Hex(rawInviteCode)
+  }
+  if (registrationForm.main_registration_invite_required && !inviteCodeHash) {
+    throw new Error(t('admin.settings.registration.mainInviteCodeRequired'))
+  }
   await adminAPI.updateSettings({
     key: 'registration_config',
     value: {
@@ -600,8 +628,11 @@ const saveRegistrationSettings = async () => {
       email_verification_enabled: registrationForm.email_verification_enabled,
       email_domain_allowlist_enabled: registrationForm.email_domain_allowlist_enabled,
       allowed_email_domains: splitAllowedEmailDomains(registrationForm.allowed_email_domains_text),
+      main_registration_invite_required: registrationForm.main_registration_invite_required,
+      main_registration_invite_code_hash: inviteCodeHash,
     },
   })
+  registrationForm.main_registration_invite_code_hash = inviteCodeHash
 }
 
 const saveSiteSettings = async () => {
@@ -853,6 +884,32 @@ onMounted(() => {
             <div>
               <Label for="registration-enabled" class="text-sm font-medium">{{ t('admin.settings.registration.registrationEnabled') }}</Label>
               <p class="text-xs text-muted-foreground">{{ t('admin.settings.registration.registrationEnabledDesc') }}</p>
+            </div>
+          </div>
+          <div class="space-y-3 rounded-lg border border-border bg-muted/20 px-4 py-3">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Switch id="main-registration-invite-required" v-model="registrationForm.main_registration_invite_required" />
+              <div>
+                <Label for="main-registration-invite-required" class="text-sm font-medium">{{ t('admin.settings.registration.mainInviteRequired') }}</Label>
+                <p class="text-xs text-muted-foreground">{{ t('admin.settings.registration.mainInviteRequiredDesc') }}</p>
+              </div>
+            </div>
+            <div v-if="registrationForm.main_registration_invite_required" class="space-y-2 border-t border-border pt-3">
+              <Label for="main-registration-invite-code" class="text-sm font-medium">{{ t('admin.settings.registration.mainInviteCode') }}</Label>
+              <div class="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  id="main-registration-invite-code"
+                  v-model="registrationForm.main_registration_invite_code_input"
+                  autocomplete="off"
+                  :placeholder="registrationForm.main_registration_invite_code_hash
+                    ? t('admin.settings.registration.mainInviteCodeConfigured')
+                    : t('admin.settings.registration.mainInviteCodePlaceholder')"
+                />
+                <Button type="button" variant="secondary" @click="generateMainRegistrationInviteCode">
+                  {{ t('admin.settings.registration.mainInviteGenerate') }}
+                </Button>
+              </div>
+              <p class="text-xs text-muted-foreground">{{ t('admin.settings.registration.mainInviteCodeDesc') }}</p>
             </div>
           </div>
           <div class="flex flex-col gap-3 rounded-lg border border-border bg-muted/20 px-4 py-3 sm:flex-row sm:items-center">

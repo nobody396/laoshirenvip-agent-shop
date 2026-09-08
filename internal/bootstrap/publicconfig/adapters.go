@@ -87,6 +87,11 @@ func (a publicConfigSettingsAdapter) GetRegistrationEmailDomainPolicy() (bool, [
 	return policy.Enabled, policy.AllowedDomains, nil
 }
 
+func (a publicConfigSettingsAdapter) GetMainRegistrationInviteRequired() (bool, error) {
+	policy, err := a.settings.GetMainRegistrationInvitePolicy()
+	return policy.Required, err
+}
+
 func (a publicConfigSettingsAdapter) GetByKey(key string) (interface{}, error) {
 	value, err := a.settings.GetByKey(key)
 	if err != nil {

@@ -3,6 +3,9 @@ package application
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -257,6 +260,46 @@ func (s *Service) checkRegistrationEmailDomain(email string) error {
 		return err
 	}
 	return settingsapp.CheckRegistrationEmailDomainAllowed(email, policy)
+}
+
+// ValidateMainRegistrationInvite applies only to the main tenant. Child-site
+// customer registration remains unchanged even when the platform is invite-only.
+func (s *Service) ValidateMainRegistrationInvite(ctx context.Context, inviteCode string) error {
+	tenant, ok := resellercontract.TenantFromContext(ctx)
+	if !ok || !tenant.IsMain || s == nil || s.settingService == nil {
+		return nil
+	}
+	policy, err := s.settingService.GetMainRegistrationInvitePolicy()
+	if err != nil {
+		return err
+	}
+	if !policy.Required {
+		return nil
+	}
+	want, err := hex.DecodeString(policy.CodeHash)
+	if err != nil || len(want) != sha256.Size {
+		return ErrMainRegistrationInviteUnavailable
+	}
+	got := sha256.Sum256([]byte(strings.TrimSpace(inviteCode)))
+	if subtle.ConstantTimeCompare(got[:], want) != 1 {
+		return ErrMainRegistrationInviteInvalid
+	}
+	return nil
+}
+
+func (s *Service) rejectExternalRegistrationWhenMainInviteRequired(ctx context.Context) error {
+	tenant, ok := resellercontract.TenantFromContext(ctx)
+	if !ok || !tenant.IsMain || s == nil || s.settingService == nil {
+		return nil
+	}
+	policy, err := s.settingService.GetMainRegistrationInvitePolicy()
+	if err != nil {
+		return err
+	}
+	if policy.Required {
+		return ErrMainRegistrationInviteInvalid
+	}
+	return nil
 }
 
 // Register preserves the legacy main-site registration interface.

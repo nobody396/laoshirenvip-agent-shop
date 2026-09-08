@@ -11,7 +11,7 @@ test('all Philippine ChatGPT products keep the approved account restrictions', a
   ])
 
   for (const product of products) {
-    for (const locale of ['zh-CN', 'zh-TW', 'en-US']) {
+    for (const locale of ['zh-CN', 'zh-TW']) {
       const html = String(product.content?.[locale] || '')
       for (const required of [
         '菲律宾渠道账号限制',
@@ -27,5 +27,20 @@ test('all Philippine ChatGPT products keep the approved account restrictions', a
       }
       assert.ok(html.indexOf('菲律宾渠道账号限制') < html.indexOf('充值与续费规则'))
     }
+
+    const english = String(product.content?.['en-US'] || '')
+    for (const required of [
+      'Philippines Channel Account Requirements',
+      'Gmail or iCloud email addresses',
+      'unofficial services such as “Hei Chong”',
+      '4–5 days',
+      'Apple iOS',
+      'Google Play',
+      '2–3 days',
+      'ChatGPT Team or Business workspace',
+    ]) {
+      assert.ok(english.includes(required), `${product.title['en-US']} en-US missing: ${required}`)
+    }
+    assert.ok(english.indexOf('Philippines Channel Account Requirements') < english.indexOf('Redemption and Renewal Rules'))
   }
 })

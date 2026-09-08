@@ -1116,6 +1116,9 @@
       "passwordPlaceholder": "Set login password",
       "codeLabel": "Verification code",
       "codePlaceholder": "Enter email code",
+      "inviteCodeLabel": "Partner Invite Code",
+      "inviteCodePlaceholder": "Enter the invite code from the platform owner",
+      "inviteCodeHint": "Required only on the main partner platform. Customer registration on reseller stores is unaffected.",
       "sendCode": "Send code",
       "create": "Create account",
       "creating": "Registering...",
@@ -1129,6 +1132,7 @@
         "sendCodeFailed": "Failed to send code",
         "registerFailed": "Registration failed, please check input",
         "agreementRequired": "Please read and agree to the Privacy Policy and Terms of Service first",
+        "inviteCodeRequired": "Please enter your partner invite code",
         "emailDomainNotAllowed": "This email domain cannot register. Please use: {domains}",
         "emailDomainUnavailable": "No email domains are currently allowed. Please contact the administrator."
       },

@@ -472,7 +472,7 @@ func isValidRegistrationEmailDomain(domain string) bool {
 
 // normalizeRegistrationSetting 归一化注册配置。
 func normalizeRegistrationSetting(value map[string]interface{}) jsonmap.JSON {
-	normalized := make(jsonmap.JSON, 4)
+	normalized := make(jsonmap.JSON, 6)
 	registrationEnabled := true
 	if raw, ok := value[constants.SettingFieldRegistrationEnabled]; ok {
 		registrationEnabled = parseSettingBool(raw)
@@ -491,6 +491,21 @@ func normalizeRegistrationSetting(value map[string]interface{}) jsonmap.JSON {
 	}
 	normalized[constants.SettingFieldEmailDomainAllowlistEnabled] = emailDomainAllowlistEnabled
 	normalized[constants.SettingFieldAllowedEmailDomains] = normalizeRegistrationEmailDomains(value[constants.SettingFieldAllowedEmailDomains])
+
+	mainInviteRequired := false
+	if raw, ok := value[constants.SettingFieldMainRegistrationInviteRequired]; ok {
+		mainInviteRequired = parseSettingBool(raw)
+	}
+	normalized[constants.SettingFieldMainRegistrationInviteRequired] = mainInviteRequired
+
+	mainInviteCodeHash := ""
+	if raw, ok := value[constants.SettingFieldMainRegistrationInviteCodeHash].(string); ok {
+		mainInviteCodeHash = strings.ToLower(strings.TrimSpace(raw))
+	}
+	if matched, _ := regexp.MatchString(`^[0-9a-f]{64}$`, mainInviteCodeHash); !matched {
+		mainInviteCodeHash = ""
+	}
+	normalized[constants.SettingFieldMainRegistrationInviteCodeHash] = mainInviteCodeHash
 
 	return normalized
 }

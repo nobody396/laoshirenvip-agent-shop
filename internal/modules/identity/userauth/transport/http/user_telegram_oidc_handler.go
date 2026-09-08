@@ -17,18 +17,20 @@ import (
 )
 
 var (
-	ErrTelegramAuthDisabled       = errors.New("telegram auth disabled")
-	ErrTelegramAuthConfigInvalid  = errors.New("telegram auth config invalid")
-	ErrTelegramOIDCStateInvalid   = errors.New("telegram oidc state invalid")
-	ErrTelegramOIDCTokenExchange  = errors.New("telegram oidc token exchange failed")
-	ErrTelegramOIDCIDTokenInvalid = errors.New("telegram oidc id token invalid")
-	ErrTelegramAuthPayloadInvalid = errors.New("telegram auth payload invalid")
-	ErrTelegramAuthExpired        = errors.New("telegram auth expired")
-	ErrTelegramAuthReplay         = errors.New("telegram auth replay")
-	ErrUserOAuthIdentityExists    = errors.New("user oauth identity exists")
-	ErrUserOAuthAlreadyBound      = errors.New("user oauth already bound")
-	ErrUserDisabled               = errors.New("user disabled")
-	ErrRegistrationDisabled       = errors.New("registration disabled")
+	ErrTelegramAuthDisabled              = errors.New("telegram auth disabled")
+	ErrTelegramAuthConfigInvalid         = errors.New("telegram auth config invalid")
+	ErrTelegramOIDCStateInvalid          = errors.New("telegram oidc state invalid")
+	ErrTelegramOIDCTokenExchange         = errors.New("telegram oidc token exchange failed")
+	ErrTelegramOIDCIDTokenInvalid        = errors.New("telegram oidc id token invalid")
+	ErrTelegramAuthPayloadInvalid        = errors.New("telegram auth payload invalid")
+	ErrTelegramAuthExpired               = errors.New("telegram auth expired")
+	ErrTelegramAuthReplay                = errors.New("telegram auth replay")
+	ErrUserOAuthIdentityExists           = errors.New("user oauth identity exists")
+	ErrUserOAuthAlreadyBound             = errors.New("user oauth already bound")
+	ErrUserDisabled                      = errors.New("user disabled")
+	ErrRegistrationDisabled              = errors.New("registration disabled")
+	ErrMainRegistrationInviteInvalid     = errors.New("main registration invite invalid")
+	ErrMainRegistrationInviteUnavailable = errors.New("main registration invite unavailable")
 )
 
 // AuthLoginResult 是 transport 层登录结果视图。
@@ -97,6 +99,8 @@ func respondTelegramOIDCError(c *gin.Context, err error) {
 		ginutil.RespondError(c, response.CodeUnauthorized, "error.user_disabled", nil)
 	case errors.Is(err, ErrRegistrationDisabled):
 		ginutil.RespondError(c, response.CodeForbidden, "error.registration_disabled", nil)
+	case errors.Is(err, ErrMainRegistrationInviteInvalid):
+		ginutil.RespondError(c, response.CodeForbidden, "error.main_registration_invite_invalid", nil)
 	default:
 		ginutil.RespondError(c, response.CodeInternal, "error.login_failed", err)
 	}

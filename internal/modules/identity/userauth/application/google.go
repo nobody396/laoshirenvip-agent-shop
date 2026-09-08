@@ -15,6 +15,7 @@ import (
 	externalidentitydomain "github.com/dujiao-next/internal/modules/identity/externalidentity/domain"
 	googleauthapp "github.com/dujiao-next/internal/modules/identity/googleauth/application"
 	userdomain "github.com/dujiao-next/internal/modules/identity/user/domain"
+	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
 	settingsapp "github.com/dujiao-next/internal/modules/settings/application"
 
 	"golang.org/x/crypto/bcrypt"
@@ -111,7 +112,7 @@ func (s *Service) loginVerifiedGoogle(ctx context.Context, verified *googleautha
 				return nil, lookupErr
 			}
 			if userBefore == nil {
-				registration, lookupErr = s.loadGoogleRegistrationSnapshot()
+				registration, lookupErr = s.loadGoogleRegistrationSnapshot(ctx)
 				if lookupErr != nil {
 					return nil, lookupErr
 				}
@@ -258,6 +259,9 @@ func (s *Service) loginGoogleTransaction(
 			if !registration.Enabled {
 				return ErrRegistrationDisabled
 			}
+			if registration.InviteRequired {
+				return ErrMainRegistrationInviteInvalid
+			}
 			if err = settingsapp.CheckRegistrationEmailDomainAllowed(verified.Email, registration.EmailDomain); err != nil {
 				return err
 			}
@@ -320,11 +324,12 @@ func activeTransactionUser(tx AuthTransaction, userID uint) (*userdomain.User, e
 }
 
 type googleRegistrationSnapshot struct {
-	Enabled     bool
-	EmailDomain settingsapp.RegistrationEmailDomainPolicy
+	Enabled        bool
+	InviteRequired bool
+	EmailDomain    settingsapp.RegistrationEmailDomainPolicy
 }
 
-func (s *Service) loadGoogleRegistrationSnapshot() (googleRegistrationSnapshot, error) {
+func (s *Service) loadGoogleRegistrationSnapshot(ctx context.Context) (googleRegistrationSnapshot, error) {
 	snapshot := googleRegistrationSnapshot{Enabled: true}
 	if s == nil || s.settingService == nil {
 		return snapshot, nil
@@ -339,6 +344,13 @@ func (s *Service) loadGoogleRegistrationSnapshot() (googleRegistrationSnapshot, 
 	}
 	snapshot.Enabled = enabled
 	snapshot.EmailDomain = policy
+	if tenant, ok := resellercontract.TenantFromContext(ctx); ok && tenant.IsMain {
+		invitePolicy, inviteErr := s.settingService.GetMainRegistrationInvitePolicy()
+		if inviteErr != nil {
+			return snapshot, inviteErr
+		}
+		snapshot.InviteRequired = invitePolicy.Required
+	}
 	return snapshot, nil
 }
 

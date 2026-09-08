@@ -54,6 +54,9 @@ func (s *Service) findOrCreateTelegramUser(ctx context.Context, verified *telegr
 			return nil, ErrRegistrationDisabled
 		}
 	}
+	if err := s.rejectExternalRegistrationWhenMainInviteRequired(ctx); err != nil {
+		return nil, err
+	}
 
 	randomSuffix, err := randomNumericCode(16)
 	if err != nil {
