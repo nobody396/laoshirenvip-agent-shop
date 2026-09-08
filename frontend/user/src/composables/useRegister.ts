@@ -1,5 +1,5 @@
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserAuthStore } from '../stores/userAuth'
 import { useI18n } from 'vue-i18n'
 import { debounceAsync } from '../utils/debounce'
@@ -8,6 +8,7 @@ import type { CaptchaPayload } from '../api'
 import ImageCaptcha from '../components/captcha/ImageCaptcha.vue'
 import TurnstileCaptcha from '../components/captcha/TurnstileCaptcha.vue'
 import { useFormValidation, getPasswordStrength } from './useFormValidation'
+import { inviteCodeFromRegistrationHash } from '../utils/registrationInvite'
 
 /**
  * 用户注册页共享逻辑（classic + vault 双模板共用）。
@@ -15,6 +16,7 @@ import { useFormValidation, getPasswordStrength } from './useFormValidation'
  */
 export function useRegister() {
   const router = useRouter()
+  const route = useRoute()
   const userAuthStore = useUserAuthStore()
   const appStore = useAppStore()
   const { t } = useI18n()
@@ -30,7 +32,7 @@ export function useRegister() {
   const password = ref('')
   const showPassword = ref(false)
   const code = ref('')
-  const inviteCode = ref('')
+  const inviteCode = ref(inviteCodeFromRegistrationHash(route.hash))
   const agreed = ref(false)
 
   const passwordStrength = computed(() => getPasswordStrength(password.value))
@@ -234,6 +236,9 @@ export function useRegister() {
 
   onMounted(async () => {
     await appStore.loadConfig(true)
+    if (inviteCode.value && inviteCodeFromRegistrationHash(route.hash)) {
+      await router.replace({ path: route.path, query: route.query, hash: '' })
+    }
   })
 
   return {
