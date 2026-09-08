@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/big"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -256,9 +255,13 @@ func (a *GMShopEdgeAdapter) product(value gmshopProduct) (UpstreamProduct, error
 		if err != nil {
 			return UpstreamProduct{}, err
 		}
+		status := "out_of_stock"
+		if item.StockQuantity > 0 {
+			status = "in_stock"
+		}
 		skus = append(skus, UpstreamSKU{
 			ID: id, SKUCode: item.ID, SpecValues: jsonmap.JSON{"name": item.Name},
-			PriceAmount: minorToMajor(item.CostMinor, 2), StockStatus: stockStatus(item.StockQuantity),
+			PriceAmount: minorToMajor(item.CostMinor, 2), StockStatus: status,
 			StockQuantity: item.StockQuantity, IsActive: item.Active,
 		})
 	}
@@ -334,23 +337,14 @@ func signGMShopEdge(secret, method, pathWithQuery, timestamp, nonce string, body
 }
 
 func minorToMajor(value string, decimals int) string {
-	n, ok := new(big.Int).SetString(strings.TrimSpace(value), 10)
-	if !ok || n.Sign() < 0 {
+	n, err := decimal.NewFromString(strings.TrimSpace(value))
+	if err != nil || n.IsNegative() {
 		return "0"
 	}
-	if decimals <= 0 {
-		return n.String()
+	if decimals < 0 {
+		return "0"
 	}
-	digits := n.String()
-	if len(digits) <= decimals {
-		digits = strings.Repeat("0", decimals-len(digits)+1) + digits
-	}
-	whole := digits[:len(digits)-decimals]
-	fraction := strings.TrimRight(digits[len(digits)-decimals:], "0")
-	if fraction == "" {
-		return whole
-	}
-	return whole + "." + fraction
+	return n.Shift(-int32(decimals)).String()
 }
 
 func minimumPrice(skus []UpstreamSKU) string {
@@ -368,11 +362,4 @@ func minimumPrice(skus []UpstreamSKU) string {
 		}
 	}
 	return minimum.String()
-}
-
-func stockStatus(quantity int) string {
-	if quantity > 0 {
-		return "in_stock"
-	}
-	return "out_of_stock"
 }
