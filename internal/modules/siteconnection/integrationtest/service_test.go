@@ -15,17 +15,19 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func TestSiteConnectionServiceAcceptsSharedStockAndRejectsUnknownProtocol(t *testing.T) {
+func TestSiteConnectionServiceAcceptsSupportedProtocolsAndRejectsUnknown(t *testing.T) {
 	repo := &siteConnectionRepoStub{}
 	svc := siteconnectionapp.NewService(repo, "test-secret-key", t.TempDir())
-	created, err := svc.Create(siteconnectionapp.CreateInput{Name: "Aisou", BaseURL: "https://aisou.example", ApiKey: "42", ApiSecret: "secret", Protocol: constants.ConnectionProtocolSharedStock})
-	if err != nil {
-		t.Fatal(err)
+	for _, protocol := range []string{constants.ConnectionProtocolSharedStock, constants.ConnectionProtocolGMShopEdge} {
+		created, err := svc.Create(siteconnectionapp.CreateInput{Name: protocol, BaseURL: "https://upstream.example", ApiKey: "42", ApiSecret: "secret", Protocol: protocol})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if created.Protocol != protocol {
+			t.Fatalf("unexpected protocol: %s", created.Protocol)
+		}
 	}
-	if created.Protocol != constants.ConnectionProtocolSharedStock {
-		t.Fatalf("unexpected protocol: %s", created.Protocol)
-	}
-	_, err = svc.Create(siteconnectionapp.CreateInput{Name: "bad", BaseURL: "https://bad.example", ApiKey: "key", ApiSecret: "secret", Protocol: "unknown"})
+	_, err := svc.Create(siteconnectionapp.CreateInput{Name: "bad", BaseURL: "https://bad.example", ApiKey: "key", ApiSecret: "secret", Protocol: "unknown"})
 	if !errors.Is(err, siteconnectioncontract.ErrInvalid) {
 		t.Fatalf("expected invalid protocol error, got %v", err)
 	}

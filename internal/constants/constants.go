@@ -438,6 +438,7 @@ const (
 const (
 	ConnectionProtocolDujiaoNext  = "dujiao-next"
 	ConnectionProtocolSharedStock = "shared-stock"
+	ConnectionProtocolGMShopEdge  = "gmshop-edge"
 )
 
 // API 凭证状态常量

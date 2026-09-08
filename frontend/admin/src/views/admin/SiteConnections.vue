@@ -402,6 +402,7 @@ onMounted(() => {
                 <SelectContent>
                   <SelectItem value="dujiao-next">Dujiao-Next OpenAPI</SelectItem>
                   <SelectItem value="shared-stock">ACG SharedStock / Aisou</SelectItem>
+                  <SelectItem value="gmshop-edge">GMShop Edge Supplier API</SelectItem>
                 </SelectContent>
               </Select>
             </div>

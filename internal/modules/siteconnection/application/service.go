@@ -199,7 +199,9 @@ func (s *Service) Update(id uint, input UpdateInput) (*siteconnectiondomain.Conn
 }
 
 func supportedProtocol(protocol string) bool {
-	return protocol == constants.ConnectionProtocolDujiaoNext || protocol == constants.ConnectionProtocolSharedStock
+	return protocol == constants.ConnectionProtocolDujiaoNext ||
+		protocol == constants.ConnectionProtocolSharedStock ||
+		protocol == constants.ConnectionProtocolGMShopEdge
 }
 
 // Delete 删除连接
