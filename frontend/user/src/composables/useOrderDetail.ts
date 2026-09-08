@@ -19,6 +19,8 @@ export function useOrderDetail() {
   const loading = ref(true)
   const order = ref<any>(null)
   const fulfillmentDownloading = ref(false)
+  let polling = false
+  let deliveryPollTimer: ReturnType<typeof setInterval> | null = null
 
   const helpers = useOrderDisplayHelpers(order)
 
@@ -39,15 +41,15 @@ export function useOrderDetail() {
     }
   }
 
-  const loadOrder = async () => {
-    loading.value = true
+  const loadOrder = async (silent = false) => {
+    if (!silent) loading.value = true
     try {
       const response = await userOrderAPI.detail(String(route.params.order_no || '').trim())
       order.value = response.data.data
     } catch (error) {
       order.value = null
     } finally {
-      loading.value = false
+      if (!silent) loading.value = false
     }
   }
 
@@ -77,9 +79,19 @@ export function useOrderDetail() {
       return
     }
     loadOrder()
+    deliveryPollTimer = setInterval(async () => {
+      if (polling || !order.value || !['pending_payment', 'paid', 'fulfilling'].includes(String(order.value.status))) return
+      polling = true
+      try {
+        await loadOrder(true)
+      } finally {
+        polling = false
+      }
+    }, 3000)
   })
 
   onUnmounted(() => {
+    if (deliveryPollTimer) clearInterval(deliveryPollTimer)
     debouncedLoadOrder.cancel()
   })
 
