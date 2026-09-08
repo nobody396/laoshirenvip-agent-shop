@@ -111,6 +111,7 @@ import CategorySidebar from '../components/CategorySidebar.vue'
 import PaginationNav from '../components/PaginationNav.vue'
 import EmptyState from '../components/EmptyState.vue'
 import { Button } from '@/components/ui/button'
+import { startInventoryRevalidation } from '../utils/inventoryRevalidation'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -131,6 +132,7 @@ const {
   changePage,
   clearSearch,
   initialize,
+  loadProducts,
   cleanup,
 } = useProductList({ pageSize: 12, homeRouteName: 'products' })
 
@@ -170,12 +172,16 @@ const goToProduct = (slug: string) => {
   router.push(`/products/${slug}`)
 }
 
+let stopInventoryRevalidation: (() => void) | undefined
+
 onMounted(async () => {
   window.addEventListener('resize', handleResize, { passive: true })
   await initialize()
+  stopInventoryRevalidation = startInventoryRevalidation(loadProducts)
 })
 
 onUnmounted(() => {
+  stopInventoryRevalidation?.()
   window.removeEventListener('resize', handleResize)
   cleanup()
 })

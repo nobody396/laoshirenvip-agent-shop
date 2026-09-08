@@ -187,6 +187,7 @@ import ProductQuickBuy from '../../components/ProductQuickBuy.vue'
 import AnnouncementModal from '../../components/AnnouncementModal.vue'
 import StorefrontPurchaseNotice from '../../components/StorefrontPurchaseNotice.vue'
 import { useAnnouncement, type HomeAnnouncement } from '../../composables/useAnnouncement'
+import { startInventoryRevalidation } from '../../utils/inventoryRevalidation'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -219,6 +220,7 @@ const {
   changePage: listChangePage,
   clearSearch,
   initialize: listInitialize,
+  loadProducts: listLoadProducts,
   cleanup: listCleanup,
 } = useProductList({ pageSize: 20, homeRouteName: 'home' })
 
@@ -324,6 +326,16 @@ usePageSeo({
   },
 })
 
+let stopInventoryRevalidation: (() => void) | undefined
+
+const refreshVisibleInventory = async () => {
+  if (isListMode.value) {
+    await listLoadProducts()
+    return
+  }
+  await loadProducts()
+}
+
 onMounted(async () => {
   await appStore.loadConfig()
   if (isListMode.value) {
@@ -332,7 +344,11 @@ onMounted(async () => {
     await Promise.all([loadProducts(), loadCategories(), loadPosts()])
   }
   showAnnouncementIfNeeded()
+  stopInventoryRevalidation = startInventoryRevalidation(refreshVisibleInventory)
 })
 
-onUnmounted(() => listCleanup())
+onUnmounted(() => {
+  stopInventoryRevalidation?.()
+  listCleanup()
+})
 </script>
