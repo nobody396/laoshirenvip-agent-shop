@@ -42,9 +42,9 @@ func TestGMShopEdgeAdapterMapsCatalogAndOrderDelivery(t *testing.T) {
 			if body["sku_id"] != "sku-uuid" || body["downstream_order_no"] != "ORDER-1" {
 				t.Fatalf("unexpected order body: %#v", body)
 			}
-			_, _ = fmt.Fprint(w, `{"ok":true,"order_id":"order-uuid","status":"processing"}`)
+			_, _ = fmt.Fprint(w, `{"ok":true,"order_id":"order-uuid","status":"processing","amount_minor":"4000","currency":"CNY","currency_decimals":2}`)
 		case "/api/v1/supplier/orders/order-uuid":
-			_, _ = fmt.Fprint(w, `{"order_id":"order-uuid","status":"supplied","cards":["gpt-go-ios-AAAA-BBBB-CCCC-DDDD\nhttps://redeem.lsrai.shop"]}`)
+			_, _ = fmt.Fprint(w, `{"order_id":"order-uuid","status":"supplied","amount_minor":"4000","currency":"CNY","currency_decimals":2,"cards":["gpt-go-ios-AAAA-BBBB-CCCC-DDDD\nhttps://redeem.lsrai.shop"]}`)
 		default:
 			http.NotFound(w, req)
 		}
@@ -88,14 +88,14 @@ func TestGMShopEdgeAdapterMapsCatalogAndOrderDelivery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !created.OK || created.OrderID == 0 || created.OrderNo != "order-uuid" {
+	if !created.OK || created.OrderID == 0 || created.OrderNo != "order-uuid" || created.Amount != "40" || created.Currency != "CNY" {
 		t.Fatalf("unexpected created order: %+v", created)
 	}
 	detail, err := adapter.GetOrder(context.Background(), created.OrderID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if detail.Status != "delivered" || detail.Fulfillment == nil || !strings.Contains(detail.Fulfillment.Payload, "https://redeem.lsrai.shop") {
+	if detail.Status != "delivered" || detail.Amount != "40" || detail.Currency != "CNY" || detail.Fulfillment == nil || !strings.Contains(detail.Fulfillment.Payload, "https://redeem.lsrai.shop") {
 		t.Fatalf("unexpected delivered order: %+v", detail)
 	}
 	if cards, ok := detail.Fulfillment.DeliveryData["cards"].([]string); !ok || len(cards) != 1 {
