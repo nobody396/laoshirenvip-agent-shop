@@ -165,10 +165,13 @@ func (a *GMShopEdgeAdapter) CreateOrder(ctx context.Context, req CreateUpstreamO
 		"downstream_order_no": req.DownstreamOrderNo, "trace_id": req.TraceID,
 	}
 	var result struct {
-		OK        bool   `json:"ok"`
-		OrderID   string `json:"order_id"`
-		Status    string `json:"status"`
-		ErrorCode string `json:"error_code"`
+		OK               bool   `json:"ok"`
+		OrderID          string `json:"order_id"`
+		Status           string `json:"status"`
+		AmountMinor      string `json:"amount_minor"`
+		Currency         string `json:"currency"`
+		CurrencyDecimals int    `json:"currency_decimals"`
+		ErrorCode        string `json:"error_code"`
 	}
 	if err := a.request(ctx, http.MethodPost, "/api/v1/supplier/orders", body, &result); err != nil {
 		return nil, err
@@ -180,7 +183,10 @@ func (a *GMShopEdgeAdapter) CreateOrder(ctx context.Context, req CreateUpstreamO
 	if err != nil {
 		return nil, err
 	}
-	return &CreateUpstreamOrderResp{OK: true, OrderID: orderID, OrderNo: result.OrderID, Status: result.Status}, nil
+	return &CreateUpstreamOrderResp{
+		OK: true, OrderID: orderID, OrderNo: result.OrderID, Status: result.Status,
+		Amount: minorToMajor(result.AmountMinor, result.CurrencyDecimals), Currency: result.Currency,
+	}, nil
 }
 
 func (a *GMShopEdgeAdapter) GetOrder(ctx context.Context, orderID uint) (*UpstreamOrderDetail, error) {
@@ -192,14 +198,20 @@ func (a *GMShopEdgeAdapter) GetOrder(ctx context.Context, orderID uint) (*Upstre
 		return nil, fmt.Errorf("gmshop-edge order reference not found")
 	}
 	var result struct {
-		OrderID string   `json:"order_id"`
-		Status  string   `json:"status"`
-		Cards   []string `json:"cards"`
+		OrderID          string   `json:"order_id"`
+		Status           string   `json:"status"`
+		AmountMinor      string   `json:"amount_minor"`
+		Currency         string   `json:"currency"`
+		CurrencyDecimals int      `json:"currency_decimals"`
+		Cards            []string `json:"cards"`
 	}
 	if err := a.request(ctx, http.MethodGet, "/api/v1/supplier/orders/"+url.PathEscape(external), nil, &result); err != nil {
 		return nil, err
 	}
-	detail := &UpstreamOrderDetail{OrderID: orderID, OrderNo: result.OrderID, Status: result.Status}
+	detail := &UpstreamOrderDetail{
+		OrderID: orderID, OrderNo: result.OrderID, Status: result.Status,
+		Amount: minorToMajor(result.AmountMinor, result.CurrencyDecimals), Currency: result.Currency,
+	}
 	if result.Status == "supplied" && len(result.Cards) > 0 {
 		payload := strings.Join(result.Cards, "\n")
 		now := time.Now()
