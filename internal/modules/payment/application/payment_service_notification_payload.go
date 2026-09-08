@@ -26,6 +26,12 @@ func (s *PaymentService) buildOrderNotificationPayload(order *orderdomain.Order,
 	orderapp.FillOrderItemsFromChildren(order)
 	itemsSummary, fulfillmentItemsSummary, counts := notificationformat.BuildOrderItemSummaries(order.Items, locale)
 	providerType, channelType, paymentChannel := notificationPaymentChannel(order, payment)
+	resourceSummary := "-"
+	if order.ResellerID != nil && s.orderResourceSummary != nil {
+		if value := strings.TrimSpace(s.orderResourceSummary.Summary(order)); value != "" {
+			resourceSummary = value
+		}
+	}
 
 	payload := jsonmap.JSON{
 		"order_id":                  fmt.Sprintf("%d", order.ID),
@@ -47,6 +53,7 @@ func (s *PaymentService) buildOrderNotificationPayload(order *orderdomain.Order,
 		"upstream_item_count":       fmt.Sprintf("%d", counts.Upstream),
 		"payment_channel":           paymentChannel,
 		"storefront_label":          notificationStorefrontLabel(order, locale),
+		"resource_summary":          resourceSummary,
 	}
 	if payment != nil {
 		payload["payment_id"] = fmt.Sprintf("%d", payment.ID)
