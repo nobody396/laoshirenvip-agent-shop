@@ -5,9 +5,8 @@ services:
       # display the channel but cannot sign live EPay requests.
       ZHENCHUAN_EPAY_MERCHANT_ID: ${ZHENCHUAN_EPAY_MERCHANT_ID:?required}
       ZHENCHUAN_EPAY_MERCHANT_KEY_MD5: ${ZHENCHUAN_EPAY_MERCHANT_KEY_MD5:?required}
-      # Keep the currently accepted production confirmation window while the
-      # separate one-day change remains paused for owner acceptance.
-      RESELLER_SETTLEMENT_CONFIRM_DAYS: "7"
+      # Keep production aligned with the approved one-day confirmation policy.
+      RESELLER_SETTLEMENT_CONFIRM_DAYS: "1"
 
   proxy:
     image: caddy:2.10-alpine
