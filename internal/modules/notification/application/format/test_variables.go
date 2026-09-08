@@ -50,6 +50,7 @@ func BuildTestVariables(scene, locale string) map[string]interface{} {
 			"items_summary":             buildNotificationTestOrderItems(locale),
 			"fulfillment_items_summary": buildNotificationTestFulfillmentItems(locale),
 			"delivery_summary":          BuildDeliverySummary(locale, OrderItemCounts{Total: 2, Auto: 1, Manual: 1}),
+			"resource_summary":          buildNotificationTestResourceSummary(locale),
 		}
 	case constants.NotificationEventManualFulfillmentPending:
 		return map[string]interface{}{
@@ -77,6 +78,17 @@ func BuildTestVariables(scene, locale string) map[string]interface{} {
 				"Detected 2 low-stock products across 2 inventory items; this alert is sent at most once every 30 minutes.",
 			),
 		}
+	}
+}
+
+func buildNotificationTestResourceSummary(locale string) string {
+	switch ResolveLocale(locale, constants.LocaleZhCN) {
+	case constants.LocaleEnUS:
+		return "ChatGPT Plus Philippines: central stock 9\nChatGPT Pro 20X Philippines: Aisou balance CNY 1305"
+	case constants.LocaleZhTW:
+		return "ChatGPT Plus 菲區：中央庫存 9\nChatGPT Pro 20X 菲區：Aisou 額度 ¥1305"
+	default:
+		return "ChatGPT Plus 菲区：中央库存 9\nChatGPT Pro 20X 菲区：Aisou额度 ¥1305"
 	}
 }
 

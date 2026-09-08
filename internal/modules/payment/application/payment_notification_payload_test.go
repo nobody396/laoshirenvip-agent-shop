@@ -146,7 +146,7 @@ func TestBuildOrderNotificationPayloadIncludesCustomerAndItemSummary(t *testing.
 
 func TestBuildOrderNotificationPayloadIdentifiesResellerStorefront(t *testing.T) {
 	resellerID := uint(15)
-	svc := &PaymentService{}
+	svc := &PaymentService{orderResourceSummary: fixedOrderResourceSummary("ChatGPT Plus 菲区：中央库存 9")}
 	order := &orderdomain.Order{
 		ID:             1500,
 		OrderNo:        "DJ202609070001",
@@ -159,6 +159,31 @@ func TestBuildOrderNotificationPayloadIdentifiesResellerStorefront(t *testing.T)
 	if got := fmt.Sprintf("%v", payload["storefront_label"]); got != "代理子站 · ai.lsrai.shop" {
 		t.Fatalf("unexpected reseller storefront label: %s", got)
 	}
+	if got := fmt.Sprintf("%v", payload["resource_summary"]); got != "ChatGPT Plus 菲区：中央库存 9" {
+		t.Fatalf("unexpected resource summary: %s", got)
+	}
+}
+
+func TestBuildOrderNotificationPayloadIdentifiesWalletPayment(t *testing.T) {
+	resellerID := uint(15)
+	order := &orderdomain.Order{
+		ID:               1501,
+		OrderNo:          "DJ202609090001",
+		Currency:         "CNY",
+		Status:           constants.OrderStatusPaid,
+		ResellerID:       &resellerID,
+		WalletPaidAmount: money.FromDecimal(decimal.NewFromInt(119)),
+	}
+	payload := (&PaymentService{}).buildOrderNotificationPayload(order, nil)
+	if got := fmt.Sprintf("%v", payload["payment_channel"]); got != "wallet/balance" {
+		t.Fatalf("payment_channel want wallet/balance got %s", got)
+	}
+}
+
+type fixedOrderResourceSummary string
+
+func (value fixedOrderResourceSummary) Summary(*orderdomain.Order) string {
+	return string(value)
 }
 
 func TestBuildOrderNotificationPayloadUsesDisplayChannelType(t *testing.T) {
@@ -382,7 +407,7 @@ func TestNotificationCenterDefaultSettingIncludesRichOrderVariables(t *testing.T
 	setting := settingsmessaging.NotificationCenterDefaultSetting()
 
 	orderBody := setting.Templates.OrderPaidSuccess.ZHCN.Body
-	if !strings.Contains(orderBody, "{{storefront_label}}") || !strings.Contains(orderBody, "{{customer_email}}") || !strings.Contains(orderBody, "{{items_summary}}") {
+	if !strings.Contains(orderBody, "{{storefront_label}}") || !strings.Contains(orderBody, "{{customer_email}}") || !strings.Contains(orderBody, "{{items_summary}}") || !strings.Contains(orderBody, "{{resource_summary}}") {
 		t.Fatalf("order paid template should include rich variables, got: %s", orderBody)
 	}
 
@@ -642,6 +667,9 @@ func TestBuildNotificationTestVariablesIncludesSceneSpecificSamples(t *testing.T
 	}
 	if got := fmt.Sprintf("%v", orderVars["payment_channel"]); got != "epay/alipay" {
 		t.Fatalf("payment_channel want epay/alipay got %s", got)
+	}
+	if !strings.Contains(fmt.Sprintf("%v", orderVars["resource_summary"]), "central stock") {
+		t.Fatalf("order test variables should include resource summary, got: %v", orderVars["resource_summary"])
 	}
 
 	alertVars := notificationformat.BuildTestVariables(constants.NotificationEventExceptionAlert, constants.LocaleEnUS)
