@@ -373,6 +373,7 @@ import EmptyState from '../components/EmptyState.vue'
 import AnnouncementModal from '../components/AnnouncementModal.vue'
 import StorefrontPurchaseNotice from '../components/StorefrontPurchaseNotice.vue'
 import { useAnnouncement, type HomeAnnouncement } from '../composables/useAnnouncement'
+import { startInventoryRevalidation } from '../utils/inventoryRevalidation'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -444,6 +445,7 @@ const {
   clearSearch: listClearSearch,
   onSearch: listOnSearch,
   initialize: listInitialize,
+  loadProducts: listLoadProducts,
   cleanup: listCleanup,
 } = useProductList({ pageSize: 20, homeRouteName: 'home' })
 
@@ -512,6 +514,16 @@ const showAnnouncementIfNeeded = () => {
   }
 }
 
+let stopInventoryRevalidation: (() => void) | undefined
+
+const refreshVisibleInventory = async () => {
+  if (templateMode.value === 'list') {
+    await listLoadProducts()
+    return
+  }
+  await loadFeaturedProducts()
+}
+
 onMounted(async () => {
   await appStore.loadConfig()
   if (templateMode.value === 'list') {
@@ -520,9 +532,11 @@ onMounted(async () => {
     await Promise.all([loadBanners(), loadFeaturedProducts(), loadLatestPosts()])
   }
   showAnnouncementIfNeeded()
+  stopInventoryRevalidation = startInventoryRevalidation(refreshVisibleInventory)
 })
 
 onUnmounted(() => {
+  stopInventoryRevalidation?.()
   stopHeroAutoPlay()
   listCleanup()
 })
