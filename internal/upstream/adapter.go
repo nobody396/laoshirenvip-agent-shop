@@ -205,6 +205,11 @@ func NewAdapter(conn *siteconnectiondomain.Connection, uploadsDir string, option
 			return nil, fmt.Errorf("shared-stock external reference registry is required")
 		}
 		return NewSharedStockAdapter(conn, uploadsDir, options.ExternalReferences), nil
+	case constants.ConnectionProtocolGMShopEdge:
+		if options.ExternalReferences == nil {
+			return nil, fmt.Errorf("gmshop-edge external reference registry is required")
+		}
+		return NewGMShopEdgeAdapter(conn, uploadsDir, options.ExternalReferences), nil
 	default:
 		return nil, fmt.Errorf("unsupported protocol: %s", conn.Protocol)
 	}

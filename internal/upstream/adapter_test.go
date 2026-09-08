@@ -205,6 +205,13 @@ func TestSharedStockAdapterRequiresPersistentReferenceRegistry(t *testing.T) {
 	}
 }
 
+func TestGMShopEdgeAdapterRequiresPersistentReferenceRegistry(t *testing.T) {
+	_, err := NewAdapter(&siteconnectiondomain.Connection{Protocol: constants.ConnectionProtocolGMShopEdge}, t.TempDir())
+	if err == nil || !strings.Contains(err.Error(), "reference registry") {
+		t.Fatalf("expected registry requirement, got %v", err)
+	}
+}
+
 func TestUnknownAdapterProtocolIsRejected(t *testing.T) {
 	_, err := NewAdapter(&siteconnectiondomain.Connection{Protocol: "unknown"}, t.TempDir())
 	if err == nil || !strings.Contains(err.Error(), "unsupported protocol") {
