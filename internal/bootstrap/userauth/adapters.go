@@ -109,6 +109,10 @@ func (a userVerifyTransportAdapter) GetRegistrationEnabled(defaultValue bool) (b
 	return a.settings.GetRegistrationEnabled(defaultValue)
 }
 
+func (a userVerifyTransportAdapter) ValidateMainRegistrationInvite(ctx context.Context, inviteCode string) error {
+	return mapUserAuthTransportError(a.auth.ValidateMainRegistrationInvite(ctx, inviteCode))
+}
+
 func (a userVerifyTransportAdapter) SendVerifyCode(ctx context.Context, email, purpose, locale string) error {
 	return mapUserAuthTransportError(a.auth.SendVerifyCode(ctx, email, purpose, locale))
 }
@@ -412,6 +416,10 @@ func (a userLoginTransportAdapter) GetEmailVerificationEnabled(defaultValue bool
 	return a.settings.GetEmailVerificationEnabled(defaultValue)
 }
 
+func (a userLoginTransportAdapter) ValidateMainRegistrationInvite(ctx context.Context, inviteCode string) error {
+	return mapUserAuthTransportError(a.auth.ValidateMainRegistrationInvite(ctx, inviteCode))
+}
+
 func (a userLoginTransportAdapter) Register(ctx context.Context, email, password, code string, agreementAccepted, emailVerificationEnabled bool) (*userdomain.User, string, time.Time, error) {
 	user, token, expiresAt, err := a.auth.RegisterForTenant(ctx, email, password, code, agreementAccepted, emailVerificationEnabled)
 	return user, token, expiresAt, mapUserAuthTransportError(err)
@@ -676,6 +684,8 @@ func mapUserAuthTransportError(err error) error {
 		{userauthapp.ErrGoogleRedirectFlowInvalid, userauthtransport.ErrGoogleRedirectFlowInvalid},
 		{userauthapp.ErrUserDisabled, userauthtransport.ErrUserDisabled},
 		{userauthapp.ErrRegistrationDisabled, userauthtransport.ErrRegistrationDisabled},
+		{userauthapp.ErrMainRegistrationInviteInvalid, userauthtransport.ErrMainRegistrationInviteInvalid},
+		{userauthapp.ErrMainRegistrationInviteUnavailable, userauthtransport.ErrMainRegistrationInviteUnavailable},
 		{userauthapp.ErrAgreementRequired, userauthtransport.ErrAgreementRequired},
 		{userauthapp.ErrInvalidCredentials, userauthtransport.ErrInvalidCredentials},
 		{userauthapp.ErrEmailNotVerified, userauthtransport.ErrEmailNotVerified},

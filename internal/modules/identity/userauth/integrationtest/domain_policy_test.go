@@ -2,6 +2,8 @@ package integrationtest
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"testing"
@@ -133,6 +135,52 @@ func TestRegisterForTenantCapturesTheOriginReseller(t *testing.T) {
 	}
 	if user.RegistrationResellerID == nil || *user.RegistrationResellerID != 41 {
 		t.Fatalf("registration_reseller_id = %v, want 41", user.RegistrationResellerID)
+	}
+}
+
+func TestMainRegistrationInviteAppliesOnlyToMainTenant(t *testing.T) {
+	svc, settings, _ := newRegistrationDomainPolicyAuthService(t)
+	digest := sha256.Sum256([]byte("partner-code-2026"))
+	if _, err := settings.Update(constants.SettingKeyRegistrationConfig, map[string]interface{}{
+		constants.SettingFieldMainRegistrationInviteRequired: true,
+		constants.SettingFieldMainRegistrationInviteCodeHash: hex.EncodeToString(digest[:]),
+	}); err != nil {
+		t.Fatalf("update registration config failed: %v", err)
+	}
+
+	mainContext := resellercontract.WithTenantContext(
+		context.Background(),
+		resellercontract.MainTenantContext("lsrai.shop"),
+	)
+	if err := svc.ValidateMainRegistrationInvite(mainContext, "wrong-code"); !errors.Is(err, userauthapp.ErrMainRegistrationInviteInvalid) {
+		t.Fatalf("wrong main-site invite error = %v", err)
+	}
+	if err := svc.ValidateMainRegistrationInvite(mainContext, "partner-code-2026"); err != nil {
+		t.Fatalf("valid main-site invite rejected: %v", err)
+	}
+
+	resellerContext := resellercontract.WithTenantContext(
+		context.Background(),
+		resellercontract.ResellerTenantContext("agent.lsrai.shop", 41, 9, "agent.lsrai.shop"),
+	)
+	if err := svc.ValidateMainRegistrationInvite(resellerContext, ""); err != nil {
+		t.Fatalf("reseller storefront should bypass main invite: %v", err)
+	}
+}
+
+func TestMainRegistrationInviteFailsClosedWithoutHash(t *testing.T) {
+	svc, settings, _ := newRegistrationDomainPolicyAuthService(t)
+	if _, err := settings.Update(constants.SettingKeyRegistrationConfig, map[string]interface{}{
+		constants.SettingFieldMainRegistrationInviteRequired: true,
+	}); err != nil {
+		t.Fatalf("update registration config failed: %v", err)
+	}
+	mainContext := resellercontract.WithTenantContext(
+		context.Background(),
+		resellercontract.MainTenantContext("lsrai.shop"),
+	)
+	if err := svc.ValidateMainRegistrationInvite(mainContext, "anything"); !errors.Is(err, userauthapp.ErrMainRegistrationInviteUnavailable) {
+		t.Fatalf("missing invite digest error = %v", err)
 	}
 }
 

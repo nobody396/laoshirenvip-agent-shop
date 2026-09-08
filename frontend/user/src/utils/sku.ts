@@ -11,6 +11,25 @@ const normalizeText = (value: unknown) => String(value ?? '').trim()
 
 const normalizeLocaleCode = (locale?: unknown) => normalizeText(locale).toLowerCase()
 
+// A few upstream catalogs expose human-readable SKU values as plain Chinese
+// strings instead of localized objects. Keep those values useful after a sync
+// rather than allowing an English storefront to fall back to Chinese.
+const localizeKnownPlainSpecText = (value: string, locale?: string) => {
+  const normalized = normalizeText(value)
+  const codexCredits = normalized.match(/^(\d+)\s*点数额度$/)
+  if (!codexCredits) return normalized
+
+  const amount = codexCredits[1]
+  const normalizedLocale = normalizeLocaleCode(locale)
+  if (normalizedLocale === 'en' || normalizedLocale === 'en-us') {
+    return `${amount} Credits`
+  }
+  if (normalizedLocale === 'zh-tw' || normalizedLocale === 'zh-hk' || normalizedLocale === 'zh-mo') {
+    return `${amount} 點數額度`
+  }
+  return `${amount}点数额度`
+}
+
 const localeFallbacks = (locale?: string) => {
   const normalized = normalizeLocaleCode(locale)
   switch (normalized) {
@@ -108,7 +127,7 @@ const normalizeSpecValue = (raw: unknown, locale?: string): string => {
       .filter(Boolean)
     return entries.join(', ')
   }
-  return normalizeText(value)
+  return localizeKnownPlainSpecText(normalizeText(value), locale)
 }
 
 export const formatSkuSpecValues = (specValues: unknown, locale?: string) => {
@@ -127,6 +146,10 @@ export const formatSkuSpecValues = (specValues: unknown, locale?: string) => {
       if (!normalizedValue) return ''
       const normalizedKey = normalizeText(key)
       if (!normalizedKey) return normalizedValue
+      // `race` is the source catalog's opaque single-option field name, not a
+      // customer-facing label. Showing it would produce labels such as
+      // "race:250 Credits" on the product page.
+      if (normalizedKey.toLowerCase() === 'race') return normalizedValue
       return `${normalizedKey}:${normalizedValue}`
     })
     .filter(Boolean)

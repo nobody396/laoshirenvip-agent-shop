@@ -30,6 +30,7 @@ export function useRegister() {
   const password = ref('')
   const showPassword = ref(false)
   const code = ref('')
+  const inviteCode = ref('')
   const agreed = ref(false)
 
   const passwordStrength = computed(() => getPasswordStrength(password.value))
@@ -47,6 +48,7 @@ export function useRegister() {
   const sendCodeCaptchaEnabled = computed(() => !!captchaConfig.value?.scenes?.register_send_code && captchaProvider.value !== 'none')
   const turnstileSiteKey = computed(() => String(captchaConfig.value?.turnstile?.site_key || ''))
   const registrationEnabled = computed(() => appStore.config?.registration_enabled !== false)
+  const mainRegistrationInviteRequired = computed(() => appStore.config?.main_registration_invite_required === true)
   const emailVerificationEnabled = computed(() => appStore.config?.email_verification_enabled !== false)
   const emailDomainAllowlistEnabled = computed(() => appStore.config?.email_domain_allowlist_enabled === true)
   const allowedEmailDomains = computed(() => {
@@ -159,6 +161,11 @@ export function useRegister() {
     if (formValidation.hasError('email')) return
     if (countdown.value > 0) return
 
+    if (mainRegistrationInviteRequired.value && !inviteCode.value.trim()) {
+      error.value = t('auth.register.errors.inviteCodeRequired')
+      return
+    }
+
     if (sendCodeCaptchaEnabled.value && captchaProvider.value === 'image') {
       if (!captchaPayload.value.captcha_id || !captchaPayload.value.captcha_code) {
         error.value = t('auth.common.captchaRequired')
@@ -177,6 +184,7 @@ export function useRegister() {
       await userAuthStore.sendVerifyCode({
         email: currentEmail,
         purpose: 'register',
+        invite_code: mainRegistrationInviteRequired.value ? inviteCode.value.trim() : undefined,
         captcha_payload: getCaptchaPayload(),
       })
       startCountdown()
@@ -199,6 +207,10 @@ export function useRegister() {
     const currentEmail = registrationEmail.value
     if (!formValidation.validateAll({ email: currentEmail, password: password.value })) return
     if (emailVerificationEnabled.value && !code.value) return
+    if (mainRegistrationInviteRequired.value && !inviteCode.value.trim()) {
+      error.value = t('auth.register.errors.inviteCodeRequired')
+      return
+    }
     if (!agreed.value) {
       error.value = t('auth.register.errors.agreementRequired')
       return
@@ -208,6 +220,7 @@ export function useRegister() {
         email: currentEmail,
         password: password.value,
         code: emailVerificationEnabled.value ? code.value : '',
+        invite_code: mainRegistrationInviteRequired.value ? inviteCode.value.trim() : undefined,
         agreement_accepted: agreed.value,
       })
       router.push('/me/orders')
@@ -232,6 +245,7 @@ export function useRegister() {
     password,
     showPassword,
     code,
+    inviteCode,
     agreed,
     passwordStrength,
     error,
@@ -245,6 +259,7 @@ export function useRegister() {
     sendCodeCaptchaEnabled,
     turnstileSiteKey,
     registrationEnabled,
+    mainRegistrationInviteRequired,
     emailVerificationEnabled,
     emailDomainAllowlistEnabled,
     allowedEmailDomains,

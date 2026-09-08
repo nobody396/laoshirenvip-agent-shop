@@ -1069,6 +1069,9 @@
       "passwordPlaceholder": "设置登录密码",
       "codeLabel": "验证码",
       "codePlaceholder": "输入邮箱验证码",
+      "inviteCodeLabel": "代理商邀请码",
+      "inviteCodePlaceholder": "请输入平台方提供的邀请码",
+      "inviteCodeHint": "仅主站代理账号注册需要，不影响任何代理子站的客户注册",
       "sendCode": "发送验证码",
       "create": "创建账号",
       "creating": "注册中...",
@@ -1082,6 +1085,7 @@
         "sendCodeFailed": "验证码发送失败",
         "registerFailed": "注册失败，请检查输入",
         "agreementRequired": "请先阅读并同意隐私政策和服务条款",
+        "inviteCodeRequired": "请输入代理商邀请码",
         "emailDomainNotAllowed": "当前邮箱后缀不允许注册，请使用：{domains}",
         "emailDomainUnavailable": "当前未配置允许注册的邮箱后缀，请联系管理员"
       },

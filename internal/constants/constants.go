@@ -495,11 +495,13 @@ const (
 	SettingFieldCustomerFeeEnabled         = "customer_fee_enabled"
 	SettingFieldReuseLegacyOrderFeePayment = "reuse_legacy_order_fee_payment"
 
-	SettingKeyRegistrationConfig            = "registration_config"
-	SettingFieldRegistrationEnabled         = "registration_enabled"
-	SettingFieldEmailVerificationEnabled    = "email_verification_enabled"
-	SettingFieldEmailDomainAllowlistEnabled = "email_domain_allowlist_enabled"
-	SettingFieldAllowedEmailDomains         = "allowed_email_domains"
+	SettingKeyRegistrationConfig               = "registration_config"
+	SettingFieldRegistrationEnabled            = "registration_enabled"
+	SettingFieldEmailVerificationEnabled       = "email_verification_enabled"
+	SettingFieldEmailDomainAllowlistEnabled    = "email_domain_allowlist_enabled"
+	SettingFieldAllowedEmailDomains            = "allowed_email_domains"
+	SettingFieldMainRegistrationInviteRequired = "main_registration_invite_required"
+	SettingFieldMainRegistrationInviteCodeHash = "main_registration_invite_code_hash"
 
 	SettingKeyOrderRiskControlConfig = "order_risk_control_config"
 

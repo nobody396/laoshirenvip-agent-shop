@@ -35,6 +35,7 @@ type Settings interface {
 	GetRegistrationEnabled(defaultValue bool) (bool, error)
 	GetEmailVerificationEnabled(defaultValue bool) (bool, error)
 	GetRegistrationEmailDomainPolicy() (enabled bool, allowedDomains []string, err error)
+	GetMainRegistrationInviteRequired() (bool, error)
 	GetByKey(key string) (interface{}, error)
 	GetActiveHomeAnnouncement() (jsonmap.JSON, bool)
 }
@@ -211,6 +212,14 @@ func (h *Handler) GetConfig(c *gin.Context) {
 	}
 	data["email_domain_allowlist_enabled"] = enabled
 	data["allowed_email_domains"] = allowedDomains
+	if tenant.IsMain {
+		inviteRequired, inviteErr := h.settings.GetMainRegistrationInviteRequired()
+		if inviteErr != nil {
+			ginutil.RespondError(c, response.CodeInternal, "error.config_fetch_failed", inviteErr)
+			return
+		}
+		data["main_registration_invite_required"] = inviteRequired
+	}
 
 	navConfigVal, _ := h.settings.GetByKey(constants.SettingKeyNavConfig)
 	if navConfigVal != nil {

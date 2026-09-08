@@ -53,6 +53,14 @@ type RegistrationEmailDomainPolicy struct {
 	AllowedDomains []string
 }
 
+// MainRegistrationInvitePolicy protects only the main platform registration
+// surface. Reseller storefront registrations deliberately bypass this policy.
+// The raw invite code is never persisted; only its SHA-256 digest is stored.
+type MainRegistrationInvitePolicy struct {
+	Required bool
+	CodeHash string
+}
+
 // PaymentFeeConfig 控制新支付的手续费承担方式，以及旧版加收链接的过渡策略。
 // 配置只影响后续创建/选择支付，不会重写单笔支付已经保存的 FeePolicy 快照。
 type PaymentFeeConfig struct {
@@ -314,6 +322,27 @@ func (s *Service) GetRegistrationEmailDomainPolicy() (RegistrationEmailDomainPol
 		policy.Enabled = parseSettingBool(raw)
 	}
 	policy.AllowedDomains = normalizeRegistrationEmailDomains(value[constants.SettingFieldAllowedEmailDomains])
+	return policy, nil
+}
+
+// GetMainRegistrationInvitePolicy returns the main-site invite gate. A missing
+// digest while Required is true is a fail-closed configuration.
+func (s *Service) GetMainRegistrationInvitePolicy() (MainRegistrationInvitePolicy, error) {
+	policy := MainRegistrationInvitePolicy{}
+	if s == nil {
+		return policy, nil
+	}
+	value, err := s.GetByKey(constants.SettingKeyRegistrationConfig)
+	if err != nil {
+		return policy, err
+	}
+	if value == nil {
+		return policy, nil
+	}
+	policy.Required = parseSettingBool(value[constants.SettingFieldMainRegistrationInviteRequired])
+	if codeHash, ok := value[constants.SettingFieldMainRegistrationInviteCodeHash].(string); ok {
+		policy.CodeHash = strings.ToLower(strings.TrimSpace(codeHash))
+	}
 	return policy, nil
 }
 

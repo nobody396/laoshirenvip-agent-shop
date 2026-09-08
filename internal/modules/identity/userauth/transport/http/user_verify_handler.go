@@ -30,6 +30,7 @@ type CaptchaVerifier interface {
 type UserVerifySettings interface {
 	GetEmailVerificationEnabled(defaultValue bool) (bool, error)
 	GetRegistrationEnabled(defaultValue bool) (bool, error)
+	ValidateMainRegistrationInvite(ctx context.Context, inviteCode string) error
 }
 
 // UserVerifyAuth 是发送邮箱验证码端口。
@@ -58,6 +59,7 @@ func NewUserVerifyHandler(settings UserVerifySettings, captcha CaptchaVerifier, 
 type UserSendVerifyCodeRequest struct {
 	Email          string                            `json:"email" binding:"required"`
 	Purpose        string                            `json:"purpose" binding:"required"`
+	InviteCode     string                            `json:"invite_code"`
 	CaptchaPayload captchahttp.CaptchaPayloadRequest `json:"captcha_payload"`
 }
 
@@ -89,6 +91,17 @@ func (h *UserVerifyHandler) SendUserVerifyCode(c *gin.Context) {
 		}
 		if !registrationEnabled {
 			ginutil.RespondError(c, response.CodeForbidden, "error.registration_disabled", nil)
+			return
+		}
+		if err := h.settings.ValidateMainRegistrationInvite(c.Request.Context(), req.InviteCode); err != nil {
+			switch {
+			case errors.Is(err, ErrMainRegistrationInviteInvalid):
+				ginutil.RespondError(c, response.CodeForbidden, "error.main_registration_invite_invalid", nil)
+			case errors.Is(err, ErrMainRegistrationInviteUnavailable):
+				ginutil.RespondError(c, response.CodeForbidden, "error.main_registration_invite_unavailable", nil)
+			default:
+				ginutil.RespondError(c, response.CodeInternal, "error.send_verify_code_failed", err)
+			}
 			return
 		}
 	}

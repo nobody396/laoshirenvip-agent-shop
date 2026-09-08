@@ -144,6 +144,7 @@ var googleLoginErrorRules = []googleLoginErrorRule{
 	{target: ErrEmailDomainNotAllowed, code: response.CodeBadRequest, key: "error.email_domain_not_allowed", failReason: constants.LoginLogFailReasonGoogleInvalid},
 	{target: ErrUserDisabled, code: response.CodeUnauthorized, key: "error.user_disabled", failReason: constants.LoginLogFailReasonUserDisabled},
 	{target: ErrRegistrationDisabled, code: response.CodeForbidden, key: "error.registration_disabled", failReason: constants.LoginLogFailReasonBadRequest},
+	{target: ErrMainRegistrationInviteInvalid, code: response.CodeForbidden, key: "error.main_registration_invite_invalid", failReason: constants.LoginLogFailReasonBadRequest},
 }
 
 func (h *UserGoogleHandler) recordLogin(c *gin.Context, email string, userID uint, status, failReason string) {

@@ -3,6 +3,7 @@ package settingsapp
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/dujiao-next/internal/config"
@@ -595,6 +596,36 @@ func TestRegistrationSettingNormalizesEmailDomainAllowlist(t *testing.T) {
 	want := []string{"qq.com", "gmail.com", "mail.163.com"}
 	if !reflect.DeepEqual(domains, want) {
 		t.Fatalf("allowed domains = %#v, want %#v", domains, want)
+	}
+}
+
+func TestRegistrationSettingNormalizesMainInvitePolicy(t *testing.T) {
+	repo := newMockSettingRepo()
+	svc := NewService(repo)
+	validHash := strings.Repeat("ab", 32)
+	result, err := svc.Update(constants.SettingKeyRegistrationConfig, map[string]interface{}{
+		constants.SettingFieldMainRegistrationInviteRequired: "true",
+		constants.SettingFieldMainRegistrationInviteCodeHash: strings.ToUpper(validHash),
+	})
+	if err != nil {
+		t.Fatalf("update registration config failed: %v", err)
+	}
+	if result[constants.SettingFieldMainRegistrationInviteRequired] != true {
+		t.Fatalf("main invite requirement was not normalized")
+	}
+	if result[constants.SettingFieldMainRegistrationInviteCodeHash] != validHash {
+		t.Fatalf("main invite hash = %v, want %s", result[constants.SettingFieldMainRegistrationInviteCodeHash], validHash)
+	}
+
+	result, err = svc.Update(constants.SettingKeyRegistrationConfig, map[string]interface{}{
+		constants.SettingFieldMainRegistrationInviteRequired: true,
+		constants.SettingFieldMainRegistrationInviteCodeHash: "not-a-sha256-digest",
+	})
+	if err != nil {
+		t.Fatalf("update invalid registration config failed: %v", err)
+	}
+	if result[constants.SettingFieldMainRegistrationInviteCodeHash] != "" {
+		t.Fatalf("invalid main invite hash should normalize to empty")
 	}
 }
 

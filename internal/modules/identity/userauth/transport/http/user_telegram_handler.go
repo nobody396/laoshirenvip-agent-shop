@@ -120,6 +120,7 @@ var telegramLoginErrorRules = []telegramLoginErrorRule{
 	{target: ErrTelegramAuthReplay, code: response.CodeBadRequest, key: "error.telegram_auth_replayed", failReason: constants.LoginLogFailReasonTelegramReplayed},
 	{target: ErrUserDisabled, code: response.CodeUnauthorized, key: "error.user_disabled", failReason: constants.LoginLogFailReasonUserDisabled},
 	{target: ErrRegistrationDisabled, code: response.CodeForbidden, key: "error.registration_disabled", failReason: constants.LoginLogFailReasonBadRequest},
+	{target: ErrMainRegistrationInviteInvalid, code: response.CodeForbidden, key: "error.main_registration_invite_invalid", failReason: constants.LoginLogFailReasonBadRequest},
 }
 
 func (h *UserTelegramHandler) recordLogin(c *gin.Context, email string, userID uint, status, failReason, source string) {

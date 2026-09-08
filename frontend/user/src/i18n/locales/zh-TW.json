@@ -1116,6 +1116,9 @@
       "passwordPlaceholder": "設定登入密碼",
       "codeLabel": "驗證碼",
       "codePlaceholder": "輸入信箱驗證碼",
+      "inviteCodeLabel": "代理商邀請碼",
+      "inviteCodePlaceholder": "請輸入平台方提供的邀請碼",
+      "inviteCodeHint": "僅主站代理帳號註冊需要，不影響任何代理子站的客戶註冊",
       "sendCode": "發送驗證碼",
       "create": "建立帳號",
       "creating": "註冊中...",
@@ -1129,6 +1132,7 @@
         "sendCodeFailed": "驗證碼發送失敗",
         "registerFailed": "註冊失敗，請檢查輸入",
         "agreementRequired": "請先閱讀並同意隱私政策與服務條款",
+        "inviteCodeRequired": "請輸入代理商邀請碼",
         "emailDomainNotAllowed": "目前信箱後綴不允許註冊，請使用：{domains}",
         "emailDomainUnavailable": "目前未設定允許註冊的信箱後綴，請聯絡管理員"
       },

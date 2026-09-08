@@ -27,6 +27,7 @@ var (
 type UserLoginSettings interface {
 	GetRegistrationEnabled(defaultValue bool) (bool, error)
 	GetEmailVerificationEnabled(defaultValue bool) (bool, error)
+	ValidateMainRegistrationInvite(ctx context.Context, inviteCode string) error
 }
 
 // UserLoginAuth 是注册/登录端点所需的认证端口。
@@ -58,6 +59,7 @@ type UserRegisterRequest struct {
 	Email             string `json:"email" binding:"required"`
 	Password          string `json:"password" binding:"required"`
 	Code              string `json:"code"`
+	InviteCode        string `json:"invite_code"`
 	AgreementAccepted bool   `json:"agreement_accepted"`
 }
 
@@ -97,6 +99,17 @@ func (h *UserLoginHandler) UserRegister(c *gin.Context) {
 	}
 	if !registrationEnabled {
 		ginutil.RespondError(c, response.CodeForbidden, "error.registration_disabled", nil)
+		return
+	}
+	if err := h.settings.ValidateMainRegistrationInvite(c.Request.Context(), req.InviteCode); err != nil {
+		switch {
+		case errors.Is(err, ErrMainRegistrationInviteInvalid):
+			ginutil.RespondError(c, response.CodeForbidden, "error.main_registration_invite_invalid", nil)
+		case errors.Is(err, ErrMainRegistrationInviteUnavailable):
+			ginutil.RespondError(c, response.CodeForbidden, "error.main_registration_invite_unavailable", nil)
+		default:
+			ginutil.RespondError(c, response.CodeInternal, "error.register_failed", err)
+		}
 		return
 	}
 
