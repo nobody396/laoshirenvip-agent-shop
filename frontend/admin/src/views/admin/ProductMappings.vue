@@ -643,6 +643,7 @@ const handleBatchImport = async () => {
           connection_id: Number(importConnectionId.value),
           upstream_product_ids: batchIds,
           category_id: categoryId || undefined,
+          auto_create_category: autoCreateCategory.value,
         })
         const result = res.data.data as { results?: typeof allResults; success_count?: number } | null
         const batchResults = result?.results || []
@@ -653,7 +654,7 @@ const handleBatchImport = async () => {
           // 后端不支持批量接口，逐条导入
           for (const id of batchIds) {
             try {
-              await adminAPI.importUpstreamProduct({ connection_id: Number(importConnectionId.value), upstream_product_id: id, category_id: categoryId || undefined })
+              await adminAPI.importUpstreamProduct({ connection_id: Number(importConnectionId.value), upstream_product_id: id, category_id: categoryId || undefined, auto_create_category: autoCreateCategory.value })
               allResults.push({ upstream_product_id: id, success: true }); successCount++
             } catch (singleErr: any) {
               allResults.push({ upstream_product_id: id, success: false, error: singleErr?.response?.data?.message || singleErr?.message })
