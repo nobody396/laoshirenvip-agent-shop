@@ -33,7 +33,7 @@ const (
 	StatusExpired = 3
 
 	gmpayCreateTransactionPath = "/payments/gmpay/v1/order/create-transaction"
-	checkoutCounterPathPrefix  = "/pay/checkout-counter/"
+	checkoutPathPrefix         = "/checkout/"
 )
 
 // Config epusdt（GMPay）配置
@@ -198,7 +198,7 @@ type CreateInput struct {
 // CreateResult 创建订单结果
 type CreateResult struct {
 	TradeID    string
-	PaymentURL string // {GatewayURL}/pay/checkout-counter/{TradeID}
+	PaymentURL string
 	Raw        map[string]interface{}
 }
 
@@ -298,10 +298,14 @@ func CreatePayment(ctx context.Context, cfg *Config, input CreateInput) (*Create
 	if tradeID == "" {
 		return nil, fmt.Errorf("%w: trade_id missing in response", ErrResponseInvalid)
 	}
+	paymentURL := extractPaymentURL(raw)
+	if paymentURL == "" {
+		paymentURL = cfg.GatewayURL + checkoutPathPrefix + tradeID
+	}
 
 	return &CreateResult{
 		TradeID:    tradeID,
-		PaymentURL: cfg.GatewayURL + checkoutCounterPathPrefix + tradeID,
+		PaymentURL: paymentURL,
 		Raw:        raw,
 	}, nil
 }
@@ -317,6 +321,20 @@ func extractTradeID(raw map[string]interface{}) string {
 		}
 		if v, ok := data["id"].(string); ok && v != "" {
 			return v
+		}
+	}
+	return ""
+}
+
+// extractPaymentURL uses the checkout URL returned by GMPay. This keeps the
+// integration compatible when the gateway changes its public route layout.
+func extractPaymentURL(raw map[string]interface{}) string {
+	if v, ok := raw["payment_url"].(string); ok {
+		return strings.TrimSpace(v)
+	}
+	if data, ok := raw["data"].(map[string]interface{}); ok {
+		if v, ok := data["payment_url"].(string); ok {
+			return strings.TrimSpace(v)
 		}
 	}
 	return ""

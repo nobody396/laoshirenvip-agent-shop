@@ -149,7 +149,7 @@ func hmacSHA256LowerHex(s, key string) string {
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-func TestCreatePayment_BuildsRequestAndConstructsPaymentURL(t *testing.T) {
+func TestCreatePayment_BuildsRequestAndUsesReturnedPaymentURL(t *testing.T) {
 	var capturedBody map[string]interface{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/payments/gmpay/v1/order/create-transaction" {
@@ -160,7 +160,7 @@ func TestCreatePayment_BuildsRequestAndConstructsPaymentURL(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status_code":200,"message":"ok","data":{"trade_id":"T20260509ABC","order_id":"ORD-1","amount":"100","actual_amount":"13.45","token":"usdt","network":"tron"}}`))
+		w.Write([]byte(`{"status_code":200,"message":"ok","data":{"trade_id":"T20260509ABC","order_id":"ORD-1","amount":"100","actual_amount":"13.45","token":"usdt","network":"tron","payment_url":"https://pay.example/checkout/T20260509ABC"}}`))
 	}))
 	defer srv.Close()
 
@@ -189,7 +189,7 @@ func TestCreatePayment_BuildsRequestAndConstructsPaymentURL(t *testing.T) {
 	if result.TradeID != "T20260509ABC" {
 		t.Fatalf("unexpected trade_id: %s", result.TradeID)
 	}
-	expectedURL := srv.URL + "/pay/checkout-counter/T20260509ABC"
+	expectedURL := "https://pay.example/checkout/T20260509ABC"
 	if result.PaymentURL != expectedURL {
 		t.Fatalf("unexpected payment url: got %s, want %s", result.PaymentURL, expectedURL)
 	}
@@ -223,6 +223,27 @@ func TestCreatePayment_BuildsRequestAndConstructsPaymentURL(t *testing.T) {
 	}
 	if capturedBody["name"] != "VIP Plan" {
 		t.Fatalf("name mismatch: %v", capturedBody["name"])
+	}
+}
+
+func TestCreatePayment_FallsBackToCurrentCheckoutRoute(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"trade_id":"T20260509ABC"}}`))
+	}))
+	defer srv.Close()
+
+	cfg := &Config{
+		GatewayURL: srv.URL, PID: "1000", SecretKey: "sk-test",
+		Token: "usdt", Network: "tron", Currency: "cny",
+		NotifyURL: "https://example.com/notify", ReturnURL: "https://example.com/return",
+	}
+	result, err := CreatePayment(context.Background(), cfg, CreateInput{OrderNo: "ORD-1", Amount: "100"})
+	if err != nil {
+		t.Fatalf("CreatePayment failed: %v", err)
+	}
+	if want := srv.URL + "/checkout/T20260509ABC"; result.PaymentURL != want {
+		t.Fatalf("payment url = %q, want %q", result.PaymentURL, want)
 	}
 }
 
