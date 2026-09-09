@@ -17,5 +17,6 @@ func RegisterUserRoutes(user *gin.RouterGroup, handler *Handler) {
 }
 
 func RegisterCallbackRoutes(api *gin.RouterGroup, handler *Handler) {
+	api.GET("/invoices/payment/callback", handler.PaymentCallback)
 	api.POST("/invoices/payment/callback", handler.PaymentCallback)
 }
