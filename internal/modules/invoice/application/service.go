@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dujiao-next/internal/constants"
 	"github.com/dujiao-next/internal/modules/invoice/domain"
 	paymentcontract "github.com/dujiao-next/internal/modules/payment/contract"
 	paymentdomain "github.com/dujiao-next/internal/modules/payment/domain"
@@ -29,6 +30,51 @@ type Store interface {
 	Save(*domain.Request) error
 	GetByRequestNo(string) (*domain.Request, error)
 	GetByOriginalOrder(source, sourceHost, orderNo string) (*domain.Request, error)
+	MarkPaid(requestNo, providerRef string, paidAt time.Time) (bool, *domain.Request, error)
+}
+
+func (s *Service) HandlePaymentCallback(form map[string][]string, body []byte) (*domain.Request, bool, error) {
+	requestNo := strings.TrimSpace(firstFormValue(form, "out_trade_no"))
+	if requestNo == "" {
+		return nil, false, ErrInvalidInput
+	}
+	request, err := s.store.GetByRequestNo(requestNo)
+	if err != nil || request == nil {
+		return nil, false, ErrInvalidInput
+	}
+	channel, err := s.channels.GetByID(request.PaymentChannelID)
+	if err != nil || channel == nil {
+		return nil, false, ErrPaymentUnavailable
+	}
+	provider, ok := s.gateways.Lookup(channel.ProviderType, channel.ChannelType)
+	if !ok {
+		return nil, false, ErrPaymentUnavailable
+	}
+	verifier, ok := provider.(paymentcontract.GatewayCallbackVerifier)
+	if !ok {
+		return nil, false, ErrPaymentUnavailable
+	}
+	result, err := verifier.VerifyCallback(channel.ConfigJSON, form, body)
+	if err != nil {
+		return nil, false, err
+	}
+	if strings.TrimSpace(result.OrderNo) != request.RequestNo || result.Status != constants.PaymentStatusSuccess || !result.Amount.Decimal.Equal(request.PaymentAmount.Decimal) || strings.ToUpper(strings.TrimSpace(result.Currency)) != "CNY" {
+		return nil, false, ErrPaymentUnavailable
+	}
+	paidAt := time.Now()
+	if result.PaidAt != nil {
+		paidAt = *result.PaidAt
+	}
+	changed, paidRequest, err := s.store.MarkPaid(request.RequestNo, strings.TrimSpace(result.ProviderRef), paidAt)
+	return paidRequest, !changed, err
+}
+
+func firstFormValue(form map[string][]string, key string) string {
+	values := form[key]
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
 }
 
 type ChannelStore interface {
@@ -47,6 +93,14 @@ func NewService(store Store, channels ChannelStore, gateways paymentcontract.Gat
 		panic("invoice service: required dependency is nil")
 	}
 	return &Service{store: store, channels: channels, gateways: gateways, baseURL: strings.TrimRight(baseURL, "/")}
+}
+
+func (s *Service) Get(requestNo string) (*domain.Request, error) {
+	requestNo = strings.TrimSpace(requestNo)
+	if requestNo == "" {
+		return nil, ErrInvalidInput
+	}
+	return s.store.GetByRequestNo(requestNo)
 }
 
 type CreateInput struct {

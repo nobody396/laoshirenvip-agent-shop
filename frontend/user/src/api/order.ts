@@ -88,3 +88,12 @@ export const paymentAPI = {
     capture: (id: number) => userApi.post(`/payments/${id}/capture`),
     latest: (params: any) => userApi.get('/payments/latest', { params, silentBusinessError: true }),
 }
+
+export const invoiceAPI = {
+	create: (data: any) => userApi.post('/invoices', data),
+	createGuest: (data: GuestAuthInput) => {
+		const request = withGuestAuth(data)
+		return userApi.post('/guest/invoices', request.payload, request.options)
+	},
+	get: (requestNo: string) => userApi.get(`/public/invoices/${encodeURIComponent(requestNo)}`),
+}

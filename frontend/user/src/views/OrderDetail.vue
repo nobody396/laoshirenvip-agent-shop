@@ -75,6 +75,9 @@
               <Button v-if="order.status === 'pending_payment'" variant="destructive" size="sm" @click="cancelOrder">
                 {{ t('orderDetail.cancel') }}
               </Button>
+			  <Button v-if="['paid', 'partially_delivered', 'delivered', 'completed'].includes(order.status) && !hasAmount(order.refunded_amount)" as-child size="sm" variant="secondary">
+				<router-link :to="`/invoice?order_no=${encodeURIComponent(order.order_no)}`">申请开票</router-link>
+			  </Button>
             </div>
           </div>
         </div>

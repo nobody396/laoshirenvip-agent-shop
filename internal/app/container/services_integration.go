@@ -18,6 +18,7 @@ import (
 	downstreamcallbackcredentialreader "github.com/dujiao-next/internal/modules/downstreamcallback/infrastructure/credentialreader"
 	downstreamcallbackorderreader "github.com/dujiao-next/internal/modules/downstreamcallback/infrastructure/orderreader"
 	downstreamcallbackqueue "github.com/dujiao-next/internal/modules/downstreamcallback/infrastructure/queueadapter"
+	invoiceapp "github.com/dujiao-next/internal/modules/invoice/application"
 	notificationapp "github.com/dujiao-next/internal/modules/notification/application"
 	notificationasyncqueue "github.com/dujiao-next/internal/modules/notification/infrastructure/asyncqueue"
 	notificationfeishu "github.com/dujiao-next/internal/modules/notification/infrastructure/feishu"
@@ -124,6 +125,12 @@ func (c *Container) initIntegrationServices() {
 		ResellerFeeWalletOwners: resellerPaymentChannelSelector{store: c.ResellerStore},
 		OrderResourceSummary:    newPaymentOrderResourceSummary(gormdb.DB, c.SiteConnectionService),
 	})
+	c.InvoiceService = invoiceapp.NewService(
+		c.InvoiceRepo,
+		c.PaymentChannelStore,
+		c.PaymentProviderRegistry,
+		c.Config.Invoice.PublicBaseURL,
+	)
 	c.ProcurementOrderService = procurementapp.NewService(procurementapp.Options{
 		Repository:         c.ProcurementOrderRepo,
 		Orders:             procurementorder.New(c.OrderStore),

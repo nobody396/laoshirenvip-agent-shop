@@ -21,6 +21,7 @@ import (
 	emailverificationstore "github.com/dujiao-next/internal/modules/identity/emailverification/infrastructure/gormstore"
 	externalidentitystore "github.com/dujiao-next/internal/modules/identity/externalidentity/infrastructure/gormstore"
 	userstore "github.com/dujiao-next/internal/modules/identity/user/infrastructure/gormstore"
+	invoicegormstore "github.com/dujiao-next/internal/modules/invoice/infrastructure/gormstore"
 	memberlevelgormstore "github.com/dujiao-next/internal/modules/memberlevel/infrastructure/gormstore"
 	notificationgormstore "github.com/dujiao-next/internal/modules/notification/infrastructure/gormstore"
 	ordergormstore "github.com/dujiao-next/internal/modules/order/infrastructure/gormstore"
@@ -52,6 +53,7 @@ func (c *Container) initRepositories() error {
 	c.CardSecretRepo = cardsecretgormstore.New(db)
 	c.CardSecretBatchRepo = cardsecretgormstore.NewBatch(db)
 	c.GiftCardRepo = giftcardgormstore.New(db)
+	c.InvoiceRepo = invoicegormstore.New(db)
 	c.FulfillmentStore = fulfillmentgormstore.New(db)
 	c.ProductRepo = productgormstore.NewProductStore(db)
 	c.ProductSKURepo = productgormstore.NewSKUStore(db)

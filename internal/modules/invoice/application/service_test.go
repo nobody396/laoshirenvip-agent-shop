@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/dujiao-next/internal/modules/invoice/domain"
 	paymentcontract "github.com/dujiao-next/internal/modules/payment/contract"
@@ -22,6 +23,18 @@ func (s *requestStoreStub) GetByRequestNo(string) (*domain.Request, error) {
 }
 func (s *requestStoreStub) GetByOriginalOrder(_, _, _ string) (*domain.Request, error) {
 	return s.item, nil
+}
+func (s *requestStoreStub) MarkPaid(_ string, providerRef string, paidAt time.Time) (bool, *domain.Request, error) {
+	if s.item == nil {
+		return false, nil, nil
+	}
+	if s.item.Status != domain.StatusPendingPayment {
+		return false, s.item, nil
+	}
+	s.item.Status = domain.StatusPendingIssue
+	s.item.ProviderRef = providerRef
+	s.item.PaidAt = &paidAt
+	return true, s.item, nil
 }
 
 type channelStoreStub struct{ item *paymentdomain.PaymentChannel }
