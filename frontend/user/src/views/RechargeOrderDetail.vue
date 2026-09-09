@@ -36,6 +36,9 @@
               <Badge :variant="rechargeStatusVariant(recharge.status)" size="sm">
                 {{ rechargeStatusText(recharge.status) }}
               </Badge>
+			  <Button v-if="recharge.status === 'success'" as-child size="sm" variant="secondary">
+				<router-link :to="`/invoice?source=recharge&recharge_no=${encodeURIComponent(recharge.recharge_no)}`">申请开票</router-link>
+			  </Button>
             </div>
           </div>
         </div>

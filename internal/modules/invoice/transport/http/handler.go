@@ -12,6 +12,7 @@ import (
 	"github.com/dujiao-next/internal/modules/invoice/domain"
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
 	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
+	walletdomain "github.com/dujiao-next/internal/modules/wallet/domain"
 	"github.com/dujiao-next/internal/platform/http/ginutil"
 	"github.com/dujiao-next/internal/platform/http/response"
 	"github.com/dujiao-next/internal/shared/money"
@@ -25,24 +26,25 @@ type OrderQuery interface {
 }
 
 type Handler struct {
-	service *invoiceapp.Service
-	orders  OrderQuery
-	gmshop  GMShopOrderQuery
+	service   *invoiceapp.Service
+	orders    OrderQuery
+	gmshop    GMShopOrderQuery
+	recharges RechargeQuery
 }
 
 type GMShopOrderQuery interface {
 	Lookup(context.Context, string, string) (money.Amount, error)
 }
 
-func NewHandler(service *invoiceapp.Service, orders OrderQuery, gmshop ...GMShopOrderQuery) *Handler {
+type RechargeQuery interface {
+	GetRechargeOrderByRechargeNo(uint, string) (*walletdomain.RechargeOrder, error)
+}
+
+func NewHandler(service *invoiceapp.Service, orders OrderQuery, gmshop GMShopOrderQuery, recharges RechargeQuery) *Handler {
 	if service == nil || orders == nil {
 		panic("invoice handler: required dependency is nil")
 	}
-	handler := &Handler{service: service, orders: orders}
-	if len(gmshop) > 0 {
-		handler.gmshop = gmshop[0]
-	}
-	return handler
+	return &Handler{service: service, orders: orders, gmshop: gmshop, recharges: recharges}
 }
 
 type createRequest struct {
@@ -76,6 +78,42 @@ func (h *Handler) CreateGMShop(c *gin.Context) {
 	}
 	request, err := h.service.Create(c.Request.Context(), invoiceapp.CreateInput{
 		Source: "gmshop", SourceHost: "laoshirenvip.com", OriginalOrderNo: req.OrderNo, OriginalAmount: amount,
+		InvoiceType: req.InvoiceType, BuyerTitle: req.BuyerTitle, TaxNumber: req.TaxNumber,
+		CompanyAddress: req.CompanyAddress, CompanyPhone: req.CompanyPhone, BankName: req.BankName, BankAccount: req.BankAccount,
+		RecipientEmail: req.RecipientEmail, ClientIP: c.ClientIP(),
+	})
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_create_failed", err)
+		return
+	}
+	response.Success(c, publicRequest(request))
+}
+
+func (h *Handler) CreateRecharge(c *gin.Context) {
+	userID, ok := ginutil.GetUserID(c)
+	if !ok {
+		return
+	}
+	var req createRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		ginutil.RespondBindError(c, err)
+		return
+	}
+	if h.recharges == nil || !strings.EqualFold(strings.TrimSpace(req.RecipientEmail), strings.TrimSpace(req.ConfirmEmail)) {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_invalid", nil)
+		return
+	}
+	recharge, err := h.recharges.GetRechargeOrderByRechargeNo(userID, strings.TrimSpace(req.OrderNo))
+	if err != nil || recharge == nil || recharge.Status != constants.WalletRechargeStatusSuccess || recharge.Currency != constants.SiteCurrencyDefault || !recharge.Amount.Decimal.IsPositive() {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_order_ineligible", nil)
+		return
+	}
+	host := tenant(c).Host
+	if host == "" {
+		host = resellercontract.NormalizeHost(c.Request.Host)
+	}
+	request, err := h.service.Create(c.Request.Context(), invoiceapp.CreateInput{
+		Source: "dujiao_recharge", SourceHost: host, OriginalOrderNo: recharge.RechargeNo, OriginalAmount: recharge.Amount,
 		InvoiceType: req.InvoiceType, BuyerTitle: req.BuyerTitle, TaxNumber: req.TaxNumber,
 		CompanyAddress: req.CompanyAddress, CompanyPhone: req.CompanyPhone, BankName: req.BankName, BankAccount: req.BankAccount,
 		RecipientEmail: req.RecipientEmail, ClientIP: c.ClientIP(),

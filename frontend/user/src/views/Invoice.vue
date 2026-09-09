@@ -23,7 +23,7 @@
 
       <form v-else class="mt-8 space-y-6 rounded-2xl border bg-card p-6 shadow-sm" @submit.prevent="submit">
         <label class="grid gap-2 text-sm">
-          <span>订单号</span>
+		  <span>{{ isRecharge ? '充值单号' : '订单号' }}</span>
           <Input v-model="form.order_no" required />
         </label>
 		<div v-if="isGMShop" class="grid gap-2 text-sm"><span>下单邮箱</span><Input v-model="guest.email" type="email" required /></div>
@@ -64,13 +64,14 @@ import { Input } from '../components/ui/input'
 const route = useRoute()
 const isGuest = computed(() => route.query.guest === '1')
 const isGMShop = computed(() => route.query.source === 'gmshop')
+const isRecharge = computed(() => route.query.source === 'recharge')
 const loading = ref(false)
 const error = ref('')
 const result = ref<any>(null)
 const qrImage = ref('')
 const guest = reactive({ email: '', order_password: '' })
 const form = reactive({
-  order_no: String(route.query.order_no || ''), invoice_type: 'ordinary', buyer_title: '', tax_number: '',
+	order_no: String(route.query.order_no || route.query.recharge_no || ''), invoice_type: 'ordinary', buyer_title: '', tax_number: '',
   company_address: '', company_phone: '', bank_name: '', bank_account: '', recipient_email: '', confirm_email: '',
 })
 let statusTimer: number | undefined
@@ -108,6 +109,7 @@ async function submit() {
   try {
 	let response
 	if (isGMShop.value) response = await invoiceAPI.createGMShop({ ...form, order_email: guest.email })
+	else if (isRecharge.value) response = await invoiceAPI.createRecharge(form)
 	else if (isGuest.value) response = await invoiceAPI.createGuest({ ...form, ...guest })
 	else response = await invoiceAPI.create(form)
     result.value = response.data

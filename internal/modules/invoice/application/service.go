@@ -172,7 +172,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 	input.BuyerTitle = strings.TrimSpace(input.BuyerTitle)
 	input.TaxNumber = strings.TrimSpace(input.TaxNumber)
 	input.RecipientEmail = strings.ToLower(strings.TrimSpace(input.RecipientEmail))
-	if (input.Source != "dujiao" && input.Source != "gmshop") || input.SourceHost == "" || input.OriginalOrderNo == "" || input.BuyerTitle == "" || input.TaxNumber == "" || input.ClientIP == "" {
+	if (input.Source != "dujiao" && input.Source != "dujiao_recharge" && input.Source != "gmshop") || input.SourceHost == "" || input.OriginalOrderNo == "" || input.BuyerTitle == "" || input.TaxNumber == "" || input.ClientIP == "" {
 		return nil, ErrInvalidInput
 	}
 	if address, err := mail.ParseAddress(input.RecipientEmail); err != nil || !strings.EqualFold(address.Address, input.RecipientEmail) {
