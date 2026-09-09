@@ -355,6 +355,28 @@ func (s *Service) SyncAllStock(cfg settingsintegration.UpstreamSyncConfig) error
 	return errors.Join(errs...)
 }
 
+// SyncConnectionNow refreshes one authenticated upstream connection after a
+// stock-change callback. The periodic all-connection sync remains the fallback.
+func (s *Service) SyncConnectionNow(connectionID uint) error {
+	if connectionID == 0 {
+		return siteconnectioncontract.ErrNotFound
+	}
+	mappings, err := s.mappings.ListActiveByConnection(connectionID)
+	if err != nil {
+		return err
+	}
+	if len(mappings) == 0 {
+		return nil
+	}
+	cfg := settingsintegration.DefaultUpstreamSyncConfig()
+	if s.settings != nil {
+		if configured, loadErr := s.settings.GetUpstreamSyncConfig("5m"); loadErr == nil {
+			cfg = configured
+		}
+	}
+	return s.SyncConnectionStock(connectionID, mappings, cfg.SyncPageSize, cfg.SyncMaxPages)
+}
+
 // EnsureUpstreamStockForOrder 下单前对上游履约 SKU 进行库存兜底校验。
 //
 // 语义（失败优先安全开放，避免上游抖动导致全站不能下单）：
@@ -450,6 +472,11 @@ func (s *Service) computeFullSyncInterval() time.Duration {
 
 // SyncConnectionStock 按连接批量同步：一次 ListProducts 拉取所有商品，内存匹配映射
 func (s *Service) SyncConnectionStock(connectionID uint, connMappings []mappingdomain.Mapping, pageSize int, maxPages int) error {
+	lock, _ := s.connectionSyncs.LoadOrStore(connectionID, &sync.Mutex{})
+	connectionLock := lock.(*sync.Mutex)
+	connectionLock.Lock()
+	defer connectionLock.Unlock()
+
 	conn, err := s.connections.GetByID(connectionID)
 	if err != nil || conn == nil {
 		return fmt.Errorf("get connection %d: %w", connectionID, err)

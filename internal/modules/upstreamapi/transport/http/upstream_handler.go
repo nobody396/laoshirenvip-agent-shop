@@ -145,6 +145,10 @@ type SecretDecrypter interface {
 	DecryptSecret(encrypted string) (string, error)
 }
 
+type InventorySync interface {
+	SyncConnectionNow(connectionID uint) error
+}
+
 type Dependencies struct {
 	Categories        CategoryRepository
 	Products          ProductService
@@ -162,6 +166,7 @@ type Dependencies struct {
 	DownstreamRefs    DownstreamOrderReferences
 	Connections       SiteConnections
 	ConnectionSecrets SecretDecrypter
+	InventorySync     InventorySync
 }
 
 type Handler struct {
@@ -174,7 +179,7 @@ func New(dependencies Dependencies) *Handler {
 		dependencies.SKUMappings == nil || dependencies.MemberLevels == nil || dependencies.Settings == nil ||
 		dependencies.Wallet == nil || dependencies.Orders == nil || dependencies.Payments == nil ||
 		dependencies.Procurements == nil || dependencies.DownstreamRefs == nil || dependencies.Connections == nil ||
-		dependencies.ConnectionSecrets == nil {
+		dependencies.ConnectionSecrets == nil || dependencies.InventorySync == nil {
 		panic("upstream handler: required dependency is nil")
 	}
 	return &Handler{Dependencies: dependencies}

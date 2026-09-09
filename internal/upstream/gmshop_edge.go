@@ -24,6 +24,13 @@ import (
 
 const gmshopResponseLimit = 10 << 20
 
+const (
+	GMShopEdgeHeaderAPIKey    = "GMShop-Edge-Api-Key"
+	GMShopEdgeHeaderTimestamp = "GMShop-Edge-Timestamp"
+	GMShopEdgeHeaderNonce     = "GMShop-Edge-Nonce"
+	GMShopEdgeHeaderSignature = "GMShop-Edge-Signature"
+)
+
 type GMShopEdgeAdapter struct {
 	connectionID uint
 	baseURL      string
@@ -301,10 +308,10 @@ func (a *GMShopEdgeAdapter) request(ctx context.Context, method, pathWithQuery s
 	if err != nil {
 		return fmt.Errorf("create gmshop-edge request: %w", err)
 	}
-	req.Header.Set("GMShop-Edge-Api-Key", a.apiKey)
-	req.Header.Set("GMShop-Edge-Timestamp", timestamp)
-	req.Header.Set("GMShop-Edge-Nonce", nonce)
-	req.Header.Set("GMShop-Edge-Signature", signGMShopEdge(a.apiSecret, method, pathWithQuery, timestamp, nonce, rawBody))
+	req.Header.Set(GMShopEdgeHeaderAPIKey, a.apiKey)
+	req.Header.Set(GMShopEdgeHeaderTimestamp, timestamp)
+	req.Header.Set(GMShopEdgeHeaderNonce, nonce)
+	req.Header.Set(GMShopEdgeHeaderSignature, signGMShopEdge(a.apiSecret, method, pathWithQuery, timestamp, nonce, rawBody))
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -346,6 +353,11 @@ func signGMShopEdge(secret, method, pathWithQuery, timestamp, nonce string, body
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(payload))
 	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func VerifyGMShopEdgeSignature(secret, method, pathWithQuery, timestamp, nonce, signature string, body []byte) bool {
+	expected := signGMShopEdge(secret, method, pathWithQuery, timestamp, nonce, body)
+	return hmac.Equal([]byte(expected), []byte(signature))
 }
 
 func minorToMajor(value string, decimals int) string {

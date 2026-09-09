@@ -2,6 +2,7 @@ package application
 
 import (
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/dujiao-next/internal/constants"
@@ -42,6 +43,7 @@ type Service struct {
 	categoryCreator mappingcontract.CategoryCreator
 	settings        mappingcontract.SettingsProvider
 	cardStock       mappingcontract.CardStockCounter
+	connectionSyncs sync.Map
 }
 
 func NewService(options Options) (*Service, error) {

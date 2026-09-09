@@ -1,12 +1,19 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { startInventoryRevalidation } from '../src/utils/inventoryRevalidation.ts'
+import {
+  INVENTORY_REVALIDATION_INTERVAL_MS,
+  startInventoryRevalidation,
+} from '../src/utils/inventoryRevalidation.ts'
 
 const flush = async () => {
   await Promise.resolve()
   await Promise.resolve()
 }
+
+test('keeps visible stock within the realtime refresh budget', () => {
+  assert.equal(INVENTORY_REVALIDATION_INTERVAL_MS, 3_000)
+})
 
 test('revalidates visible inventory on focus, visibility restore, and interval', async () => {
   const windowTarget = new EventTarget()
