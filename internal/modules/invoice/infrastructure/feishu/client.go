@@ -187,9 +187,8 @@ func (c *Client) ListReadyInvoices(ctx context.Context) ([]invoicecontract.Ready
 	}
 	ready := make([]invoicecontract.ReadyInvoice, 0, len(data.Items))
 	for _, item := range data.Items {
-		var requestNo, invoiceNumber string
-		_ = json.Unmarshal(item.Fields["申请编号"], &requestNo)
-		_ = json.Unmarshal(item.Fields["发票号码"], &invoiceNumber)
+		requestNo := textCell(item.Fields["申请编号"])
+		invoiceNumber := textCell(item.Fields["发票号码"])
 		var attachments []struct {
 			FileToken string `json:"file_token"`
 			Name      string `json:"name"`
@@ -208,6 +207,24 @@ func (c *Client) ListReadyInvoices(ctx context.Context) ([]invoicecontract.Ready
 		ready = append(ready, invoicecontract.ReadyInvoice{RecordID: item.RecordID, RequestNo: requestNo, InvoiceNumber: invoiceNumber, FileToken: attachments[0].FileToken, FileName: attachments[0].Name, InvoiceDate: invoiceDate})
 	}
 	return ready, nil
+}
+
+func textCell(raw json.RawMessage) string {
+	var plain string
+	if json.Unmarshal(raw, &plain) == nil {
+		return strings.TrimSpace(plain)
+	}
+	var parts []struct {
+		Text string `json:"text"`
+	}
+	if json.Unmarshal(raw, &parts) != nil {
+		return ""
+	}
+	var value strings.Builder
+	for _, part := range parts {
+		value.WriteString(part.Text)
+	}
+	return strings.TrimSpace(value.String())
 }
 
 func (c *Client) DownloadInvoice(ctx context.Context, fileToken string) ([]byte, error) {
