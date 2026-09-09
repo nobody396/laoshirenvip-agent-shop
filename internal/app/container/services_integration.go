@@ -25,6 +25,7 @@ import (
 	notificationapp "github.com/dujiao-next/internal/modules/notification/application"
 	notificationasyncqueue "github.com/dujiao-next/internal/modules/notification/infrastructure/asyncqueue"
 	notificationfeishu "github.com/dujiao-next/internal/modules/notification/infrastructure/feishu"
+	notificationsmtp "github.com/dujiao-next/internal/modules/notification/infrastructure/smtp"
 	paymentapp "github.com/dujiao-next/internal/modules/payment/application"
 	paymentqueue "github.com/dujiao-next/internal/modules/payment/infrastructure/queueadapter"
 	procurementapp "github.com/dujiao-next/internal/modules/procurement/application"
@@ -147,7 +148,7 @@ func (c *Container) initIntegrationServices() {
 		if invoiceFeishu.Enabled() {
 			c.InvoiceService.SetPaidSink(invoiceFeishu)
 			c.InvoiceDocumentSource = invoiceFeishu
-			c.InvoiceMailer = invoicemailer.NewSMTP(c.EmailSender)
+			c.InvoiceMailer = invoicemailer.NewSMTP(c.EmailSender, notificationsmtp.New(&c.Config.Invoice.PartnerEmail))
 		}
 	}
 	c.ProcurementOrderService = procurementapp.NewService(procurementapp.Options{
