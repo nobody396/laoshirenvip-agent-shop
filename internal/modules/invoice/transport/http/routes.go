@@ -13,6 +13,7 @@ func RegisterGuestRoutes(guest *gin.RouterGroup, handler *Handler) {
 
 func RegisterUserRoutes(user *gin.RouterGroup, handler *Handler) {
 	user.POST("/invoices", handler.CreateUser)
+	user.POST("/invoices/recharge", handler.CreateRecharge)
 }
 
 func RegisterCallbackRoutes(api *gin.RouterGroup, handler *Handler) {
