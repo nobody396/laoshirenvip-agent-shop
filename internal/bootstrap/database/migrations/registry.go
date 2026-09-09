@@ -20,6 +20,7 @@ import (
 	emailverificationdomain "github.com/dujiao-next/internal/modules/identity/emailverification/domain"
 	externalidentitydomain "github.com/dujiao-next/internal/modules/identity/externalidentity/domain"
 	userdomain "github.com/dujiao-next/internal/modules/identity/user/domain"
+	invoicedomain "github.com/dujiao-next/internal/modules/invoice/domain"
 	memberleveldomain "github.com/dujiao-next/internal/modules/memberlevel/domain"
 	notificationdomain "github.com/dujiao-next/internal/modules/notification/domain"
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
@@ -71,6 +72,7 @@ func AutoMigrate() error {
 		&cardsecretdomain.Batch{},
 		&giftcarddomain.GiftCard{},
 		&giftcarddomain.GiftCardBatch{},
+		&invoicedomain.Request{},
 		&fulfillmentdomain.Fulfillment{},
 		&coupondomain.Coupon{},
 		&coupondomain.CouponUsage{},
