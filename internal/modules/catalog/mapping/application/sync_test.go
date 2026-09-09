@@ -18,6 +18,9 @@ func TestSyncedSpecValuesKeepsCuratedLabelWhenUpstreamHasNoSpecs(t *testing.T) {
 	if got := syncedSpecValues(current, jsonmap.JSON{}); got["name"] != current["name"] {
 		t.Fatalf("curated spec label was overwritten: %#v", got)
 	}
+	if got := syncedSpecValues(current, jsonmap.JSON{"race": ""}); got["name"] != current["name"] {
+		t.Fatalf("blank upstream spec was treated as a real value: %#v", got)
+	}
 	upstream := jsonmap.JSON{"name": "Claude Max 5X"}
 	if got := syncedSpecValues(current, upstream); got["name"] != upstream["name"] {
 		t.Fatalf("non-empty upstream spec should update local value: %#v", got)

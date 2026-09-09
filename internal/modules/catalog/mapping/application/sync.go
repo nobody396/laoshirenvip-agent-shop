@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -766,8 +767,40 @@ func (s *Service) syncProductFromData(mapping *mappingdomain.Mapping, conn *site
 }
 
 func syncedSpecValues(current, upstream jsonmap.JSON) jsonmap.JSON {
-	if len(upstream) == 0 {
+	if !hasNonEmptySpecValue(upstream) {
 		return current
 	}
 	return upstream
+}
+
+func hasNonEmptySpecValue(value any) bool {
+	switch typed := value.(type) {
+	case nil:
+		return false
+	case string:
+		return strings.TrimSpace(typed) != ""
+	case jsonmap.JSON:
+		for _, item := range typed {
+			if hasNonEmptySpecValue(item) {
+				return true
+			}
+		}
+		return false
+	case map[string]interface{}:
+		for _, item := range typed {
+			if hasNonEmptySpecValue(item) {
+				return true
+			}
+		}
+		return false
+	case []interface{}:
+		for _, item := range typed {
+			if hasNonEmptySpecValue(item) {
+				return true
+			}
+		}
+		return false
+	default:
+		return strings.TrimSpace(fmt.Sprint(typed)) != ""
+	}
 }
