@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http"
 	"strings"
 
 	"github.com/dujiao-next/internal/constants"
@@ -176,7 +177,11 @@ func (h *Handler) PaymentCallback(c *gin.Context) {
 		c.String(400, "fail")
 		return
 	}
-	if _, _, err := h.service.HandlePaymentCallback(c.Request.PostForm, body); err != nil {
+	form := c.Request.PostForm
+	if c.Request.Method == http.MethodGet {
+		form = c.Request.Form
+	}
+	if _, _, err := h.service.HandlePaymentCallback(form, body); err != nil {
 		c.String(400, "fail")
 		return
 	}
