@@ -110,17 +110,22 @@ func (h *PublicHandler) decorateProductStock(product *productdomain.Product, ite
 // creation still consumes local cards whenever they cover the requested
 // quantity. A larger order can therefore fall back wholly to upstream stock.
 func (h *PublicHandler) decorateLocalFirstStock(product *productdomain.Product, item *publicProductView) {
-	mapping, err := h.mappings.GetByLocalProductID(product.ID)
-	if err != nil || mapping == nil {
+	mappings, err := h.mappings.ListByLocalProductIDs([]uint{product.ID})
+	if err != nil || len(mappings) == 0 {
 		item.StockStatus = domaincatalog.StorefrontStockPolicy().Status(item.AutoStockAvailable)
 		item.IsSoldOut = item.StockStatus == constants.ProductStockStatusOutOfStock
 		return
 	}
-	skuMappings, err := h.skuMappings.ListByProductMapping(mapping.ID)
-	if err != nil {
-		item.StockStatus = domaincatalog.StorefrontStockPolicy().Status(item.AutoStockAvailable)
-		item.IsSoldOut = item.StockStatus == constants.ProductStockStatusOutOfStock
-		return
+	skuMappings := make([]mappingdomain.SKUMapping, 0)
+	for _, mapping := range mappings {
+		if !mapping.IsActive {
+			continue
+		}
+		rows, loadErr := h.skuMappings.ListByProductMapping(mapping.ID)
+		if loadErr != nil {
+			continue
+		}
+		skuMappings = append(skuMappings, rows...)
 	}
 	byLocalSKU := make(map[uint]mappingdomain.SKUMapping, len(skuMappings))
 	for _, row := range skuMappings {
@@ -160,9 +165,9 @@ func (h *PublicHandler) decorateLocalFirstStock(product *productdomain.Product, 
 
 // decorateUpstreamStock 根据 SKU 映射的上游库存信息填充商品及 SKU 级库存状态
 func (h *PublicHandler) decorateUpstreamStock(product *productdomain.Product, item *publicProductView) {
-	// 通过本地商品 ID 查找 product mapping
-	mapping, err := h.mappings.GetByLocalProductID(product.ID)
-	if err != nil || mapping == nil {
+	// A product may group SKU variants from several upstream connections.
+	mappings, err := h.mappings.ListByLocalProductIDs([]uint{product.ID})
+	if err != nil || len(mappings) == 0 {
 		// 没有映射记录，降级为显示有库存（避免误售罄）
 		item.Product.FulfillmentType = constants.FulfillmentTypeManual
 		item.StockStatus = constants.ProductStockStatusInStock
@@ -171,15 +176,28 @@ func (h *PublicHandler) decorateUpstreamStock(product *productdomain.Product, it
 	}
 
 	// 根据上游原始交付类型设置展示类型：auto 还是 manual
-	displayType := mapping.UpstreamFulfillmentType
-	if displayType != constants.FulfillmentTypeAuto {
-		displayType = constants.FulfillmentTypeManual
+	displayType := constants.FulfillmentTypeManual
+	for _, mapping := range mappings {
+		if mapping.IsActive && mapping.UpstreamFulfillmentType == constants.FulfillmentTypeAuto {
+			displayType = constants.FulfillmentTypeAuto
+			break
+		}
 	}
 	item.Product.FulfillmentType = displayType
 
-	// 获取该映射下的所有 SKU 映射
-	skuMappings, err := h.skuMappings.ListByProductMapping(mapping.ID)
-	if err != nil || len(skuMappings) == 0 {
+	// Load all SKU mappings across the product's active sources.
+	skuMappings := make([]mappingdomain.SKUMapping, 0)
+	for _, mapping := range mappings {
+		if !mapping.IsActive {
+			continue
+		}
+		rows, loadErr := h.skuMappings.ListByProductMapping(mapping.ID)
+		if loadErr != nil {
+			continue
+		}
+		skuMappings = append(skuMappings, rows...)
+	}
+	if len(skuMappings) == 0 {
 		item.StockStatus = constants.ProductStockStatusInStock
 		item.IsSoldOut = false
 		return

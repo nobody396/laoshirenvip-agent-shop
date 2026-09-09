@@ -42,7 +42,7 @@ func TestProcurementUsesCompleteVerticalLayout(t *testing.T) {
 	assertFileDeclaresTypes(t, filepath.Join(applicationRoot, "service.go"), []string{"Service", "Options"})
 	assertFileDeclaresFunctions(t, filepath.Join(applicationRoot, "service.go"), []string{"NewService"})
 	assertFileDeclaresTypes(t, filepath.Join(contractRoot, "ports.go"), []string{
-		"Repository", "OrderRepository", "ProductMappingReader", "SKUMappingReader", "ConnectionProvider",
+		"Repository", "OrderRepository", "SKUMappingReader", "ConnectionProvider",
 		"Enqueuer", "OrderLifecycle", "DownstreamCallbackEnqueuer", "BotFulfillmentNotifier", "FailureNotifier",
 	})
 	assertFileDeclaresTypes(t, filepath.Join(contractRoot, "types.go"), []string{

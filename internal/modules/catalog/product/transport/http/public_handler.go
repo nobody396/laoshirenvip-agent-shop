@@ -52,9 +52,9 @@ type MemberLevelPricing interface {
 	ResolveMemberPrice(levelID, productID, skuID uint, basePrice decimal.Decimal) (decimal.Decimal, decimal.Decimal)
 }
 
-// LocalProductMappingReader 按本地商品 ID 读取上游映射。
+// LocalProductMappingReader reads every upstream source backing local products.
 type LocalProductMappingReader interface {
-	GetByLocalProductID(productID uint) (*mappingdomain.Mapping, error)
+	ListByLocalProductIDs(productIDs []uint) ([]mappingdomain.Mapping, error)
 }
 
 // RelatedPostReader 是商品详情消费方所需的最小 Content 读取接口。

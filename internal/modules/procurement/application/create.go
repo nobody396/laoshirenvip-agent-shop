@@ -64,13 +64,13 @@ func (s *Service) createProcurementForSingleOrder(order *procurementdomain.Local
 	}
 	item := order.Items[0]
 
-	// 查找商品映射
-	connectionID, found, err := s.mappingRepo.FindConnectionID(item.ProductID)
+	// 同一商品可以包含来自不同上游的 SKU，因此连接必须按 SKU 映射解析。
+	connectionID, found, err := s.skuMapRepo.FindConnectionID(item.SKUID)
 	if err != nil {
 		return fmt.Errorf("lookup product mapping: %w", err)
 	}
 	if !found {
-		return fmt.Errorf("no product mapping for product %d", item.ProductID)
+		return fmt.Errorf("no product mapping for sku %d", item.SKUID)
 	}
 
 	procOrder := &procurementdomain.Order{

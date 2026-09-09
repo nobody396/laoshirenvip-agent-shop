@@ -6,24 +6,30 @@ import (
 )
 
 type ProductSource interface {
-	GetByLocalProductID(productID uint) (*mappingdomain.Mapping, error)
+	GetByID(id uint) (*mappingdomain.Mapping, error)
 }
 
 type SKUReaderSource interface {
 	GetByLocalSKUID(skuID uint) (*mappingdomain.SKUMapping, error)
 }
 
-type ProductReader struct{ source ProductSource }
-type SKUReader struct{ source SKUReaderSource }
+type SKUReader struct {
+	skus     SKUReaderSource
+	products ProductSource
+}
 
-var _ procurementcontract.ProductMappingReader = (*ProductReader)(nil)
 var _ procurementcontract.SKUMappingReader = (*SKUReader)(nil)
 
-func NewProducts(source ProductSource) *ProductReader { return &ProductReader{source: source} }
-func NewSKUs(source SKUReaderSource) *SKUReader       { return &SKUReader{source: source} }
+func NewSKUs(skus SKUReaderSource, products ProductSource) *SKUReader {
+	return &SKUReader{skus: skus, products: products}
+}
 
-func (r *ProductReader) FindConnectionID(productID uint) (uint, bool, error) {
-	mapping, err := r.source.GetByLocalProductID(productID)
+func (r *SKUReader) FindConnectionID(skuID uint) (uint, bool, error) {
+	sku, err := r.skus.GetByLocalSKUID(skuID)
+	if err != nil || sku == nil {
+		return 0, false, err
+	}
+	mapping, err := r.products.GetByID(sku.ProductMappingID)
 	if err != nil || mapping == nil {
 		return 0, false, err
 	}
@@ -31,7 +37,7 @@ func (r *ProductReader) FindConnectionID(productID uint) (uint, bool, error) {
 }
 
 func (r *SKUReader) FindUpstreamSKUID(skuID uint) (uint, bool, error) {
-	mapping, err := r.source.GetByLocalSKUID(skuID)
+	mapping, err := r.skus.GetByLocalSKUID(skuID)
 	if err != nil || mapping == nil {
 		return 0, false, err
 	}

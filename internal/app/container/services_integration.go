@@ -127,8 +127,7 @@ func (c *Container) initIntegrationServices() {
 	c.ProcurementOrderService = procurementapp.NewService(procurementapp.Options{
 		Repository:         c.ProcurementOrderRepo,
 		Orders:             procurementorder.New(c.OrderStore),
-		ProductMappings:    procurementmapping.NewProducts(c.ProductMappingRepo),
-		SKUMappings:        procurementmapping.NewSKUs(c.SKUMappingRepo),
+		SKUMappings:        procurementmapping.NewSKUs(c.SKUMappingRepo, c.ProductMappingRepo),
 		Connections:        procurementupstream.New(c.SiteConnectionService),
 		Queue:              procurementqueue.New(c.QueueClient),
 		OrderLifecycle:     c.ProcurementOrderRepo.NewLifecycle(c.QueueClient, c.SettingService, c.Config.Email),

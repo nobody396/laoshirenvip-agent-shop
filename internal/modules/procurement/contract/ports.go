@@ -23,11 +23,8 @@ type OrderRepository interface {
 	UpdateStatus(id uint, status string, updates map[string]interface{}) error
 }
 
-type ProductMappingReader interface {
-	FindConnectionID(productID uint) (connectionID uint, found bool, err error)
-}
-
 type SKUMappingReader interface {
+	FindConnectionID(skuID uint) (connectionID uint, found bool, err error)
 	FindUpstreamSKUID(skuID uint) (upstreamSKUID uint, found bool, err error)
 }
 
