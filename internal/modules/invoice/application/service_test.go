@@ -55,7 +55,12 @@ type channelStoreStub struct{ item *paymentdomain.PaymentChannel }
 func (s channelStoreStub) GetByID(uint) (*paymentdomain.PaymentChannel, error) { return s.item, nil }
 
 type gatewayStub struct {
-	input paymentcontract.GatewayCreateInput
+	input    paymentcontract.GatewayCreateInput
+	callback *paymentcontract.GatewayCallbackResult
+}
+
+func (g *gatewayStub) VerifyCallback(jsonmap.JSON, map[string][]string, []byte) (*paymentcontract.GatewayCallbackResult, error) {
+	return g.callback, nil
 }
 
 func (g *gatewayStub) Type() string                              { return "epay" }
@@ -113,5 +118,33 @@ func TestCreateRejectsDuplicateOriginalOrder(t *testing.T) {
 	})
 	if !errors.Is(err, ErrAlreadyRequested) {
 		t.Fatalf("Create() error = %v, want ErrAlreadyRequested", err)
+	}
+}
+
+type paidSinkStub struct{ calls int }
+
+func (s *paidSinkStub) UpsertPaidRequest(context.Context, *domain.Request) (string, error) {
+	s.calls++
+	return "rec-1", nil
+}
+
+func TestPaymentCallbackMarksPaidAndSyncsFeishuOnce(t *testing.T) {
+	request := &domain.Request{RequestNo: "INV-1", Status: domain.StatusPendingPayment, PaymentChannelID: 2, PaymentAmount: money.FromDecimal(decimal.RequireFromString("19.66"))}
+	store := &requestStoreStub{item: request}
+	gateway := &gatewayStub{callback: &paymentcontract.GatewayCallbackResult{OrderNo: "INV-1", ProviderRef: "trade-1", Status: "success", Amount: request.PaymentAmount, Currency: "CNY"}}
+	service := NewService(store, channelStoreStub{item: &paymentdomain.PaymentChannel{ID: 2, ProviderType: "epay", ChannelType: "alipay"}}, registryStub{gateway: gateway}, "https://lsrai.shop")
+	sink := &paidSinkStub{}
+	service.SetPaidSink(sink)
+	for index := 0; index < 2; index++ {
+		paid, duplicate, err := service.HandlePaymentCallback(map[string][]string{"out_trade_no": {"INV-1"}}, nil)
+		if err != nil || paid == nil {
+			t.Fatalf("callback %d failed: %v", index, err)
+		}
+		if duplicate != (index == 1) {
+			t.Fatalf("callback %d duplicate=%v", index, duplicate)
+		}
+	}
+	if store.item.Status != domain.StatusPendingIssue || store.item.FeishuRecordID != "rec-1" || sink.calls != 1 {
+		t.Fatalf("unexpected callback result: request=%+v sink_calls=%d", store.item, sink.calls)
 	}
 }

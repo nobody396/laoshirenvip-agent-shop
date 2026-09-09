@@ -99,7 +99,7 @@ func (c *Client) request(ctx context.Context, method, path string, payload any) 
 		return raw, err
 	}
 	if resp.StatusCode/100 != 2 || raw.Code != 0 {
-		return raw, fmt.Errorf("feishu api failed: code=%d", raw.Code)
+		return raw, fmt.Errorf("feishu api failed: code=%d msg=%s", raw.Code, strings.TrimSpace(raw.Msg))
 	}
 	return raw, nil
 }
