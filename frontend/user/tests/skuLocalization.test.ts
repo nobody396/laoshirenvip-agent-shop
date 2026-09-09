@@ -19,6 +19,10 @@ test('keeps Codex credit denominations localized for Chinese storefronts', () =>
   assert.equal(formatSkuSpecValues({ race: '500点数额度' }, 'zh-TW'), '500 點數額度')
 })
 
+test('renders a named SKU as the value without exposing the internal field name', () => {
+  assert.equal(formatSkuSpecValues({ name: 'Claude Pro 1个月' }, 'zh-CN'), 'Claude Pro 1个月')
+})
+
 test('continues to resolve fully localized SKU values', () => {
   assert.equal(
     formatSkuSpecValues({ 'zh-CN': '250点数额度', 'zh-TW': '250點數額度', 'en-US': '250 Credits' }, 'en-US'),

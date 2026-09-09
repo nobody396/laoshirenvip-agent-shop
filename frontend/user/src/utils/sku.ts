@@ -149,7 +149,7 @@ export const formatSkuSpecValues = (specValues: unknown, locale?: string) => {
       // `race` is the source catalog's opaque single-option field name, not a
       // customer-facing label. Showing it would produce labels such as
       // "race:250 Credits" on the product page.
-      if (normalizedKey.toLowerCase() === 'race') return normalizedValue
+      if (['race', 'name'].includes(normalizedKey.toLowerCase())) return normalizedValue
       return `${normalizedKey}:${normalizedValue}`
     })
     .filter(Boolean)
