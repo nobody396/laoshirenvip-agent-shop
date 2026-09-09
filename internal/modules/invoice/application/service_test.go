@@ -78,7 +78,7 @@ func (r registryStub) Lookup(_, _ string) (paymentcontract.GatewayProvider, bool
 	return r.gateway, true
 }
 
-func TestCreateSnapshotsInvoiceAndFourPercentPaymentAmounts(t *testing.T) {
+func TestCreateDoesNotChargePaymentChannelFeeForInvoiceSupplement(t *testing.T) {
 	store := &requestStoreStub{}
 	gateway := &gatewayStub{}
 	service := NewService(store, channelStoreStub{item: &paymentdomain.PaymentChannel{
@@ -97,10 +97,10 @@ func TestCreateSnapshotsInvoiceAndFourPercentPaymentAmounts(t *testing.T) {
 	if request.InvoiceFeeAmount.String() != "18.90" || request.InvoiceTotalAmount.String() != "648.90" {
 		t.Fatalf("unexpected invoice amounts: %+v", request)
 	}
-	if request.PaymentFeeRate.String() != "4.00" || request.PaymentFeeAmount.String() != "0.76" || request.PaymentAmount.String() != "19.66" {
+	if request.PaymentFeeRate.String() != "0.00" || request.PaymentFeeAmount.String() != "0.00" || request.PaymentAmount.String() != "18.90" {
 		t.Fatalf("unexpected payment amounts: %+v", request)
 	}
-	if gateway.input.OrderNo != request.RequestNo || gateway.input.Amount.String() != "19.66" || gateway.input.NotifyURL != "https://lsrai.shop/api/v1/invoices/payment/callback" {
+	if gateway.input.OrderNo != request.RequestNo || gateway.input.Amount.String() != "18.90" || gateway.input.NotifyURL != "https://lsrai.shop/api/v1/invoices/payment/callback" {
 		t.Fatalf("unexpected gateway input: %+v", gateway.input)
 	}
 	if gateway.input.ReturnURL != "https://lsrai.shop/invoice?request_no="+request.RequestNo {

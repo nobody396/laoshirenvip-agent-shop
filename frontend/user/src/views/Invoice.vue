@@ -14,7 +14,7 @@
             <p>申请编号：<strong>{{ result.request_no }}</strong></p>
             <p>订单金额：¥{{ result.original_amount }}</p>
             <p>开票补款：¥{{ result.invoice_fee_amount }}</p>
-            <p>通道手续费（{{ result.payment_fee_rate }}%）：¥{{ result.payment_fee_amount }}</p>
+            <p v-if="Number(result.payment_fee_amount) > 0">通道手续费（{{ result.payment_fee_rate }}%）：¥{{ result.payment_fee_amount }}</p>
             <p class="text-lg">本次支付：<strong>¥{{ result.payment_amount }}</strong></p>
             <p>发票价税合计：¥{{ result.invoice_total_amount }}</p>
 			<a v-if="result.status === 'pending_payment' && result.pay_url" :href="result.pay_url" target="_blank" rel="noopener noreferrer" class="inline-flex rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground">打开支付宝付款</a>
