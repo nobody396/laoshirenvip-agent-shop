@@ -33,6 +33,7 @@ const (
 	paymentFeePolicyMigrationSettingKey             = "migration/payment_fee_policy_v1"
 	orderRefundPaymentFeeMigrationSettingKey        = "migration/order_refund_payment_fee_v1"
 	orderItemOriginalPriceMigrationKey              = "migration/order_item_original_price_v1"
+	productMappingMultipleSourcesMigrationKey       = "migration/product_mapping_multiple_sources_v1"
 	manualStockUnlimitedValue                       = -1
 	cartProductForeignKeyConstraint                 = "fk_cart_items_product"
 	cartSKUForeignKeyConstraint                     = "fk_cart_items_sku"
@@ -40,6 +41,35 @@ const (
 	supersededProcurementOrderForeignKeyConstraint  = "fk_procurement_orders_local_order_reference"
 	userOAuthIdentityUserProviderUniqueIndex        = "idx_user_oauth_identity_user_provider"
 )
+
+// ensureProductMappingMultipleSourcesMigration lets one storefront product
+// group SKU variants supplied by different upstream connections.
+func ensureProductMappingMultipleSourcesMigration() error {
+	if gormdb.DB == nil {
+		return errors.New("database is not initialized")
+	}
+	var marker settingsstore.SettingRecord
+	if err := gormdb.DB.First(&marker, "key = ?", productMappingMultipleSourcesMigrationKey).Error; err == nil && migrationDone(marker.ValueJSON) {
+		return nil
+	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	return gormdb.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("DROP INDEX IF EXISTS idx_product_mappings_local_product_id").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("CREATE INDEX idx_product_mappings_local_product_id ON product_mappings (local_product_id)").Error; err != nil {
+			return err
+		}
+		return tx.Save(&settingsstore.SettingRecord{
+			Key: productMappingMultipleSourcesMigrationKey,
+			ValueJSON: jsonmap.JSON{
+				"done":        true,
+				"migrated_at": time.Now().UTC().Format(time.RFC3339),
+			},
+		}).Error
+	})
+}
 
 type userOAuthIdentityUserProviderIndexSchema struct {
 	UserID   uint   `gorm:"uniqueIndex:idx_user_oauth_identity_user_provider"`

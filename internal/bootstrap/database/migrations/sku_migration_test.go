@@ -12,6 +12,7 @@ import (
 	cartdomain "github.com/dujiao-next/internal/modules/cart/domain"
 	externalidentitydomain "github.com/dujiao-next/internal/modules/identity/externalidentity/domain"
 
+	mappingdomain "github.com/dujiao-next/internal/modules/catalog/mapping/domain"
 	productdomain "github.com/dujiao-next/internal/modules/catalog/product/domain"
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
 	procurementdomain "github.com/dujiao-next/internal/modules/procurement/domain"
@@ -40,6 +41,32 @@ func setupSKUMigrationTestDB(t *testing.T) *gorm.DB {
 	}
 	gormdb.DB = db
 	return db
+}
+
+func TestEnsureProductMappingMultipleSourcesMigrationAllowsOneProductAcrossConnections(t *testing.T) {
+	db := setupSKUMigrationTestDB(t)
+	if err := db.AutoMigrate(&mappingdomain.Mapping{}, &settingsstore.SettingRecord{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec("DROP INDEX IF EXISTS idx_product_mappings_local_product_id").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec("CREATE UNIQUE INDEX idx_product_mappings_local_product_id ON product_mappings (local_product_id)").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureProductMappingMultipleSourcesMigration(); err != nil {
+		t.Fatal(err)
+	}
+	rows := []mappingdomain.Mapping{
+		{ConnectionID: 1, LocalProductID: 31, UpstreamProductID: 101, IsActive: true},
+		{ConnectionID: 2, LocalProductID: 31, UpstreamProductID: 202, IsActive: true},
+	}
+	if err := db.Create(&rows).Error; err != nil {
+		t.Fatalf("multiple sources for one product should be accepted: %v", err)
+	}
+	if err := ensureProductMappingMultipleSourcesMigration(); err != nil {
+		t.Fatalf("migration should be idempotent: %v", err)
+	}
 }
 
 func setupRegistryMigrationTestDB(t *testing.T) *gorm.DB {

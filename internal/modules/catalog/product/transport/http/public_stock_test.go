@@ -13,14 +13,29 @@ import (
 
 type localFirstMappingReader struct{ mapping *mappingdomain.Mapping }
 
-func (r localFirstMappingReader) GetByLocalProductID(uint) (*mappingdomain.Mapping, error) {
-	return r.mapping, nil
+func (r localFirstMappingReader) ListByLocalProductIDs([]uint) ([]mappingdomain.Mapping, error) {
+	if r.mapping == nil {
+		return nil, nil
+	}
+	return []mappingdomain.Mapping{*r.mapping}, nil
 }
 
 type localFirstSKUMappingReader struct{ rows []mappingdomain.SKUMapping }
 
 func (r localFirstSKUMappingReader) ListByProductMapping(uint) ([]mappingdomain.SKUMapping, error) {
 	return r.rows, nil
+}
+
+type multiSourceMappingReader []mappingdomain.Mapping
+
+func (r multiSourceMappingReader) ListByLocalProductIDs([]uint) ([]mappingdomain.Mapping, error) {
+	return []mappingdomain.Mapping(r), nil
+}
+
+type multiSourceSKUMappingReader map[uint][]mappingdomain.SKUMapping
+
+func (r multiSourceSKUMappingReader) ListByProductMapping(id uint) ([]mappingdomain.SKUMapping, error) {
+	return r[id], nil
 }
 
 func TestDecorateProductStock_AutoSkipsInactiveSKUs(t *testing.T) {
@@ -72,7 +87,7 @@ func TestDecorateProductStock_AutoSkipsInactiveSKUs(t *testing.T) {
 
 func TestDecorateProductStock_MappedAutoAdvertisesLargerFallbackRoute(t *testing.T) {
 	h := &PublicHandler{
-		mappings: localFirstMappingReader{mapping: &mappingdomain.Mapping{ID: 7}},
+		mappings: localFirstMappingReader{mapping: &mappingdomain.Mapping{ID: 7, IsActive: true}},
 		skuMappings: localFirstSKUMappingReader{
 			rows: []mappingdomain.SKUMapping{
 				{
@@ -106,6 +121,28 @@ func TestDecorateProductStock_MappedAutoAdvertisesLargerFallbackRoute(t *testing
 	}
 	if strings.Contains(string(payload), "upstream") {
 		t.Fatalf("public product leaked upstream routing: %s", payload)
+	}
+}
+
+func TestDecorateProductStock_AggregatesSKUStockAcrossSeveralUpstreams(t *testing.T) {
+	h := &PublicHandler{
+		mappings: multiSourceMappingReader{
+			{ID: 7, IsActive: true, UpstreamFulfillmentType: constants.FulfillmentTypeAuto},
+			{ID: 8, IsActive: true, UpstreamFulfillmentType: constants.FulfillmentTypeAuto},
+		},
+		skuMappings: multiSourceSKUMappingReader{
+			7: {{ProductMappingID: 7, LocalSKUID: 11, UpstreamStock: 9, UpstreamIsActive: true}},
+			8: {{ProductMappingID: 8, LocalSKUID: 12, UpstreamStock: 5, UpstreamIsActive: true}},
+		},
+	}
+	product := &productdomain.Product{
+		ID: 1, IsMapped: true, FulfillmentType: constants.FulfillmentTypeUpstream,
+		SKUs: []productdomain.ProductSKU{{ID: 11, IsActive: true}, {ID: 12, IsActive: true}},
+	}
+	item := publicProductView{Product: *product}
+	h.decorateProductStock(product, &item)
+	if item.AutoStockAvailable != 14 || item.Product.SKUs[0].AutoStockAvailable != 9 || item.Product.SKUs[1].AutoStockAvailable != 5 {
+		t.Fatalf("unexpected aggregated stock: total=%d first=%d second=%d", item.AutoStockAvailable, item.Product.SKUs[0].AutoStockAvailable, item.Product.SKUs[1].AutoStockAvailable)
 	}
 }
 

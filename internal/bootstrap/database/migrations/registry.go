@@ -104,6 +104,9 @@ func AutoMigrate() error {
 	if err := ensureUserOAuthIdentityUserProviderUniqueIndex(); err != nil {
 		return err
 	}
+	if err := ensureProductMappingMultipleSourcesMigration(); err != nil {
+		return err
+	}
 	if err := backfillPendingOrderRiskIPs(db); err != nil {
 		return err
 	}
