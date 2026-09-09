@@ -33,6 +33,37 @@ func (s *Store) MarkPaid(requestNo, providerRef string, paidAt time.Time) (bool,
 	return result.RowsAffected == 1, request, err
 }
 
+func (s *Store) SetFeishuSync(requestNo, recordID, lastError string) error {
+	return s.db.Model(&domain.Request{}).Where("request_no = ?", requestNo).Updates(map[string]interface{}{
+		"feishu_record_id":  recordID,
+		"feishu_last_error": lastError,
+		"updated_at":        time.Now(),
+	}).Error
+}
+
+func (s *Store) ClaimEmail(requestNo, invoiceNumber string, invoiceDate *time.Time) (bool, *domain.Request, error) {
+	now := time.Now()
+	result := s.db.Model(&domain.Request{}).
+		Where("request_no = ? AND status IN ?", requestNo, []string{domain.StatusPendingIssue, domain.StatusEmailFailed}).
+		Updates(map[string]interface{}{"status": domain.StatusPendingEmail, "invoice_number": invoiceNumber, "invoice_date": invoiceDate, "email_last_error": "", "updated_at": now})
+	if result.Error != nil {
+		return false, nil, result.Error
+	}
+	request, err := s.GetByRequestNo(requestNo)
+	return result.RowsAffected == 1, request, err
+}
+
+func (s *Store) FinishEmail(requestNo string, success bool, lastError string, at time.Time) error {
+	updates := map[string]interface{}{"updated_at": at, "email_last_error": lastError}
+	if success {
+		updates["status"] = domain.StatusCompleted
+		updates["email_sent_at"] = at
+	} else {
+		updates["status"] = domain.StatusEmailFailed
+	}
+	return s.db.Model(&domain.Request{}).Where("request_no = ? AND status = ?", requestNo, domain.StatusPendingEmail).Updates(updates).Error
+}
+
 func (s *Store) Create(request *domain.Request) error { return s.db.Create(request).Error }
 
 func (s *Store) Save(request *domain.Request) error { return s.db.Save(request).Error }

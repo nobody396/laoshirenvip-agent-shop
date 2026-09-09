@@ -25,7 +25,8 @@
           <span>订单号</span>
           <Input v-model="form.order_no" required />
         </label>
-        <div v-if="isGuest" class="grid gap-4 md:grid-cols-2">
+		<div v-if="isGMShop" class="grid gap-2 text-sm"><span>下单邮箱</span><Input v-model="guest.email" type="email" required /></div>
+        <div v-else-if="isGuest" class="grid gap-4 md:grid-cols-2">
           <label class="grid gap-2 text-sm"><span>下单邮箱</span><Input v-model="guest.email" type="email" required /></label>
           <label class="grid gap-2 text-sm"><span>订单查询密码</span><Input v-model="guest.order_password" type="password" required /></label>
         </div>
@@ -61,6 +62,7 @@ import { Input } from '../components/ui/input'
 
 const route = useRoute()
 const isGuest = computed(() => route.query.guest === '1')
+const isGMShop = computed(() => route.query.source === 'gmshop')
 const loading = ref(false)
 const error = ref('')
 const result = ref<any>(null)
@@ -79,9 +81,10 @@ async function submit() {
   }
   loading.value = true
   try {
-    const response = isGuest.value
-      ? await invoiceAPI.createGuest({ ...form, ...guest })
-      : await invoiceAPI.create(form)
+	let response
+	if (isGMShop.value) response = await invoiceAPI.createGMShop({ ...form, order_email: guest.email })
+	else if (isGuest.value) response = await invoiceAPI.createGuest({ ...form, ...guest })
+	else response = await invoiceAPI.create(form)
     result.value = response.data
     const qr = result.value.qr_code || result.value.pay_url
     if (qr) qrImage.value = await QRCode.toDataURL(qr, { width: 360, margin: 1 })

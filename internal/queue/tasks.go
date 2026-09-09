@@ -41,6 +41,7 @@ const (
 	TaskBotNotify = constants.TaskBotNotify
 	// TaskTelegramBroadcast Telegram 群发任务
 	TaskTelegramBroadcast = constants.TaskTelegramBroadcast
+	TaskInvoiceDelivery   = constants.TaskInvoiceDelivery
 )
 
 // OrderStatusEmailPayload 订单状态邮件任务载荷
@@ -253,4 +254,8 @@ func NewTelegramBroadcastTask(payload TelegramBroadcastPayload) (*asynq.Task, er
 		return nil, err
 	}
 	return asynq.NewTask(TaskTelegramBroadcast, body), nil
+}
+
+func NewInvoiceDeliveryTask() *asynq.Task {
+	return asynq.NewTask(TaskInvoiceDelivery, nil)
 }

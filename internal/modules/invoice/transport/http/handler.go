@@ -2,6 +2,7 @@ package invoicehttp
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
 	"github.com/dujiao-next/internal/platform/http/ginutil"
 	"github.com/dujiao-next/internal/platform/http/response"
+	"github.com/dujiao-next/internal/shared/money"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,13 +27,22 @@ type OrderQuery interface {
 type Handler struct {
 	service *invoiceapp.Service
 	orders  OrderQuery
+	gmshop  GMShopOrderQuery
 }
 
-func NewHandler(service *invoiceapp.Service, orders OrderQuery) *Handler {
+type GMShopOrderQuery interface {
+	Lookup(context.Context, string, string) (money.Amount, error)
+}
+
+func NewHandler(service *invoiceapp.Service, orders OrderQuery, gmshop ...GMShopOrderQuery) *Handler {
 	if service == nil || orders == nil {
 		panic("invoice handler: required dependency is nil")
 	}
-	return &Handler{service: service, orders: orders}
+	handler := &Handler{service: service, orders: orders}
+	if len(gmshop) > 0 {
+		handler.gmshop = gmshop[0]
+	}
+	return handler
 }
 
 type createRequest struct {
@@ -45,6 +56,35 @@ type createRequest struct {
 	BankAccount    string `json:"bank_account"`
 	RecipientEmail string `json:"recipient_email" binding:"required"`
 	ConfirmEmail   string `json:"confirm_email" binding:"required"`
+	OrderEmail     string `json:"order_email"`
+}
+
+func (h *Handler) CreateGMShop(c *gin.Context) {
+	var req createRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		ginutil.RespondBindError(c, err)
+		return
+	}
+	if h.gmshop == nil || !strings.EqualFold(strings.TrimSpace(req.RecipientEmail), strings.TrimSpace(req.ConfirmEmail)) {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_invalid", nil)
+		return
+	}
+	amount, err := h.gmshop.Lookup(c.Request.Context(), req.OrderNo, req.OrderEmail)
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_order_ineligible", nil)
+		return
+	}
+	request, err := h.service.Create(c.Request.Context(), invoiceapp.CreateInput{
+		Source: "gmshop", SourceHost: "laoshirenvip.com", OriginalOrderNo: req.OrderNo, OriginalAmount: amount,
+		InvoiceType: req.InvoiceType, BuyerTitle: req.BuyerTitle, TaxNumber: req.TaxNumber,
+		CompanyAddress: req.CompanyAddress, CompanyPhone: req.CompanyPhone, BankName: req.BankName, BankAccount: req.BankAccount,
+		RecipientEmail: req.RecipientEmail, ClientIP: c.ClientIP(),
+	})
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_create_failed", err)
+		return
+	}
+	response.Success(c, publicRequest(request))
 }
 
 func tenant(c *gin.Context) resellercontract.TenantContext {

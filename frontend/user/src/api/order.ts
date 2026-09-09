@@ -95,5 +95,6 @@ export const invoiceAPI = {
 		const request = withGuestAuth(data)
 		return userApi.post('/guest/invoices', request.payload, request.options)
 	},
+	createGMShop: (data: any) => userApi.post('/guest/invoices/gmshop', data),
 	get: (requestNo: string) => userApi.get(`/public/invoices/${encodeURIComponent(requestNo)}`),
 }

@@ -36,6 +36,13 @@ func (s *requestStoreStub) MarkPaid(_ string, providerRef string, paidAt time.Ti
 	s.item.PaidAt = &paidAt
 	return true, s.item, nil
 }
+func (s *requestStoreStub) SetFeishuSync(_ string, recordID, lastError string) error {
+	if s.item != nil {
+		s.item.FeishuRecordID = recordID
+		s.item.FeishuLastError = lastError
+	}
+	return nil
+}
 
 type channelStoreStub struct{ item *paymentdomain.PaymentChannel }
 

@@ -48,6 +48,7 @@ import (
 	userauthapp "github.com/dujiao-next/internal/modules/identity/userauth/application"
 	usertotpapp "github.com/dujiao-next/internal/modules/identity/userauth/totp/application"
 	invoiceapp "github.com/dujiao-next/internal/modules/invoice/application"
+	invoicegmshop "github.com/dujiao-next/internal/modules/invoice/infrastructure/gmshop"
 	invoicegormstore "github.com/dujiao-next/internal/modules/invoice/infrastructure/gormstore"
 	memberlevelapp "github.com/dujiao-next/internal/modules/memberlevel/application"
 	memberlevelcontract "github.com/dujiao-next/internal/modules/memberlevel/contract"
@@ -167,6 +168,9 @@ type Container struct {
 	CardSecretService             *cardsecretapp.Service
 	GiftCardService               *giftcardapp.Service
 	InvoiceService                *invoiceapp.Service
+	InvoiceDocumentSource         invoiceapp.InvoiceDocumentSource
+	InvoiceMailer                 invoiceapp.InvoiceMailer
+	GMShopInvoiceReader           *invoicegmshop.Client
 	UserLoginLogService           *auditlogapp.UserLoginService
 	AuthzAuditService             *auditlogapp.AuthzService
 	AdminLoginLogService          *auditlogapp.AdminLoginService

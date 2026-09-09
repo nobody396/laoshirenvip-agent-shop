@@ -31,6 +31,7 @@ type Store interface {
 	GetByRequestNo(string) (*domain.Request, error)
 	GetByOriginalOrder(source, sourceHost, orderNo string) (*domain.Request, error)
 	MarkPaid(requestNo, providerRef string, paidAt time.Time) (bool, *domain.Request, error)
+	SetFeishuSync(requestNo, recordID, lastError string) error
 }
 
 func (s *Service) HandlePaymentCallback(form map[string][]string, body []byte) (*domain.Request, bool, error) {
@@ -66,7 +67,21 @@ func (s *Service) HandlePaymentCallback(form map[string][]string, body []byte) (
 		paidAt = *result.PaidAt
 	}
 	changed, paidRequest, err := s.store.MarkPaid(request.RequestNo, strings.TrimSpace(result.ProviderRef), paidAt)
-	return paidRequest, !changed, err
+	if err != nil || paidRequest == nil {
+		return paidRequest, !changed, err
+	}
+	if s.paidSink != nil && paidRequest.FeishuRecordID == "" {
+		recordID, syncErr := s.paidSink.UpsertPaidRequest(context.Background(), paidRequest)
+		if syncErr != nil {
+			paidRequest.FeishuLastError = syncErr.Error()
+			_ = s.store.SetFeishuSync(paidRequest.RequestNo, "", syncErr.Error())
+		} else {
+			paidRequest.FeishuRecordID = recordID
+			paidRequest.FeishuLastError = ""
+			_ = s.store.SetFeishuSync(paidRequest.RequestNo, recordID, "")
+		}
+	}
+	return paidRequest, !changed, nil
 }
 
 func firstFormValue(form map[string][]string, key string) string {
@@ -86,6 +101,11 @@ type Service struct {
 	channels ChannelStore
 	gateways paymentcontract.GatewayRegistry
 	baseURL  string
+	paidSink PaidSink
+}
+
+type PaidSink interface {
+	UpsertPaidRequest(context.Context, *domain.Request) (string, error)
 }
 
 func NewService(store Store, channels ChannelStore, gateways paymentcontract.GatewayRegistry, baseURL string) *Service {
@@ -94,6 +114,8 @@ func NewService(store Store, channels ChannelStore, gateways paymentcontract.Gat
 	}
 	return &Service{store: store, channels: channels, gateways: gateways, baseURL: strings.TrimRight(baseURL, "/")}
 }
+
+func (s *Service) SetPaidSink(sink PaidSink) { s.paidSink = sink }
 
 func (s *Service) Get(requestNo string) (*domain.Request, error) {
 	requestNo = strings.TrimSpace(requestNo)

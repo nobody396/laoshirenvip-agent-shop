@@ -400,6 +400,7 @@ const (
 	TaskDownstreamCallback          = "downstream:callback"
 	TaskBotNotify                   = "bot:notify"
 	TaskTelegramBroadcast           = "telegram:broadcast"
+	TaskInvoiceDelivery             = "invoice:delivery"
 )
 
 // Telegram Bot 群发常量

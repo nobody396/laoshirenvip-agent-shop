@@ -35,3 +35,15 @@ test("rejects non-verification purposes", async () => {
   assert.equal(response.status, 400);
   assert.equal(calls.length, 0);
 });
+
+test("sends invoice PDF as a transactional attachment", async () => {
+  const calls = [];
+  const response = await worker.fetch(new Request("https://relay.test/v1/invoice-email", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ to: "buyer@example.com", subject: "Invoice", text: "Attached", filename: "invoice.pdf", pdf_base64: "JVBERi0xLjQK" }),
+  }), envFor(calls));
+  assert.equal(response.status, 200);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].attachments, [{ content: "JVBERi0xLjQK", filename: "invoice.pdf", type: "application/pdf", disposition: "attachment" }]);
+});

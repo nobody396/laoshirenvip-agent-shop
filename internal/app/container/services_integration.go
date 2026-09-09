@@ -19,6 +19,9 @@ import (
 	downstreamcallbackorderreader "github.com/dujiao-next/internal/modules/downstreamcallback/infrastructure/orderreader"
 	downstreamcallbackqueue "github.com/dujiao-next/internal/modules/downstreamcallback/infrastructure/queueadapter"
 	invoiceapp "github.com/dujiao-next/internal/modules/invoice/application"
+	invoicefeishu "github.com/dujiao-next/internal/modules/invoice/infrastructure/feishu"
+	invoicegmshop "github.com/dujiao-next/internal/modules/invoice/infrastructure/gmshop"
+	invoicemailer "github.com/dujiao-next/internal/modules/invoice/infrastructure/mailer"
 	notificationapp "github.com/dujiao-next/internal/modules/notification/application"
 	notificationasyncqueue "github.com/dujiao-next/internal/modules/notification/infrastructure/asyncqueue"
 	notificationfeishu "github.com/dujiao-next/internal/modules/notification/infrastructure/feishu"
@@ -131,6 +134,22 @@ func (c *Container) initIntegrationServices() {
 		c.PaymentProviderRegistry,
 		c.Config.Invoice.PublicBaseURL,
 	)
+	c.GMShopInvoiceReader = invoicegmshop.New(c.Config.Invoice.GMShopLookupURL, c.Config.Invoice.GMShopLookupToken)
+	if c.Config.Invoice.Enabled {
+		secret := c.Config.Invoice.FeishuAppSecret
+		if secret == "" {
+			secret = c.Config.Notification.FeishuAppSecret
+		}
+		invoiceFeishu := invoicefeishu.New(invoicefeishu.Config{
+			AppID: c.Config.Invoice.FeishuAppID, AppSecret: secret,
+			BaseToken: c.Config.Invoice.FeishuBaseToken, TableID: c.Config.Invoice.FeishuTableID,
+		})
+		if invoiceFeishu.Enabled() {
+			c.InvoiceService.SetPaidSink(invoiceFeishu)
+			c.InvoiceDocumentSource = invoiceFeishu
+			c.InvoiceMailer = invoicemailer.NewSMTP(c.EmailSender)
+		}
+	}
 	c.ProcurementOrderService = procurementapp.NewService(procurementapp.Options{
 		Repository:         c.ProcurementOrderRepo,
 		Orders:             procurementorder.New(c.OrderStore),

@@ -29,13 +29,14 @@ const cleanLine = (value, max) => {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (request.method !== "POST" || url.pathname !== "/v1/verification-email") {
+    if (request.method !== "POST" || !new Set(["/v1/verification-email", "/v1/invoice-email"]).has(url.pathname)) {
       return json({ ok: false, error: "not_found" }, 404);
     }
     if (!(await authorized(request, env))) {
       return json({ ok: false, error: "unauthorized" }, 401);
     }
-    if (Number(request.headers.get("content-length") || "0") > 16384) {
+    const invoiceRequest = url.pathname === "/v1/invoice-email";
+    if (Number(request.headers.get("content-length") || "0") > (invoiceRequest ? 5_700_000 : 16384)) {
       return json({ ok: false, error: "payload_too_large" }, 413);
     }
     let input;
@@ -45,17 +46,26 @@ export default {
       return json({ ok: false, error: "invalid_json" }, 400);
     }
     const to = cleanLine(input?.to, 320).toLowerCase();
-    const purpose = cleanLine(input?.purpose, 40).toLowerCase();
     const subject = cleanLine(input?.subject, 200);
     const text = String(input?.text || "").replace(/\0/g, "").trim().slice(0, 8000);
-    if (!emailPattern.test(to) || !allowedPurposes.has(purpose) || !subject || !text) {
+    const purpose = cleanLine(input?.purpose, 40).toLowerCase();
+    if (!emailPattern.test(to) || (!invoiceRequest && !allowedPurposes.has(purpose)) || !subject || !text) {
       return json({ ok: false, error: "invalid_payload" }, 400);
     }
     try {
-      const result = await env.EMAIL.send({ to, from: sender, subject, text });
+      const message = { to, from: sender, subject, text };
+      if (invoiceRequest) {
+        const filename = cleanLine(input?.filename, 180);
+        const pdf = String(input?.pdf_base64 || "").trim();
+        if (!filename.toLowerCase().endsWith(".pdf") || !pdf.startsWith("JVBERi0") || pdf.length > 5_600_000) {
+          return json({ ok: false, error: "invalid_invoice_attachment" }, 400);
+        }
+        message.attachments = [{ content: pdf, filename, type: "application/pdf", disposition: "attachment" }];
+      }
+      const result = await env.EMAIL.send(message);
       return json({ ok: true, accepted: true, message_id_present: Boolean(result?.messageId) });
     } catch (error) {
-      console.error("verification_email_send_failed", { code: cleanLine(error?.code, 80) });
+      console.error(invoiceRequest ? "invoice_email_send_failed" : "verification_email_send_failed", { code: cleanLine(error?.code, 80) });
       return json({ ok: false, error: "send_failed" }, 502);
     }
   },
