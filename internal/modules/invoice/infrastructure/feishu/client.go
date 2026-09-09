@@ -120,6 +120,7 @@ func (c *Client) UpsertPaidRequest(ctx context.Context, request *domain.Request)
 	fields := map[string]any{
 		"申请编号": request.RequestNo, "申请时间": request.CreatedAt.UnixMilli(), "来源站点": request.SourceHost,
 		"订单号/充值单号": request.OriginalOrderNo, "原订单金额": request.OriginalAmount.Decimal.InexactFloat64(),
+		"开票项目": domain.InvoiceItemName,
 		"发票类型": map[bool]string{true: "专票", false: "普票"}[request.InvoiceType == domain.TypeSpecial],
 		"税点":   float64(request.RateBPS) / 10000, "开票补款": request.InvoiceFeeAmount.Decimal.InexactFloat64(),
 		"通道手续费": request.PaymentFeeAmount.Decimal.InexactFloat64(), "实际支付": request.PaymentAmount.Decimal.InexactFloat64(),

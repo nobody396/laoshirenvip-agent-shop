@@ -3,6 +3,7 @@
     <div class="mx-auto max-w-3xl">
       <h1 class="text-3xl font-black">申请电子发票</h1>
       <p class="mt-2 text-sm text-muted-foreground">填写资料并支付开票补款，支付成功后自动进入财务待办</p>
+	  <p class="mt-1 text-sm text-muted-foreground">开票项目：生产生活服务信息系统服务</p>
 
       <div v-if="result" class="mt-8 rounded-2xl border bg-card p-6 shadow-sm">
 		<h2 class="text-xl font-bold">{{ result.status === 'pending_payment' ? '请扫码支付' : '开票申请已付款' }}</h2>
