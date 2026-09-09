@@ -205,6 +205,23 @@
                   </div>
                 </div>
 
+                <div v-if="showChatGptPreorderNotices" class="mb-8" aria-live="polite">
+                  <div class="flex items-start gap-2.5 rounded-xl border border-emerald-300/70 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-700 dark:border-emerald-700/60 dark:bg-emerald-950/30 dark:text-emerald-300">
+                    <Globe2 class="mt-0.5 h-4 w-4 shrink-0" />
+                    <p>
+                      <span class="font-semibold">{{ chatGptPlanNotice }}</span>
+                      <a
+                        v-if="hasProductDetails"
+                        href="#product-details"
+                        class="ml-1 inline-flex items-center gap-0.5 font-semibold underline decoration-emerald-400/70 underline-offset-4 hover:text-emerald-800 dark:hover:text-emerald-200"
+                      >
+                        {{ t('productDetail.chatGptCompareLink') }}
+                        <ArrowDown class="h-3.5 w-3.5" />
+                      </a>
+                    </p>
+                  </div>
+                </div>
+
                 <!-- 批发价规则展示 -->
                 <div v-if="selectedSkuWholesaleRules.length" class="mb-8 rounded-xl border border-emerald-200 bg-emerald-50/50 px-4 py-3 dark:border-emerald-800/50 dark:bg-emerald-950/20">
                   <h2 class="mb-2 flex items-center gap-1.5 text-sm font-bold text-emerald-700 dark:text-emerald-300">
@@ -334,8 +351,8 @@
         </div>
 
         <!-- Details Content Card -->
-        <div v-if="product.content"
-          class="bg-card backdrop-blur-xl border rounded-3xl overflow-hidden mb-12 p-6 md:p-8 lg:p-12 relative">
+        <div v-if="product.content" id="product-details"
+          class="scroll-mt-28 bg-card backdrop-blur-xl border rounded-3xl overflow-hidden mb-12 p-6 md:p-8 lg:p-12 relative">
           <h2
             class="text-2xl font-bold mb-8 text-foreground flex items-center gap-3 border-b pb-6">
             <span class="w-1.5 h-8 bg-primary rounded-full"></span>
@@ -428,11 +445,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue'
+import { computed, ref, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, Lock, Minus, Pencil, Plus, RotateCw, Tag, UserPlus, Zap } from 'lucide-vue-next'
+import { ArrowDown, ArrowLeft, Globe2, Lock, Minus, Pencil, Plus, RotateCw, Tag, UserPlus, Zap } from 'lucide-vue-next'
 import { getImageUrl } from '../utils/image'
 import { processHtmlForDisplay } from '../utils/content'
+import { isChatGptMembershipProduct, resolveChatGptPlanGuidance } from '../utils/productPreorderGuidance'
 import { useProductDetail } from '../composables/useProductDetail'
 import ProductImageGallery from '../components/product/ProductImageGallery.vue'
 import ProductMobileBar from '../components/product/ProductMobileBar.vue'
@@ -489,6 +507,22 @@ const {
   mobileBarShowSkuPrice, mobileBarSkuPriceDisplay,
   mobileBarShowProductPromotionPrice, mobileBarProductPromotionPriceDisplay, mobileBarProductPriceDisplay,
 } = useProductDetail({ onLoaded: () => setupMobileBarObserver() })
+
+const showChatGptPreorderNotices = computed(() => isChatGptMembershipProduct(product.value))
+const selectedSkuLabel = computed(() => selectedSku.value ? skuDisplayText(selectedSku.value) : '')
+const chatGptPlanNotice = computed(() => {
+  const key = resolveChatGptPlanGuidance(selectedSkuLabel.value)
+  if (key === 'expired-only') {
+    return t('productDetail.chatGptExpiredOnlyNotice', { sku: selectedSkuLabel.value })
+  }
+  if (key === 'renewable') {
+    return t('productDetail.chatGptRenewableNotice', { sku: selectedSkuLabel.value })
+  }
+  return t('productDetail.chatGptCompareNotice')
+})
+const hasProductDetails = computed(() => Boolean(
+  product.value?.content && getLocalizedText(product.value.content).trim(),
+))
 
 onUnmounted(() => {
   if (observer) {
