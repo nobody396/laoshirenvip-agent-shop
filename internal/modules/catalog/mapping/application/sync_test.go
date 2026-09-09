@@ -5,11 +5,23 @@ import (
 	"time"
 
 	settingsintegration "github.com/dujiao-next/internal/modules/settings/schema/integration"
+	"github.com/dujiao-next/internal/shared/jsonmap"
 )
 
 // fakeSettingsProvider 以固定同步间隔实现 SettingsProvider。
 type fakeSettingsProvider struct {
 	interval time.Duration
+}
+
+func TestSyncedSpecValuesKeepsCuratedLabelWhenUpstreamHasNoSpecs(t *testing.T) {
+	current := jsonmap.JSON{"name": "Claude Max 5X 1个月"}
+	if got := syncedSpecValues(current, jsonmap.JSON{}); got["name"] != current["name"] {
+		t.Fatalf("curated spec label was overwritten: %#v", got)
+	}
+	upstream := jsonmap.JSON{"name": "Claude Max 5X"}
+	if got := syncedSpecValues(current, upstream); got["name"] != upstream["name"] {
+		t.Fatalf("non-empty upstream spec should update local value: %#v", got)
+	}
 }
 
 func (f fakeSettingsProvider) GetUpstreamSyncConfig(fallbackInterval string) (settingsintegration.UpstreamSyncConfig, error) {

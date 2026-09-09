@@ -20,6 +20,7 @@ import (
 	"github.com/dujiao-next/internal/constants"
 	"github.com/dujiao-next/internal/logger"
 	settingsintegration "github.com/dujiao-next/internal/modules/settings/schema/integration"
+	"github.com/dujiao-next/internal/shared/jsonmap"
 	"github.com/dujiao-next/internal/shared/money"
 	"github.com/dujiao-next/internal/upstream"
 
@@ -140,7 +141,7 @@ func (s *Service) SyncProduct(mappingID uint) error {
 		// 同步本地 SKU 字段
 		localSKU, _ := s.skus.GetByID(skuMappings[i].LocalSKUID)
 		if localSKU != nil {
-			localSKU.SpecValuesJSON = upSKU.SpecValues
+			localSKU.SpecValuesJSON = syncedSpecValues(localSKU.SpecValuesJSON, upSKU.SpecValues)
 			localSKU.IsActive = upSKU.IsActive
 			// 如果启用了自动同步价格，按加价比例更新本地售价和成本价
 			if conn.AutoSyncPrice {
@@ -686,7 +687,7 @@ func (s *Service) syncProductFromData(mapping *mappingdomain.Mapping, conn *site
 
 		localSKU, _ := s.skus.GetByID(skuMappings[i].LocalSKUID)
 		if localSKU != nil {
-			localSKU.SpecValuesJSON = upSKU.SpecValues
+			localSKU.SpecValuesJSON = syncedSpecValues(localSKU.SpecValuesJSON, upSKU.SpecValues)
 			localSKU.IsActive = upSKU.IsActive
 			if conn.AutoSyncPrice {
 				newLocalPrice := CalculateLocalPrice(upPrice, conn.ExchangeRate, conn.PriceMarkupPercent, conn.PriceRoundingMode)
@@ -762,4 +763,11 @@ func (s *Service) syncProductFromData(mapping *mappingdomain.Mapping, conn *site
 	mapping.UpstreamStatus = mappingdomain.UpstreamStatusActive
 	mapping.LastSyncedAt = now
 	_ = s.mappings.Update(mapping)
+}
+
+func syncedSpecValues(current, upstream jsonmap.JSON) jsonmap.JSON {
+	if len(upstream) == 0 {
+		return current
+	}
+	return upstream
 }
