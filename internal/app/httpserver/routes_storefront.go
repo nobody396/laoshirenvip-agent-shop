@@ -15,6 +15,7 @@ import (
 	contenttransport "github.com/dujiao-next/internal/modules/content/transport/http"
 	giftcardtransport "github.com/dujiao-next/internal/modules/giftcard/transport/http"
 	userauthtransport "github.com/dujiao-next/internal/modules/identity/userauth/transport/http"
+	invoicehttp "github.com/dujiao-next/internal/modules/invoice/transport/http"
 	memberleveltransport "github.com/dujiao-next/internal/modules/memberlevel/transport/http"
 	ordertransport "github.com/dujiao-next/internal/modules/order/transport/http"
 	paymenttransport "github.com/dujiao-next/internal/modules/payment/transport/http"
@@ -72,6 +73,7 @@ func registerStorefrontRoutes(
 	storefront := apiV1.Group("")
 	storefront.Use(middleware.ResellerTenantMiddleware(c.ResellerDomainResolver))
 	affiliateHandler := affiliatebootstrap.NewStorefrontHandler(c)
+	invoiceHandler := invoicehttp.NewHandler(c.InvoiceService, c.OrderService, c.GMShopInvoiceReader)
 
 	// 公开接口
 	public := storefront.Group("/public")
@@ -84,6 +86,7 @@ func registerStorefrontRoutes(
 		affiliatetransport.RegisterPublicRoutes(public, affiliateHandler)
 		memberleveltransport.RegisterPublicRoutes(public, publicMemberLevelHandler)
 		resellerpublictls.RegisterRoutes(public, publicResellerTLSHandler)
+		invoicehttp.RegisterPublicRoutes(public, invoiceHandler)
 	}
 
 	// 游客接口
@@ -101,6 +104,7 @@ func registerStorefrontRoutes(
 		ordertransport.RegisterGuestCreateRoute(guestWrite, orderCreateHandler)
 		ordertransport.RegisterGuestCreateAndPayRoute(guestWrite, orderCreateHandler)
 		paymenttransport.RegisterGuestWriteRoutes(guestWrite, paymentWriteHandler)
+		invoicehttp.RegisterGuestRoutes(guestWrite, invoiceHandler)
 	}
 
 	// 用户认证接口
@@ -145,6 +149,7 @@ func registerStorefrontRoutes(
 		wallettransport.RegisterUserRoutes(user, userWalletHandler)
 		giftcardtransport.RegisterUserRoutes(user, userGiftCardHandler)
 		affiliatetransport.RegisterUserRoutes(user, affiliateHandler)
+		invoicehttp.RegisterUserRoutes(user, invoiceHandler)
 
 		resellerConsole := user.Group("/reseller")
 		resellerConsole.Use(middleware.RequireMainTenantForResellerConsole())

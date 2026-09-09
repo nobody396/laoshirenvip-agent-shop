@@ -61,6 +61,9 @@
               <Button v-if="order.status === 'pending_payment'" as-child size="sm">
                 <router-link :to="`/pay?guest=1&order_no=${order.order_no}`">{{ t('orders.payNow') }}</router-link>
               </Button>
+			  <Button v-if="['paid', 'partially_delivered', 'delivered', 'completed'].includes(order.status) && !hasDiscountAmount(order.refunded_amount)" as-child size="sm" variant="secondary">
+				<router-link :to="`/invoice?guest=1&order_no=${encodeURIComponent(order.order_no)}`">申请开票</router-link>
+			  </Button>
             </div>
           </div>
         </div>

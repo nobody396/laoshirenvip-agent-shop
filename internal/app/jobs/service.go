@@ -124,6 +124,15 @@ func registerPeriodicTasks(scheduler *asynq.Scheduler, consumer *jobconsumer.Con
 			logger.Infow("scheduler_register_procurement_sync_accepted_ok", "entry_id", entryID)
 		}
 	}
+	if consumer.InvoiceDocumentSource != nil && consumer.InvoiceMailer != nil {
+		task := queue.NewInvoiceDeliveryTask()
+		entryID, err := scheduler.Register("@every 1m", task, asynq.Queue(queue.DefaultQueue))
+		if err != nil {
+			logger.Warnw("scheduler_register_invoice_delivery_failed", "error", err)
+		} else {
+			logger.Infow("scheduler_register_invoice_delivery_ok", "entry_id", entryID)
+		}
+	}
 }
 
 // Name 服务名称

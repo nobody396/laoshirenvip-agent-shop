@@ -14,6 +14,7 @@ const productDetailViewLoader: RouteComponentLoader = () => import('../views/Pro
 const cartViewLoader: RouteComponentLoader = () => import('../views/Cart.vue')
 const checkoutViewLoader: RouteComponentLoader = () => import('../views/Checkout.vue')
 const paymentViewLoader: RouteComponentLoader = () => import('../views/Payment.vue')
+const invoiceViewLoader: RouteComponentLoader = () => import('../views/Invoice.vue')
 const noticeViewLoader: RouteComponentLoader = () => import('../views/Notice.vue')
 const integrationGuideViewLoader: RouteComponentLoader = () => import('../views/IntegrationGuide.vue')
 const loginViewLoader: RouteComponentLoader = () => import('../views/auth/Login.vue')
@@ -25,6 +26,7 @@ const routeWarmupLoaders: RouteComponentLoader[] = [
     cartViewLoader,
     checkoutViewLoader,
     paymentViewLoader,
+	invoiceViewLoader,
     noticeViewLoader,
     integrationGuideViewLoader,
     loginViewLoader,
@@ -157,6 +159,11 @@ const router = createRouter({
             name: 'payment',
             component: templateView('Payment', paymentViewLoader),
         },
+		{
+			path: '/invoice',
+			name: 'invoice',
+			component: templateView('Invoice', invoiceViewLoader),
+		},
         {
             path: '/me',
             name: 'personal-center',

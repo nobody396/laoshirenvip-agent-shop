@@ -233,6 +233,67 @@ func (s *Service) SendCustomEmail(toEmail, subject, body string) error {
 	return s.sendTextEmail(toEmail, subject, body)
 }
 
+// SendCustomEmailWithBinaryAttachment sends a transactional email with a
+// binary attachment such as an electronic-invoice PDF.
+func (s *Service) SendCustomEmailWithBinaryAttachment(toEmail, subject, body, attachName, contentType string, content []byte) error {
+	if telegramidentity.IsPlaceholderEmail(toEmail) {
+		return nil
+	}
+	if strings.TrimSpace(contentType) == "" {
+		contentType = "application/octet-stream"
+	}
+	from, addr, err := s.prepareSMTPEnvelope(toEmail, "")
+	if err != nil {
+		return err
+	}
+	msg := buildEmailMessageWithBinaryAttachment(from, toEmail, strings.TrimSpace(subject), strings.TrimSpace(body), attachName, contentType, content, "")
+	return s.sendSMTPMessage(addr, toEmail, []byte(msg))
+}
+
+// SendInvoiceEmail routes invoice PDFs through the approved transactional
+// relay when configured, and only falls back to the explicitly configured SMTP
+// sender outside that deployment.
+func (s *Service) SendInvoiceEmail(toEmail, subject, body, attachName string, content []byte) error {
+	if s != nil && s.cfg != nil && strings.TrimSpace(s.cfg.VerificationRelayURL) != "" {
+		return s.sendInvoiceEmailViaRelay(toEmail, subject, body, attachName, content)
+	}
+	return s.SendCustomEmailWithBinaryAttachment(toEmail, subject, body, attachName, "application/pdf", content)
+}
+
+func (s *Service) sendInvoiceEmailViaRelay(toEmail, subject, body, attachName string, content []byte) error {
+	if len(content) == 0 || len(content) > 4<<20 || !bytes.HasPrefix(content, []byte("%PDF-")) {
+		return notificationcontract.ErrSendFailed
+	}
+	relayURL, err := url.Parse(strings.TrimSpace(s.cfg.VerificationRelayURL))
+	if err != nil || relayURL.Scheme != "https" || relayURL.Host == "" || strings.TrimSpace(s.cfg.VerificationRelayToken) == "" {
+		return notificationcontract.ErrEmailNotConfigured
+	}
+	relayURL.Path = "/v1/invoice-email"
+	relayURL.RawQuery = ""
+	payload, err := json.Marshal(map[string]string{
+		"to": toEmail, "subject": subject, "text": body, "filename": attachName,
+		"pdf_base64": base64.StdEncoding.EncodeToString(content),
+	})
+	if err != nil {
+		return notificationcontract.ErrSendFailed
+	}
+	req, err := http.NewRequest(http.MethodPost, relayURL.String(), bytes.NewReader(payload))
+	if err != nil {
+		return notificationcontract.ErrSendFailed
+	}
+	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(s.cfg.VerificationRelayToken))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return notificationcontract.ErrSendFailed
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return notificationcontract.ErrSendFailed
+	}
+	return nil
+}
+
 func (s *Service) sendTextEmail(toEmail, subject, body string, brands ...mailbrand.Brand) error {
 	if telegramidentity.IsPlaceholderEmail(toEmail) {
 		return nil
@@ -319,6 +380,17 @@ func buildEmailMessageWithAttachment(from, to, subject, body, attachName, attach
 	// 结束边界
 	buf.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
 
+	return buf.String()
+}
+
+func buildEmailMessageWithBinaryAttachment(from, to, subject, body, attachName, contentType string, content []byte, replyTo string) string {
+	boundary := "----=_DujiaoNextBinaryBoundary_" + fmt.Sprintf("%d", len(body)+len(content))
+	var buf bytes.Buffer
+	writeStandardHeaders(&buf, from, to, subject, replyTo)
+	buf.WriteString(fmt.Sprintf("Content-Type: multipart/mixed; boundary=\"%s\"\r\n\r\n", boundary))
+	buf.WriteString(fmt.Sprintf("--%s\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n%s\r\n", boundary, base64.StdEncoding.EncodeToString([]byte(body))))
+	buf.WriteString(fmt.Sprintf("--%s\r\nContent-Type: %s\r\nContent-Disposition: attachment; filename=\"%s\"\r\nContent-Transfer-Encoding: base64\r\n\r\n%s\r\n", boundary, contentType, mime.QEncoding.Encode("UTF-8", attachName), base64.StdEncoding.EncodeToString(content)))
+	buf.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
 	return buf.String()
 }
 

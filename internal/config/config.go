@@ -30,6 +30,7 @@ type Config struct {
 	Security     SecurityConfig     `mapstructure:"security"`
 	Email        EmailConfig        `mapstructure:"email"`
 	Notification NotificationConfig `mapstructure:"notification"`
+	Invoice      InvoiceConfig      `mapstructure:"invoice"`
 	Order        OrderConfig        `mapstructure:"order"`
 	Captcha      CaptchaConfig      `mapstructure:"captcha"`
 	Web          WebConfig          `mapstructure:"web"`
@@ -40,6 +41,19 @@ type Config struct {
 // settings store only an env reference, never the secret value itself.
 type NotificationConfig struct {
 	FeishuAppSecret string `mapstructure:"feishu_app_secret"`
+}
+
+// InvoiceConfig contains the minimal cross-system invoice workflow settings.
+// App secrets remain runtime-only; Base identifiers are non-secret resource IDs.
+type InvoiceConfig struct {
+	Enabled           bool   `mapstructure:"enabled"`
+	PublicBaseURL     string `mapstructure:"public_base_url"`
+	FeishuAppID       string `mapstructure:"feishu_app_id"`
+	FeishuAppSecret   string `mapstructure:"feishu_app_secret"`
+	FeishuBaseToken   string `mapstructure:"feishu_base_token"`
+	FeishuTableID     string `mapstructure:"feishu_table_id"`
+	GMShopLookupURL   string `mapstructure:"gmshop_lookup_url"`
+	GMShopLookupToken string `mapstructure:"gmshop_lookup_token"`
 }
 
 // AppConfig 应用级配置
@@ -420,6 +434,14 @@ func Load() *Config {
 	viper.SetDefault("email.verification_relay_url", "")
 	viper.SetDefault("email.verification_relay_token", "")
 	viper.SetDefault("notification.feishu_app_secret", "")
+	viper.SetDefault("invoice.enabled", false)
+	viper.SetDefault("invoice.public_base_url", "https://lsrai.shop")
+	viper.SetDefault("invoice.feishu_app_id", "")
+	viper.SetDefault("invoice.feishu_app_secret", "")
+	viper.SetDefault("invoice.feishu_base_token", "")
+	viper.SetDefault("invoice.feishu_table_id", "")
+	viper.SetDefault("invoice.gmshop_lookup_url", "https://laoshirenvip.com/api/shop/invoice-order")
+	viper.SetDefault("invoice.gmshop_lookup_token", "")
 	viper.SetDefault("email.verify_code.expire_minutes", 10)
 	viper.SetDefault("email.verify_code.send_interval_seconds", 60)
 	viper.SetDefault("email.verify_code.max_attempts", 5)
