@@ -47,6 +47,7 @@
   "nav": {
     "home": "首页",
     "products": "商品中心",
+    "invoice": "开发票",
     "blog": "博客",
     "integrationGuide": "对接教程",
     "notice": "公告",

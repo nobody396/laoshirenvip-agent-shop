@@ -15,6 +15,7 @@ import (
 	"github.com/dujiao-next/internal/shared/jsonmap"
 	"github.com/dujiao-next/internal/shared/money"
 	"github.com/dujiao-next/internal/shared/serial"
+	"github.com/shopspring/decimal"
 )
 
 const InvoicePaymentChannelID uint = 2
@@ -192,7 +193,9 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 	if err != nil || channel == nil || !channel.IsActive || channel.ProviderType != "epay" || channel.ChannelType != "alipay" {
 		return nil, ErrPaymentUnavailable
 	}
-	paymentFee, paymentAmount, err := domain.CalculatePaymentAmount(invoiceFee, channel.FeeRate)
+	// 开票补款由商户承担支付通道成本，不把支付渠道的常规费率转嫁给开票客户。
+	invoicePaymentFeeRate := money.FromDecimal(decimal.Zero)
+	paymentFee, paymentAmount, err := domain.CalculatePaymentAmount(invoiceFee, invoicePaymentFeeRate)
 	if err != nil {
 		return nil, ErrPaymentUnavailable
 	}
@@ -210,7 +213,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 		InvoiceFeeAmount:   invoiceFee,
 		InvoiceTotalAmount: invoiceTotal,
 		PaymentChannelID:   channel.ID,
-		PaymentFeeRate:     channel.FeeRate,
+		PaymentFeeRate:     invoicePaymentFeeRate,
 		PaymentFeeAmount:   paymentFee,
 		PaymentAmount:      paymentAmount,
 		BuyerTitle:         input.BuyerTitle,

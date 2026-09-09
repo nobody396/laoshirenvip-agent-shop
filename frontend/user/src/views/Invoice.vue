@@ -14,7 +14,7 @@
             <p>申请编号：<strong>{{ result.request_no }}</strong></p>
             <p>订单金额：¥{{ result.original_amount }}</p>
             <p>开票补款：¥{{ result.invoice_fee_amount }}</p>
-            <p>通道手续费（{{ result.payment_fee_rate }}%）：¥{{ result.payment_fee_amount }}</p>
+            <p v-if="Number(result.payment_fee_amount) > 0">通道手续费（{{ result.payment_fee_rate }}%）：¥{{ result.payment_fee_amount }}</p>
             <p class="text-lg">本次支付：<strong>¥{{ result.payment_amount }}</strong></p>
             <p>发票价税合计：¥{{ result.invoice_total_amount }}</p>
 			<a v-if="result.status === 'pending_payment' && result.pay_url" :href="result.pay_url" target="_blank" rel="noopener noreferrer" class="inline-flex rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground">打开支付宝付款</a>
@@ -43,10 +43,7 @@
           <label class="grid gap-2 text-sm"><span>开户银行</span><Input v-model="form.bank_name" required /></label>
           <label class="grid gap-2 text-sm"><span>银行账号</span><Input v-model="form.bank_account" required /></label>
         </div>
-        <div class="grid gap-4 md:grid-cols-2">
-          <label class="grid gap-2 text-sm"><span>发票接收邮箱</span><Input v-model="form.recipient_email" type="email" required /></label>
-          <label class="grid gap-2 text-sm"><span>再次确认邮箱</span><Input v-model="form.confirm_email" type="email" required /></label>
-        </div>
+        <label class="grid gap-2 text-sm"><span>发票接收邮箱</span><Input v-model="form.recipient_email" type="email" required /></label>
         <p v-if="error" class="text-sm text-destructive">{{ error }}</p>
         <Button type="submit" class="w-full" :disabled="loading">{{ loading ? '正在创建支付…' : '确认资料并生成付款码' }}</Button>
       </form>
@@ -73,7 +70,7 @@ const qrImage = ref('')
 const guest = reactive({ email: '', order_password: '' })
 const form = reactive({
 	order_no: String(route.query.order_no || route.query.recharge_no || ''), invoice_type: 'ordinary', buyer_title: '', tax_number: '',
-  company_address: '', company_phone: '', bank_name: '', bank_account: '', recipient_email: '', confirm_email: '',
+	company_address: '', company_phone: '', bank_name: '', bank_account: '', recipient_email: '',
 })
 let statusTimer: number | undefined
 
@@ -102,10 +99,6 @@ onBeforeUnmount(() => { if (statusTimer) window.clearInterval(statusTimer) })
 
 async function submit() {
   error.value = ''
-  if (form.recipient_email.trim().toLowerCase() !== form.confirm_email.trim().toLowerCase()) {
-    error.value = '两次输入的发票接收邮箱不一致'
-    return
-  }
   loading.value = true
   try {
 	let response

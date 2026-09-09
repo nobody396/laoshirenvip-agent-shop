@@ -58,7 +58,6 @@ type createRequest struct {
 	BankName       string `json:"bank_name"`
 	BankAccount    string `json:"bank_account"`
 	RecipientEmail string `json:"recipient_email" binding:"required"`
-	ConfirmEmail   string `json:"confirm_email" binding:"required"`
 	OrderEmail     string `json:"order_email"`
 }
 
@@ -68,7 +67,7 @@ func (h *Handler) CreateGMShop(c *gin.Context) {
 		ginutil.RespondBindError(c, err)
 		return
 	}
-	if h.gmshop == nil || !strings.EqualFold(strings.TrimSpace(req.RecipientEmail), strings.TrimSpace(req.ConfirmEmail)) {
+	if h.gmshop == nil {
 		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_invalid", nil)
 		return
 	}
@@ -100,7 +99,7 @@ func (h *Handler) CreateRecharge(c *gin.Context) {
 		ginutil.RespondBindError(c, err)
 		return
 	}
-	if h.recharges == nil || !strings.EqualFold(strings.TrimSpace(req.RecipientEmail), strings.TrimSpace(req.ConfirmEmail)) {
+	if h.recharges == nil {
 		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_invalid", nil)
 		return
 	}
@@ -192,10 +191,6 @@ func (h *Handler) create(c *gin.Context, lookup func(string) (*orderdomain.Order
 	var req createRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		ginutil.RespondBindError(c, err)
-		return
-	}
-	if !strings.EqualFold(strings.TrimSpace(req.RecipientEmail), strings.TrimSpace(req.ConfirmEmail)) {
-		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_email_mismatch", nil)
 		return
 	}
 	order, err := lookup(strings.TrimSpace(req.OrderNo))
