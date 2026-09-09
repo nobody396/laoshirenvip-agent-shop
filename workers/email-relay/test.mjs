@@ -21,7 +21,7 @@ test("sends a verification email only from the fixed VIP sender", async () => {
   }), envFor(calls));
   assert.equal(response.status, 200);
   assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0].from, { email: "no-reply@laoshirenvip.com", name: "lsrai.shop" });
+  assert.deepEqual(calls[0].from, { email: "no-reply@laoshirenvip.com", name: "老实人AI VIP" });
   assert.equal(calls[0].to, "buyer@example.com");
 });
 
@@ -45,5 +45,6 @@ test("sends invoice PDF as a transactional attachment", async () => {
   }), envFor(calls));
   assert.equal(response.status, 200);
   assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].from, { email: "no-reply@laoshirenvip.com", name: "老实人AI VIP" });
   assert.deepEqual(calls[0].attachments, [{ content: "JVBERi0xLjQK", filename: "invoice.pdf", type: "application/pdf", disposition: "attachment" }]);
 });
