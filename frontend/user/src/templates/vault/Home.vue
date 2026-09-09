@@ -277,15 +277,15 @@ const showAnnouncementIfNeeded = () => {
   }
 }
 
-const loadProducts = async () => {
-  productsLoading.value = true
+const loadProducts = async (showLoading = true) => {
+  if (showLoading) productsLoading.value = true
   try {
     const res = await productAPI.list({ page: 1, page_size: 15 })
     products.value = res.data.data || []
   } catch (err) {
     console.error('Failed to load products:', err)
   } finally {
-    productsLoading.value = false
+    if (showLoading) productsLoading.value = false
   }
 }
 
@@ -330,10 +330,10 @@ let stopInventoryRevalidation: (() => void) | undefined
 
 const refreshVisibleInventory = async () => {
   if (isListMode.value) {
-    await listLoadProducts()
+    await listLoadProducts(false)
     return
   }
-  await loadProducts()
+  await loadProducts(false)
 }
 
 onMounted(async () => {

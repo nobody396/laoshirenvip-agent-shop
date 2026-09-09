@@ -177,7 +177,7 @@ let stopInventoryRevalidation: (() => void) | undefined
 onMounted(async () => {
   window.addEventListener('resize', handleResize, { passive: true })
   await initialize()
-  stopInventoryRevalidation = startInventoryRevalidation(loadProducts)
+  stopInventoryRevalidation = startInventoryRevalidation(() => loadProducts(false))
 })
 
 onUnmounted(() => {

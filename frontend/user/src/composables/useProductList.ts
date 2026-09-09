@@ -84,8 +84,8 @@ export function useProductList(options: UseProductListOptions = {}) {
     }
   }
 
-  const loadProducts = async () => {
-    loading.value = true
+  const loadProducts = async (showLoading = true) => {
+    if (showLoading) loading.value = true
     try {
       const params: any = {
         page: currentPage.value,
@@ -106,7 +106,7 @@ export function useProductList(options: UseProductListOptions = {}) {
     } catch (error) {
       console.error('Failed to load products:', error)
     } finally {
-      loading.value = false
+      if (showLoading) loading.value = false
     }
   }
 

@@ -518,7 +518,7 @@ let stopInventoryRevalidation: (() => void) | undefined
 
 const refreshVisibleInventory = async () => {
   if (templateMode.value === 'list') {
-    await listLoadProducts()
+    await listLoadProducts(false)
     return
   }
   await loadFeaturedProducts()

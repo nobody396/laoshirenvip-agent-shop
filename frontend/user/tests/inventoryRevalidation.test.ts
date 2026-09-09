@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFileSync } from 'node:fs'
 
 import {
   INVENTORY_REVALIDATION_INTERVAL_MS,
@@ -103,4 +104,22 @@ test('coalesces overlapping refreshes', async () => {
   assert.equal(refreshes, 2)
   release?.()
   stop()
+})
+
+test('background inventory revalidation does not replace products with loading skeletons', () => {
+  const source = (relativePath: string) =>
+    readFileSync(new URL(relativePath, import.meta.url), 'utf8')
+
+  const productList = source('../src/composables/useProductList.ts')
+  const home = source('../src/views/Home.vue')
+  const products = source('../src/views/Products.vue')
+  const vaultHome = source('../src/templates/vault/Home.vue')
+
+  assert.match(productList, /const loadProducts = async \(showLoading = true\)/)
+  assert.match(productList, /if \(showLoading\) loading\.value = true/)
+  assert.match(productList, /if \(showLoading\) loading\.value = false/)
+  assert.match(home, /await listLoadProducts\(false\)/)
+  assert.match(products, /startInventoryRevalidation\(\(\) => loadProducts\(false\)\)/)
+  assert.match(vaultHome, /await listLoadProducts\(false\)/)
+  assert.match(vaultHome, /await loadProducts\(false\)/)
 })
