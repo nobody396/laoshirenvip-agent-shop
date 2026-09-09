@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import {
     Home, LayoutGrid, Bell, Info,
     Link2, FileText, Globe, Star, Heart, MessageCircle, Gift, Zap, Shield,
-    BookOpen, Code, Phone, MapPin, Music, Camera,
+    BookOpen, Code, Phone, MapPin, Music, Camera, ReceiptText,
 } from 'lucide-vue-next'
 import { useAppStore } from '../stores/app'
 import { getLocalizedText } from '../utils/resellerSiteConfig'
@@ -137,12 +137,17 @@ export const useNavConfig = () => {
         if (!isListMode.value) {
             items.push({ key: 'products', path: '/products', label: t('nav.products'), icon: LayoutGrid, type: 'route', target: '_self' })
         }
+        items.push({ key: 'invoice', path: '/invoice', label: t('nav.invoice'), icon: ReceiptText, type: 'route', target: '_self' })
         items.push(...builtinNavItems.value, ...customNavItems.value)
         return items
     })
 
     /** 内置 + 自定义（不含首页/商品，供移动端抽屉等已在别处露出首页入口的场景使用） */
-    const secondaryNavItems = computed<NavItem[]>(() => [...builtinNavItems.value, ...customNavItems.value])
+    const secondaryNavItems = computed<NavItem[]>(() => [
+        { key: 'invoice', path: '/invoice', label: t('nav.invoice'), icon: ReceiptText, type: 'route', target: '_self' },
+        ...builtinNavItems.value,
+        ...customNavItems.value,
+    ])
 
     return {
         navConfig,

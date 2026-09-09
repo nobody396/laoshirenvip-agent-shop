@@ -47,6 +47,7 @@
   "nav": {
     "home": "Home",
     "products": "Products",
+    "invoice": "Invoice",
     "blog": "Blog",
     "integrationGuide": "Integration Guide",
     "notice": "Notice",
