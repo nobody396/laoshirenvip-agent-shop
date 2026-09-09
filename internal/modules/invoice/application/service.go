@@ -32,6 +32,7 @@ type Store interface {
 	GetByOriginalOrder(source, sourceHost, orderNo string) (*domain.Request, error)
 	MarkPaid(requestNo, providerRef string, paidAt time.Time) (bool, *domain.Request, error)
 	SetFeishuSync(requestNo, recordID, lastError string) error
+	ListPendingFeishu(limit int) ([]domain.Request, error)
 }
 
 func (s *Service) HandlePaymentCallback(form map[string][]string, body []byte) (*domain.Request, bool, error) {
@@ -116,6 +117,28 @@ func NewService(store Store, channels ChannelStore, gateways paymentcontract.Gat
 }
 
 func (s *Service) SetPaidSink(sink PaidSink) { s.paidSink = sink }
+
+func (s *Service) SyncPendingFeishu(ctx context.Context) error {
+	if s.paidSink == nil {
+		return nil
+	}
+	requests, err := s.store.ListPendingFeishu(50)
+	if err != nil {
+		return err
+	}
+	for index := range requests {
+		request := &requests[index]
+		recordID, syncErr := s.paidSink.UpsertPaidRequest(ctx, request)
+		if syncErr != nil {
+			_ = s.store.SetFeishuSync(request.RequestNo, "", syncErr.Error())
+			continue
+		}
+		if err := s.store.SetFeishuSync(request.RequestNo, recordID, ""); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func (s *Service) Get(requestNo string) (*domain.Request, error) {
 	requestNo = strings.TrimSpace(requestNo)
@@ -250,7 +273,7 @@ func (s *Service) paymentURLs(requestNo string) (string, string, error) {
 	notify.Path = "/api/v1/invoices/payment/callback"
 	notify.RawQuery = ""
 	ret := *base
-	ret.Path = "/invoice/requests/" + url.PathEscape(requestNo)
-	ret.RawQuery = ""
+	ret.Path = "/invoice"
+	ret.RawQuery = url.Values{"request_no": []string{requestNo}}.Encode()
 	return notify.String(), ret.String(), nil
 }

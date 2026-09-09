@@ -43,6 +43,12 @@ func (s *requestStoreStub) SetFeishuSync(_ string, recordID, lastError string) e
 	}
 	return nil
 }
+func (s *requestStoreStub) ListPendingFeishu(_ int) ([]domain.Request, error) {
+	if s.item == nil || s.item.PaidAt == nil || s.item.FeishuRecordID != "" {
+		return nil, nil
+	}
+	return []domain.Request{*s.item}, nil
+}
 
 type channelStoreStub struct{ item *paymentdomain.PaymentChannel }
 
@@ -91,6 +97,9 @@ func TestCreateSnapshotsInvoiceAndFourPercentPaymentAmounts(t *testing.T) {
 	}
 	if gateway.input.OrderNo != request.RequestNo || gateway.input.Amount.String() != "19.66" || gateway.input.NotifyURL != "https://lsrai.shop/api/v1/invoices/payment/callback" {
 		t.Fatalf("unexpected gateway input: %+v", gateway.input)
+	}
+	if gateway.input.ReturnURL != "https://lsrai.shop/invoice?request_no="+request.RequestNo {
+		t.Fatalf("unexpected return URL: %s", gateway.input.ReturnURL)
 	}
 }
 

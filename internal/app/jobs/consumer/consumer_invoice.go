@@ -8,5 +8,8 @@ import (
 )
 
 func (c *Consumer) handleInvoiceDelivery(ctx context.Context, _ *asynq.Task) error {
+	if err := c.InvoiceService.SyncPendingFeishu(ctx); err != nil {
+		return err
+	}
 	return invoiceapp.ProcessReadyInvoices(ctx, c.InvoiceRepo, c.InvoiceDocumentSource, c.InvoiceMailer)
 }

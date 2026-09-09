@@ -41,6 +41,15 @@ func (s *Store) SetFeishuSync(requestNo, recordID, lastError string) error {
 	}).Error
 }
 
+func (s *Store) ListPendingFeishu(limit int) ([]domain.Request, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	var requests []domain.Request
+	err := s.db.Where("paid_at IS NOT NULL AND feishu_record_id = '' AND status IN ?", []string{domain.StatusPendingIssue, domain.StatusEmailFailed}).Order("paid_at ASC").Limit(limit).Find(&requests).Error
+	return requests, err
+}
+
 func (s *Store) ClaimEmail(requestNo, invoiceNumber string, invoiceDate *time.Time) (bool, *domain.Request, error) {
 	now := time.Now()
 	result := s.db.Model(&domain.Request{}).
