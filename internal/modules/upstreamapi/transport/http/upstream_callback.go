@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dujiao-next/internal/constants"
 	"github.com/dujiao-next/internal/logger"
 	procurementcontract "github.com/dujiao-next/internal/modules/procurement/contract"
 	"github.com/dujiao-next/internal/shared/jsonmap"
@@ -19,6 +20,7 @@ import (
 
 type callbackPayload struct {
 	Event             string `json:"event"`
+	EventID           string `json:"event_id"`
 	OrderID           uint   `json:"order_id"`
 	OrderNo           string `json:"order_no"`
 	DownstreamOrderNo string `json:"downstream_order_no"`
@@ -36,9 +38,17 @@ type callbackPayload struct {
 // HandleCallback POST /api/v1/upstream/callback (A 站点接收 B 站回调)
 func (h *Handler) HandleCallback(c *gin.Context) {
 	// ---- 签名验证 ----
+	gmshopCallback := c.GetHeader(upstreamadapter.GMShopEdgeHeaderAPIKey) != ""
 	apiKey := c.GetHeader(upstreamadapter.HeaderApiKey)
 	timestampStr := c.GetHeader(upstreamadapter.HeaderTimestamp)
 	signature := c.GetHeader(upstreamadapter.HeaderSignature)
+	nonce := ""
+	if gmshopCallback {
+		apiKey = c.GetHeader(upstreamadapter.GMShopEdgeHeaderAPIKey)
+		timestampStr = c.GetHeader(upstreamadapter.GMShopEdgeHeaderTimestamp)
+		signature = c.GetHeader(upstreamadapter.GMShopEdgeHeaderSignature)
+		nonce = c.GetHeader(upstreamadapter.GMShopEdgeHeaderNonce)
+	}
 
 	if apiKey == "" || timestampStr == "" || signature == "" {
 		c.JSON(http.StatusOK, gin.H{"ok": false, "message": "missing authentication headers"})
@@ -87,7 +97,21 @@ func (h *Handler) HandleCallback(c *gin.Context) {
 		}
 	}
 
-	if !upstreamadapter.Verify(apiSecret, "POST", "/api/v1/upstream/callback", signature, timestamp, body) {
+	verified := upstreamadapter.Verify(apiSecret, "POST", "/api/v1/upstream/callback", signature, timestamp, body)
+	if gmshopCallback {
+		verified = conn.Protocol == constants.ConnectionProtocolGMShopEdge &&
+			len(nonce) >= 16 && len(nonce) <= 100 &&
+			upstreamadapter.VerifyGMShopEdgeSignature(
+				apiSecret,
+				http.MethodPost,
+				"/api/v1/upstream/callback",
+				timestampStr,
+				nonce,
+				signature,
+				body,
+			)
+	}
+	if !verified {
 		logger.Warnw("upstream_callback_signature_invalid", "api_key", apiKey)
 		c.JSON(http.StatusOK, gin.H{"ok": false, "message": "signature verification failed"})
 		return
@@ -97,6 +121,19 @@ func (h *Handler) HandleCallback(c *gin.Context) {
 	var payload callbackPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		c.JSON(http.StatusOK, gin.H{"ok": false, "message": "invalid request body"})
+		return
+	}
+	if payload.Event == "inventory.changed" {
+		if !gmshopCallback || len(payload.EventID) < 16 || len(payload.EventID) > 128 || h.InventorySync == nil {
+			c.JSON(http.StatusOK, gin.H{"ok": false, "message": "invalid inventory event"})
+			return
+		}
+		if err := h.InventorySync.SyncConnectionNow(conn.ID); err != nil {
+			logger.Warnw("upstream_inventory_sync_failed", "connection_id", conn.ID, "error", err)
+			c.JSON(http.StatusOK, gin.H{"ok": false, "message": "inventory sync failed"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"ok": true, "message": "inventory synced"})
 		return
 	}
 

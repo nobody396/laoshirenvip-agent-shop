@@ -1,4 +1,4 @@
-export const INVENTORY_REVALIDATION_INTERVAL_MS = 30_000
+export const INVENTORY_REVALIDATION_INTERVAL_MS = 3_000
 
 type InventoryRevalidationOptions = {
   windowTarget?: EventTarget

@@ -2,10 +2,14 @@ package upstreamhttp
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -67,6 +71,60 @@ func (stubSecrets) DecryptSecret(encrypted string) (string, error) { return encr
 type stubProcurements struct {
 	order   *procurementdomain.Order
 	handled bool
+}
+
+type stubInventorySync struct {
+	connectionID uint
+	calls        int
+}
+
+func (s *stubInventorySync) SyncConnectionNow(connectionID uint) error {
+	s.connectionID = connectionID
+	s.calls++
+	return nil
+}
+
+func TestHandleCallbackRefreshesGMShopInventory(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	syncer := &stubInventorySync{}
+	handler := &Handler{Dependencies: Dependencies{
+		Connections: stubConnections{conn: &siteconnectiondomain.Connection{
+			ID: 7, ApiKey: "central-key", ApiSecret: "central-secret",
+			Protocol: "gmshop-edge", Status: "active",
+		}},
+		ConnectionSecrets: stubSecrets{},
+		InventorySync:     syncer,
+	}}
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	nonce := "inventory-event-nonce-0001"
+	body, _ := json.Marshal(callbackPayload{
+		Event: "inventory.changed", EventID: "inventory-event-0001",
+		Timestamp: time.Now().UnixMilli(),
+	})
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/upstream/callback", bytes.NewReader(body))
+	request.Header.Set(upstreamadapter.GMShopEdgeHeaderAPIKey, "central-key")
+	request.Header.Set(upstreamadapter.GMShopEdgeHeaderTimestamp, timestamp)
+	request.Header.Set(upstreamadapter.GMShopEdgeHeaderNonce, nonce)
+	request.Header.Set(upstreamadapter.GMShopEdgeHeaderSignature,
+		gmshopTestSignature("central-secret", http.MethodPost, "/api/v1/upstream/callback", timestamp, nonce, body))
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = request
+	handler.HandleCallback(c)
+	if syncer.calls != 1 || syncer.connectionID != 7 {
+		t.Fatalf("inventory sync calls=%d connection=%d", syncer.calls, syncer.connectionID)
+	}
+	if !strings.Contains(recorder.Body.String(), `"ok":true`) {
+		t.Fatalf("unexpected response: %s", recorder.Body.String())
+	}
+}
+
+func gmshopTestSignature(secret, method, path, timestamp, nonce string, body []byte) string {
+	digest := sha256.Sum256(body)
+	payload := strings.Join([]string{strings.ToUpper(method), path, timestamp, nonce, hex.EncodeToString(digest[:])}, "\n")
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(payload))
+	return hex.EncodeToString(mac.Sum(nil))
 }
 
 func (s *stubProcurements) GetByLocalOrderNo(string) (*procurementdomain.Order, error) {

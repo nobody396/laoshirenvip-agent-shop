@@ -41,6 +41,7 @@ func NewHandler(c *container.Container) *upstreamtransport.Handler {
 		DownstreamRefs:    c.DownstreamOrderRefRepo,
 		Connections:       c.SiteConnectionRepo,
 		ConnectionSecrets: c.SiteConnectionService,
+		InventorySync:     c.ProductMappingService,
 	})
 }
 
