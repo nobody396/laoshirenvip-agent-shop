@@ -42,13 +42,17 @@ func (s *documentSourceStub) UpdateDelivery(_ context.Context, _ string, status,
 }
 
 type mailerStub struct {
-	calls int
-	to    string
+	calls   int
+	source  string
+	to      string
+	subject string
 }
 
-func (m *mailerStub) SendInvoice(to, _, _, _ string, content []byte) error {
+func (m *mailerStub) SendInvoice(source, to, subject, _, _ string, content []byte) error {
 	m.calls++
+	m.source = source
 	m.to = to
+	m.subject = subject
 	if string(content) != "%PDF-test" {
 		panic("wrong PDF")
 	}
@@ -56,12 +60,23 @@ func (m *mailerStub) SendInvoice(to, _, _, _ string, content []byte) error {
 }
 
 func TestProcessReadyInvoicesSendsPDFAndCompletesRow(t *testing.T) {
-	store := &deliveryStoreStub{request: &domain.Request{RequestNo: "INV-1", BuyerTitle: "示例公司", OriginalOrderNo: "DJ-1", RecipientEmail: "finance@example.com", InvoiceTotalAmount: money.FromDecimal(decimal.RequireFromString("648.90")), Status: domain.StatusPendingIssue}}
+	store := &deliveryStoreStub{request: &domain.Request{RequestNo: "INV-1", Source: "dujiao", BuyerTitle: "示例公司", OriginalOrderNo: "DJ-1", RecipientEmail: "finance@example.com", InvoiceTotalAmount: money.FromDecimal(decimal.RequireFromString("648.90")), Status: domain.StatusPendingIssue}}
 	source, mailer := &documentSourceStub{}, &mailerStub{}
 	if err := ProcessReadyInvoices(context.Background(), store, source, mailer); err != nil {
 		t.Fatal(err)
 	}
-	if mailer.calls != 1 || mailer.to != "finance@example.com" || store.request.Status != domain.StatusCompleted || source.status != "已完成" {
+	if mailer.calls != 1 || mailer.source != "dujiao" || mailer.to != "finance@example.com" || mailer.subject != "电子发票已开具｜648.90元" || store.request.Status != domain.StatusCompleted || source.status != "已完成" {
 		t.Fatal("unexpected delivery result")
+	}
+}
+
+func TestProcessReadyInvoicesKeepsVIPSubjectForGMShop(t *testing.T) {
+	store := &deliveryStoreStub{request: &domain.Request{RequestNo: "INV-1", Source: "gmshop", BuyerTitle: "示例公司", OriginalOrderNo: "GM-1", RecipientEmail: "finance@example.com", InvoiceTotalAmount: money.FromDecimal(decimal.RequireFromString("648.90")), Status: domain.StatusPendingIssue}}
+	source, mailer := &documentSourceStub{}, &mailerStub{}
+	if err := ProcessReadyInvoices(context.Background(), store, source, mailer); err != nil {
+		t.Fatal(err)
+	}
+	if mailer.source != "gmshop" || mailer.subject != "【老实人AI VIP】电子发票已开具｜648.90元" {
+		t.Fatalf("unexpected GMShop mail: source=%q subject=%q", mailer.source, mailer.subject)
 	}
 }

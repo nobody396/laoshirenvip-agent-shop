@@ -23,3 +23,16 @@ func TestLoadReadsFeishuNotificationSecretEnvironment(t *testing.T) {
 		t.Fatal("Feishu notification secret was not loaded")
 	}
 }
+
+func TestLoadReadsPartnerInvoiceEmailEnvironment(t *testing.T) {
+	t.Setenv("INVOICE_PARTNER_EMAIL_ENABLED", "true")
+	t.Setenv("INVOICE_PARTNER_EMAIL_PASSWORD", "runtime-partner-password")
+
+	cfg := Load()
+	if !cfg.Invoice.PartnerEmail.Enabled || cfg.Invoice.PartnerEmail.Password != "runtime-partner-password" {
+		t.Fatal("partner invoice email config was not loaded")
+	}
+	if cfg.Invoice.PartnerEmail.Host != "mail.spacemail.com" || cfg.Invoice.PartnerEmail.Port != 465 || cfg.Invoice.PartnerEmail.From != "invoice@lsrai.shop" || cfg.Invoice.PartnerEmail.FromName != "开票通知" || !cfg.Invoice.PartnerEmail.UseSSL || cfg.Invoice.PartnerEmail.UseTLS {
+		t.Fatalf("unexpected partner invoice email defaults: %+v", cfg.Invoice.PartnerEmail)
+	}
+}

@@ -17,7 +17,7 @@ type InvoiceDocumentSource interface {
 }
 
 type InvoiceMailer interface {
-	SendInvoice(to, subject, body, fileName string, content []byte) error
+	SendInvoice(source, to, subject, body, fileName string, content []byte) error
 }
 
 type DeliveryStore interface {
@@ -53,9 +53,12 @@ func ProcessReadyInvoices(ctx context.Context, store DeliveryStore, source Invoi
 		if fileName == "" {
 			fileName = "电子发票-" + item.InvoiceNumber + ".pdf"
 		}
-		subject := fmt.Sprintf("【老实人AI VIP】电子发票已开具｜%s元", request.InvoiceTotalAmount.String())
+		subject := fmt.Sprintf("电子发票已开具｜%s元", request.InvoiceTotalAmount.String())
+		if request.Source == "gmshop" {
+			subject = "【老实人AI VIP】" + subject
+		}
 		body := fmt.Sprintf("%s，您好：\n\n您申请的电子发票已经开具，发票 PDF 请查看本邮件附件。\n\n发票号码：%s\n开票项目：%s\n开票金额：%s 元\n原订单号：%s\n", request.BuyerTitle, item.InvoiceNumber, domain.InvoiceItemName, request.InvoiceTotalAmount.String(), request.OriginalOrderNo)
-		if sendErr := mailer.SendInvoice(request.RecipientEmail, subject, body, fileName, content); sendErr != nil {
+		if sendErr := mailer.SendInvoice(request.Source, request.RecipientEmail, subject, body, fileName, content); sendErr != nil {
 			_ = store.FinishEmail(item.RequestNo, false, sendErr.Error(), time.Now())
 			_ = source.UpdateDelivery(ctx, item.RecordID, "邮件失败", "邮件发送失败", nil)
 			continue

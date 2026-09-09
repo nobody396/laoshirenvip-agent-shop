@@ -46,14 +46,15 @@ type NotificationConfig struct {
 // InvoiceConfig contains the minimal cross-system invoice workflow settings.
 // App secrets remain runtime-only; Base identifiers are non-secret resource IDs.
 type InvoiceConfig struct {
-	Enabled           bool   `mapstructure:"enabled"`
-	PublicBaseURL     string `mapstructure:"public_base_url"`
-	FeishuAppID       string `mapstructure:"feishu_app_id"`
-	FeishuAppSecret   string `mapstructure:"feishu_app_secret"`
-	FeishuBaseToken   string `mapstructure:"feishu_base_token"`
-	FeishuTableID     string `mapstructure:"feishu_table_id"`
-	GMShopLookupURL   string `mapstructure:"gmshop_lookup_url"`
-	GMShopLookupToken string `mapstructure:"gmshop_lookup_token"`
+	Enabled           bool        `mapstructure:"enabled"`
+	PublicBaseURL     string      `mapstructure:"public_base_url"`
+	FeishuAppID       string      `mapstructure:"feishu_app_id"`
+	FeishuAppSecret   string      `mapstructure:"feishu_app_secret"`
+	FeishuBaseToken   string      `mapstructure:"feishu_base_token"`
+	FeishuTableID     string      `mapstructure:"feishu_table_id"`
+	GMShopLookupURL   string      `mapstructure:"gmshop_lookup_url"`
+	GMShopLookupToken string      `mapstructure:"gmshop_lookup_token"`
+	PartnerEmail      EmailConfig `mapstructure:"partner_email"`
 }
 
 // AppConfig 应用级配置
@@ -442,6 +443,15 @@ func Load() *Config {
 	viper.SetDefault("invoice.feishu_table_id", "")
 	viper.SetDefault("invoice.gmshop_lookup_url", "https://laoshirenvip.com/api/shop/invoice-order")
 	viper.SetDefault("invoice.gmshop_lookup_token", "")
+	viper.SetDefault("invoice.partner_email.enabled", false)
+	viper.SetDefault("invoice.partner_email.host", "mail.spacemail.com")
+	viper.SetDefault("invoice.partner_email.port", 465)
+	viper.SetDefault("invoice.partner_email.username", "invoice@lsrai.shop")
+	viper.SetDefault("invoice.partner_email.password", "")
+	viper.SetDefault("invoice.partner_email.from", "invoice@lsrai.shop")
+	viper.SetDefault("invoice.partner_email.from_name", "开票通知")
+	viper.SetDefault("invoice.partner_email.use_tls", false)
+	viper.SetDefault("invoice.partner_email.use_ssl", true)
 	viper.SetDefault("email.verify_code.expire_minutes", 10)
 	viper.SetDefault("email.verify_code.send_interval_seconds", 60)
 	viper.SetDefault("email.verify_code.max_attempts", 5)
