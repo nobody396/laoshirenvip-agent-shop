@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	TypeOrdinary = "ordinary"
-	TypeSpecial  = "special"
+	TypeOrdinary    = "ordinary"
+	TypeSpecial     = "special"
+	InvoiceItemName = "生产生活服务信息系统服务"
 
 	OrdinaryRateBPS = 300
 	SpecialRateBPS  = 600
