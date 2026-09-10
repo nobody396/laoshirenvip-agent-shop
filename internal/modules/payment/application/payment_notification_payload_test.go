@@ -146,7 +146,9 @@ func TestBuildOrderNotificationPayloadIncludesCustomerAndItemSummary(t *testing.
 
 func TestBuildOrderNotificationPayloadIdentifiesResellerStorefront(t *testing.T) {
 	resellerID := uint(15)
-	svc := &PaymentService{orderResourceSummary: fixedOrderResourceSummary("ChatGPT Plus 菲区：中央库存 9")}
+	svc := &PaymentService{
+		orderOwnerSummary: fixedOrderOwnerSummary{resource: "ChatGPT Plus 菲区：中央库存 9", financial: "我们的成本价：¥115.00"},
+	}
 	order := &orderdomain.Order{
 		ID:             1500,
 		OrderNo:        "DJ202609070001",
@@ -161,6 +163,12 @@ func TestBuildOrderNotificationPayloadIdentifiesResellerStorefront(t *testing.T)
 	}
 	if got := fmt.Sprintf("%v", payload["resource_summary"]); got != "ChatGPT Plus 菲区：中央库存 9" {
 		t.Fatalf("unexpected resource summary: %s", got)
+	}
+	if got := fmt.Sprintf("%v", payload["reseller_financial_summary"]); got != "我们的成本价：¥115.00" {
+		t.Fatalf("unexpected financial summary: %s", got)
+	}
+	if got, ok := payload["is_reseller_order"].(bool); !ok || !got {
+		t.Fatalf("expected reseller order marker, got %#v", payload["is_reseller_order"])
 	}
 }
 
@@ -180,10 +188,13 @@ func TestBuildOrderNotificationPayloadIdentifiesWalletPayment(t *testing.T) {
 	}
 }
 
-type fixedOrderResourceSummary string
+type fixedOrderOwnerSummary struct {
+	resource  string
+	financial string
+}
 
-func (value fixedOrderResourceSummary) Summary(*orderdomain.Order) string {
-	return string(value)
+func (value fixedOrderOwnerSummary) Summary(*orderdomain.Order, *paymentdomain.Payment, string) (string, string) {
+	return value.resource, value.financial
 }
 
 func TestBuildOrderNotificationPayloadUsesDisplayChannelType(t *testing.T) {

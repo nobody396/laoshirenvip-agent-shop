@@ -47,7 +47,7 @@ func TestPaymentOrderResourceSummaryReportsCentralStockAndUpstreamBalance(t *tes
 			t.Fatalf("exec %q: %v", statement, err)
 		}
 	}
-	reader := newPaymentOrderResourceSummary(db, fixedConnectionBalance{values: map[uint]*siteconnectionapp.PingResult{
+	reader := newPaymentOrderOwnerSummary(db, fixedConnectionBalance{values: map[uint]*siteconnectionapp.PingResult{
 		42: {Balance: "1305", Currency: "CNY"},
 	}})
 	order := &orderdomain.Order{Items: []orderdomain.OrderItem{
@@ -57,7 +57,7 @@ func TestPaymentOrderResourceSummaryReportsCentralStockAndUpstreamBalance(t *tes
 	if got := orderResourceLabel(order.Items[0]); got != "ChatGPT Plus 菲区" {
 		t.Fatalf("unexpected resource label: %q (%T)", got, order.Items[0].SKUSnapshotJSON["spec_values"])
 	}
-	summary := reader.Summary(order)
+	summary := reader.resourceSummary(order)
 	if !strings.Contains(summary, "ChatGPT Plus 菲区：中央库存 9") {
 		t.Fatalf("missing central stock: %s", summary)
 	}

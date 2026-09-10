@@ -284,3 +284,64 @@ func TestServiceDispatchSingleEventSendsFeishuAndRecordsEachRecipient(t *testing
 		t.Fatalf("unexpected feishu log statuses: %#v", statuses)
 	}
 }
+
+func TestAppendResellerFinancialSummaryOnlyAffectsFeishuOrderMessage(t *testing.T) {
+	variables := map[string]interface{}{
+		"is_reseller_order":          true,
+		"reseller_financial_summary": "我们的成本价：¥115.00\n我们的利润：¥2.00",
+	}
+	got := appendResellerFinancialSummary(constants.NotificationEventOrderPaidSuccess, "原通知", variables)
+	if !strings.Contains(got, "子站经营核算") || !strings.Contains(got, "我们的利润：¥2.00") {
+		t.Fatalf("financial summary was not appended: %s", got)
+	}
+	if main := appendResellerFinancialSummary(constants.NotificationEventOrderPaidSuccess, "原通知", map[string]interface{}{"is_reseller_order": false}); main != "原通知" {
+		t.Fatalf("main storefront message changed: %s", main)
+	}
+	if alert := appendResellerFinancialSummary(constants.NotificationEventExceptionAlert, "原通知", variables); alert != "原通知" {
+		t.Fatalf("non-order event changed: %s", alert)
+	}
+}
+
+func TestDispatchKeepsResellerFinancialSummaryOutOfEmail(t *testing.T) {
+	repo := &notificationLogRepositoryStub{}
+	logService := NewLogService(repo)
+	feishuSender := &notificationFeishuStub{}
+	setting := settingsmessaging.NotificationCenterDefaultSetting()
+	setting.DefaultLocale = constants.LocaleZhCN
+	setting.Channels.Email = settingsmessaging.NotificationChannelSetting{Enabled: true, Recipients: []string{"owner@example.com"}}
+	setting.Channels.Feishu = settingsmessaging.FeishuNotificationChannelSetting{
+		Enabled: true, AppID: "cli_demo", AppSecret: "secret",
+		ReceiveIDType: settingsmessaging.FeishuReceiveIDTypeChatID,
+		Recipients:    []string{"oc_owner"},
+	}
+	service := NewService(notificationSettingsStub{notification: setting}, notificationEmailStub{}, nil, nil, logService, nil, feishuSender)
+	if err := service.dispatchSingleEvent(context.Background(), setting, queue.NotificationDispatchPayload{
+		EventType: constants.NotificationEventOrderPaidSuccess,
+		BizType:   constants.NotificationBizTypeOrder,
+		BizID:     177,
+		Locale:    constants.LocaleZhCN,
+		Force:     true,
+		Data: map[string]interface{}{
+			"order_no":                   "DJ-FINANCIAL-177",
+			"is_reseller_order":          true,
+			"reseller_financial_summary": "我们的成本价：¥115.00\n我们的利润：¥2.00",
+		},
+	}); err != nil {
+		t.Fatalf("dispatch failed: %v", err)
+	}
+	if len(repo.items) != 2 {
+		t.Fatalf("expected email and Feishu logs, got %d", len(repo.items))
+	}
+	for _, item := range repo.items {
+		switch item.Channel {
+		case constants.NotificationChannelEmail:
+			if strings.Contains(item.Body, "我们的成本价") || strings.Contains(item.Body, "我们的利润") {
+				t.Fatalf("internal financials leaked to email: %s", item.Body)
+			}
+		case constants.NotificationChannelFeishu:
+			if !strings.Contains(item.Body, "我们的成本价：¥115.00") || !strings.Contains(item.Body, "我们的利润：¥2.00") {
+				t.Fatalf("Feishu log missing financials: %s", item.Body)
+			}
+		}
+	}
+}
