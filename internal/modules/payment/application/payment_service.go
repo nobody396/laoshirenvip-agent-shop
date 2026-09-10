@@ -71,7 +71,7 @@ type PaymentService struct {
 	resellerAccounting      resellerAccountingTransactions
 	resellerChannels        ResellerPaymentChannelSelector
 	resellerFeeWalletOwners ResellerFeeWalletOwnerSelector
-	orderResourceSummary    OrderResourceSummaryReader
+	orderOwnerSummary       OrderOwnerSummaryReader
 }
 
 type MemberLevelProgressor interface {
@@ -83,10 +83,11 @@ type ProcurementCreator interface {
 	CreateForOrder(orderID uint) error
 }
 
-// OrderResourceSummaryReader returns the stock or upstream balance line shown
-// only in owner notifications. Failures must not affect payment completion.
-type OrderResourceSummaryReader interface {
-	Summary(order *orderdomain.Order) string
+// OrderOwnerSummaryReader returns the operational-resource and financial blocks
+// rendered only in owner-facing notifications. One projection keeps the two
+// blocks on the same immutable order snapshot without adding another service.
+type OrderOwnerSummaryReader interface {
+	Summary(order *orderdomain.Order, payment *paymentdomain.Payment, locale string) (resource string, financial string)
 }
 
 // DownstreamCallbackEnqueuer 是支付与交付上下文触发下游回调所需的最小端口。
@@ -158,7 +159,7 @@ type PaymentServiceOptions struct {
 	ResellerAccounting      resellerAccountingTransactions
 	ResellerChannels        ResellerPaymentChannelSelector
 	ResellerFeeWalletOwners ResellerFeeWalletOwnerSelector
-	OrderResourceSummary    OrderResourceSummaryReader
+	OrderOwnerSummary       OrderOwnerSummaryReader
 }
 
 // NewPaymentService 创建支付服务
@@ -183,7 +184,7 @@ func NewPaymentService(opts PaymentServiceOptions) *PaymentService {
 		resellerAccounting:      opts.ResellerAccounting,
 		resellerChannels:        opts.ResellerChannels,
 		resellerFeeWalletOwners: opts.ResellerFeeWalletOwners,
-		orderResourceSummary:    opts.OrderResourceSummary,
+		orderOwnerSummary:       opts.OrderOwnerSummary,
 	}
 }
 

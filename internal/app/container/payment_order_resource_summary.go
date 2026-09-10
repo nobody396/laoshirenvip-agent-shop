@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	orderdomain "github.com/dujiao-next/internal/modules/order/domain"
+	paymentdomain "github.com/dujiao-next/internal/modules/payment/domain"
 	siteconnectionapp "github.com/dujiao-next/internal/modules/siteconnection/application"
 	"github.com/dujiao-next/internal/shared/jsonmap"
 
@@ -16,7 +17,7 @@ type connectionBalanceReader interface {
 	Ping(id uint) (*siteconnectionapp.PingResult, error)
 }
 
-type paymentOrderResourceSummary struct {
+type paymentOrderOwnerSummary struct {
 	db          *gorm.DB
 	connections connectionBalanceReader
 }
@@ -30,11 +31,15 @@ type paymentOrderResourceRow struct {
 	LocalStock    int    `gorm:"column:local_stock"`
 }
 
-func newPaymentOrderResourceSummary(db *gorm.DB, connections connectionBalanceReader) *paymentOrderResourceSummary {
-	return &paymentOrderResourceSummary{db: db, connections: connections}
+func newPaymentOrderOwnerSummary(db *gorm.DB, connections connectionBalanceReader) *paymentOrderOwnerSummary {
+	return &paymentOrderOwnerSummary{db: db, connections: connections}
 }
 
-func (r *paymentOrderResourceSummary) Summary(order *orderdomain.Order) string {
+func (r *paymentOrderOwnerSummary) Summary(order *orderdomain.Order, payment *paymentdomain.Payment, locale string) (string, string) {
+	return r.resourceSummary(order), r.financialSummary(order, payment, locale)
+}
+
+func (r *paymentOrderOwnerSummary) resourceSummary(order *orderdomain.Order) string {
 	if r == nil || r.db == nil || order == nil || len(order.Items) == 0 {
 		return ""
 	}

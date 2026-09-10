@@ -221,7 +221,8 @@ func (s *Service) dispatchSingleEvent(ctx context.Context, setting settingsmessa
 		}
 	}
 	if setting.Channels.Feishu.Enabled && len(setting.Channels.Feishu.Recipients) > 0 {
-		message := format.ComposePlainTextMessage(title, body)
+		feishuBody := appendResellerFinancialSummary(payload.EventType, body, variables)
+		message := format.ComposePlainTextMessage(title, feishuBody)
 		for _, recipient := range setting.Channels.Feishu.Recipients {
 			var sendErr error
 			if s.feishuSender == nil {
@@ -244,7 +245,7 @@ func (s *Service) dispatchSingleEvent(ctx context.Context, setting settingsmessa
 				recipient: recipient,
 				locale:    locale,
 				title:     title,
-				body:      body,
+				body:      feishuBody,
 				variables: variables,
 				sendErr:   sendErr,
 			})
@@ -271,6 +272,25 @@ func (s *Service) dispatchSingleEvent(ctx context.Context, setting settingsmessa
 		return fmt.Errorf("%w: %v", contract.ErrSendFailed, firstErr)
 	}
 	return nil
+}
+
+func appendResellerFinancialSummary(eventType, body string, variables map[string]interface{}) string {
+	if strings.TrimSpace(eventType) != constants.NotificationEventOrderPaidSuccess {
+		return body
+	}
+	isReseller, _ := variables["is_reseller_order"].(bool)
+	if !isReseller {
+		return body
+	}
+	summary := strings.TrimSpace(fmt.Sprint(variables["reseller_financial_summary"]))
+	if summary == "" || summary == "<nil>" {
+		return body
+	}
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return "子站经营核算\n" + summary
+	}
+	return body + "\n\n子站经营核算\n" + summary
 }
 
 type notificationSendAttempt struct {

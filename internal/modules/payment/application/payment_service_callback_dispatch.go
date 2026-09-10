@@ -43,6 +43,9 @@ func (s *PaymentService) enqueueOrderPaidAsync(order *orderdomain.Order, payment
 			)
 		}
 	}
+	// Persist the procurement route before taking the owner-notification
+	// snapshot. CreateForOrder is idempotent; fulfillment remains asynchronous.
+	s.enqueueProcurementAsync(order, log)
 	s.enqueueOrderPaidNotificationAsync(order, payment, log)
 	s.enqueueOrderPaidBotNotifyAsync(order, log)
 
@@ -77,8 +80,6 @@ func (s *PaymentService) enqueueOrderPaidAsync(order *orderdomain.Order, payment
 				}
 			}
 		}
-		// 上游采购：为包含上游交付类型的订单创建采购单
-		s.enqueueProcurementAsync(order, log)
 		// B 侧：订单支付成功后检查是否需要回调下游
 		s.enqueueDownstreamCallbackAsync(order, log)
 		return
@@ -95,8 +96,6 @@ func (s *PaymentService) enqueueOrderPaidAsync(order *orderdomain.Order, payment
 			)
 		}
 	}
-	// 上游采购：为包含上游交付类型的订单创建采购单
-	s.enqueueProcurementAsync(order, log)
 	// B 侧：订单支付成功后检查是否需要回调下游
 	s.enqueueDownstreamCallbackAsync(order, log)
 }

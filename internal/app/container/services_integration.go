@@ -127,7 +127,7 @@ func (c *Container) initIntegrationServices() {
 		ResellerAccounting:      c.ResellerAccountingLedger,
 		ResellerChannels:        resellerPaymentChannelSelector{store: c.ResellerStore},
 		ResellerFeeWalletOwners: resellerPaymentChannelSelector{store: c.ResellerStore},
-		OrderResourceSummary:    newPaymentOrderResourceSummary(gormdb.DB, c.SiteConnectionService),
+		OrderOwnerSummary:       newPaymentOrderOwnerSummary(gormdb.DB, c.SiteConnectionService),
 	})
 	c.InvoiceService = invoiceapp.NewService(
 		c.InvoiceRepo,

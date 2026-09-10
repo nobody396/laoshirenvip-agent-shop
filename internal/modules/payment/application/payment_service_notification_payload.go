@@ -27,33 +27,51 @@ func (s *PaymentService) buildOrderNotificationPayload(order *orderdomain.Order,
 	itemsSummary, fulfillmentItemsSummary, counts := notificationformat.BuildOrderItemSummaries(order.Items, locale)
 	providerType, channelType, paymentChannel := notificationPaymentChannel(order, payment)
 	resourceSummary := "-"
-	if order.ResellerID != nil && s.orderResourceSummary != nil {
-		if value := strings.TrimSpace(s.orderResourceSummary.Summary(order)); value != "" {
-			resourceSummary = value
+	financialSummary := ""
+	isResellerOrder := order.ResellerID != nil && *order.ResellerID > 0
+	if isResellerOrder {
+		switch settingsmessaging.NormalizeNotificationLocale(locale) {
+		case constants.LocaleEnUS:
+			financialSummary = "Profit snapshot unavailable; review this order by order number."
+		case constants.LocaleZhTW:
+			financialSummary = "利潤快照暫不可用，請按訂單號核對。"
+		default:
+			financialSummary = "利润快照暂不可用，请按订单号核对。"
+		}
+		if s.orderOwnerSummary != nil {
+			resource, financial := s.orderOwnerSummary.Summary(order, payment, locale)
+			if resource = strings.TrimSpace(resource); resource != "" {
+				resourceSummary = resource
+			}
+			if financial = strings.TrimSpace(financial); financial != "" {
+				financialSummary = financial
+			}
 		}
 	}
 
 	payload := jsonmap.JSON{
-		"order_id":                  fmt.Sprintf("%d", order.ID),
-		"order_no":                  strings.TrimSpace(order.OrderNo),
-		"user_id":                   fmt.Sprintf("%d", order.UserID),
-		"guest_email":               strings.TrimSpace(order.GuestEmail),
-		"amount":                    order.TotalAmount.String(),
-		"currency":                  strings.ToUpper(strings.TrimSpace(order.Currency)),
-		"order_status":              strings.TrimSpace(order.Status),
-		"customer_email":            customerEmail,
-		"customer_label":            customerLabel,
-		"customer_type":             customerType,
-		"items_summary":             itemsSummary,
-		"fulfillment_items_summary": fulfillmentItemsSummary,
-		"delivery_summary":          notificationformat.BuildDeliverySummary(locale, counts),
-		"item_count":                fmt.Sprintf("%d", counts.Total),
-		"auto_item_count":           fmt.Sprintf("%d", counts.Auto),
-		"manual_item_count":         fmt.Sprintf("%d", counts.Manual),
-		"upstream_item_count":       fmt.Sprintf("%d", counts.Upstream),
-		"payment_channel":           paymentChannel,
-		"storefront_label":          notificationStorefrontLabel(order, locale),
-		"resource_summary":          resourceSummary,
+		"order_id":                   fmt.Sprintf("%d", order.ID),
+		"order_no":                   strings.TrimSpace(order.OrderNo),
+		"user_id":                    fmt.Sprintf("%d", order.UserID),
+		"guest_email":                strings.TrimSpace(order.GuestEmail),
+		"amount":                     order.TotalAmount.String(),
+		"currency":                   strings.ToUpper(strings.TrimSpace(order.Currency)),
+		"order_status":               strings.TrimSpace(order.Status),
+		"customer_email":             customerEmail,
+		"customer_label":             customerLabel,
+		"customer_type":              customerType,
+		"items_summary":              itemsSummary,
+		"fulfillment_items_summary":  fulfillmentItemsSummary,
+		"delivery_summary":           notificationformat.BuildDeliverySummary(locale, counts),
+		"item_count":                 fmt.Sprintf("%d", counts.Total),
+		"auto_item_count":            fmt.Sprintf("%d", counts.Auto),
+		"manual_item_count":          fmt.Sprintf("%d", counts.Manual),
+		"upstream_item_count":        fmt.Sprintf("%d", counts.Upstream),
+		"payment_channel":            paymentChannel,
+		"storefront_label":           notificationStorefrontLabel(order, locale),
+		"resource_summary":           resourceSummary,
+		"is_reseller_order":          isResellerOrder,
+		"reseller_financial_summary": financialSummary,
 	}
 	if payment != nil {
 		payload["payment_id"] = fmt.Sprintf("%d", payment.ID)
