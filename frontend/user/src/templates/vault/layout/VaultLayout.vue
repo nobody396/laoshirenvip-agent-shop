@@ -112,7 +112,7 @@
           <RouterLink to="/guest/orders" class="flex items-center gap-[7px] py-[5px] text-[14.5px] text-muted-foreground hover:text-primary"><ClipboardList class="h-4 w-4" /> {{ t('navbar.guestOrders') }}</RouterLink>
           <a v-if="contact?.telegram" :href="contact.telegram" target="_blank" rel="noopener noreferrer" class="flex items-center gap-[7px] py-[5px] text-[14.5px] text-muted-foreground hover:text-primary"><Send class="h-4 w-4" /> Telegram</a>
           <a v-if="contact?.whatsapp" :href="contact.whatsapp" target="_blank" rel="noopener noreferrer" class="flex items-center gap-[7px] py-[5px] text-[14.5px] text-muted-foreground hover:text-primary"><MessageCircle class="h-4 w-4" /> WhatsApp</a>
-          <a v-if="contactEmailHref" :href="contactEmailHref" class="flex items-center gap-[7px] py-[5px] text-[14.5px] text-muted-foreground hover:text-primary"><Mail class="h-4 w-4" /> Email</a>
+          <a v-if="contactEmailHref" :href="contactEmailHref" class="flex min-w-0 items-center gap-[7px] break-all py-[5px] text-[14.5px] text-muted-foreground hover:text-primary"><Mail class="h-4 w-4 flex-none" /> {{ contactEmail }}</a>
           <a v-if="contact?.support_url" :href="contact.support_url" target="_blank" rel="noopener noreferrer" class="flex items-center gap-[7px] py-[5px] text-[14.5px] text-muted-foreground hover:text-primary"><LifeBuoy class="h-4 w-4" /> Support</a>
         </div>
         <div>
@@ -211,10 +211,8 @@ const footerLinks = computed(() => {
 })
 
 const contact = computed(() => appStore.config?.contact as { telegram?: string; whatsapp?: string; email?: string; support_url?: string } | undefined)
-const contactEmailHref = computed(() => {
-  const email = String(contact.value?.email || '').trim().replace(/^mailto:/i, '')
-  return email ? `mailto:${email}` : ''
-})
+const contactEmail = computed(() => String(contact.value?.email || '').trim().replace(/^mailto:/i, ''))
+const contactEmailHref = computed(() => contactEmail.value ? `mailto:${contactEmail.value}` : '')
 
 const cartCount = computed(() => cartStore.totalItems)
 

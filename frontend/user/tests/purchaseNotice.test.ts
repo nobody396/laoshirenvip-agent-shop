@@ -33,9 +33,10 @@ test('all storefront layouts render every configured support channel', async () 
     read('../src/templates/vault/layout/VaultLayout.vue'),
   ])
   for (const source of sources) {
-    for (const required of ['telegram', 'whatsapp', 'Email', 'Support']) {
+    for (const required of ['telegram', 'whatsapp', 'contactEmail', 'Support']) {
       assert.ok(source.includes(required), `support surface missing ${required}`)
     }
+    assert.match(source, /\{\{ contactEmail \}\}/, 'email links should display the configured address')
   }
 })
 
