@@ -38,7 +38,7 @@
           </a>
           <a v-if="contactEmailHref" :href="contactEmailHref" class="flex items-center justify-center gap-3 rounded-md border bg-secondary p-4 font-bold text-muted-foreground transition hover:border-hairline-strong hover:text-foreground">
             <Mail class="h-6 w-6 flex-none text-primary" />
-            <span>Email</span>
+            <span class="min-w-0 break-all">{{ contactEmail }}</span>
           </a>
           <a v-if="contactSupportURL" :href="contactSupportURL" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center gap-3 rounded-md border bg-secondary p-4 font-bold text-muted-foreground transition hover:border-hairline-strong hover:text-foreground">
             <LifeBuoy class="h-6 w-6 flex-none text-primary" />
@@ -56,7 +56,7 @@ import { Card } from '@/components/ui/card'
 import { useAbout } from '../../composables/useAbout'
 
 const {
-  contactConfig, contactEmailHref, contactSupportURL, heroTitle, heroSubtitle, introductionText, servicesTitle, contactTitle, contactText,
+  contactConfig, contactEmail, contactEmailHref, contactSupportURL, heroTitle, heroSubtitle, introductionText, servicesTitle, contactTitle, contactText,
   serviceItems, hasIntroduction, hasServices, hasContactLinks, hasContact,
 } = useAbout()
 </script>

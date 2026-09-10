@@ -43,10 +43,8 @@ export function useAbout() {
   const servicesTitle = computed(() => resolveLocalizedText(aboutConfig.value?.services?.title))
   const contactTitle = computed(() => resolveLocalizedText(aboutConfig.value?.contact?.title))
   const contactText = computed(() => resolveLocalizedText(aboutConfig.value?.contact?.text))
-  const contactEmailHref = computed(() => {
-    const email = String(contactConfig.value?.email || '').trim().replace(/^mailto:/i, '')
-    return email ? `mailto:${email}` : ''
-  })
+  const contactEmail = computed(() => String(contactConfig.value?.email || '').trim().replace(/^mailto:/i, ''))
+  const contactEmailHref = computed(() => contactEmail.value ? `mailto:${contactEmail.value}` : '')
   const contactSupportURL = computed(() => String(contactConfig.value?.support_url || '').trim())
 
   const serviceItems = computed(() => {
@@ -82,6 +80,7 @@ export function useAbout() {
     servicesTitle,
     contactTitle,
     contactText,
+    contactEmail,
     contactEmailHref,
     contactSupportURL,
     serviceItems,

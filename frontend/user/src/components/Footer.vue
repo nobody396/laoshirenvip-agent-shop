@@ -73,7 +73,7 @@
             <a v-if="contactEmailHref" :href="contactEmailHref"
               class="flex items-center space-x-3 text-sm hover:text-gray-900 dark:hover:text-white transition-colors p-3 rounded-lg bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-100 dark:border-white/5 hover:border-gray-200 dark:hover:border-white/10">
               <Mail class="h-5 w-5 text-primary" />
-              <span>Email</span>
+              <span class="min-w-0 break-all">{{ contactEmail }}</span>
             </a>
             <a v-if="contactSupportURL" :href="contactSupportURL" target="_blank" rel="noopener noreferrer"
               class="flex items-center space-x-3 text-sm hover:text-gray-900 dark:hover:text-white transition-colors p-3 rounded-lg bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-100 dark:border-white/5 hover:border-gray-200 dark:hover:border-white/10">
@@ -123,10 +123,8 @@ const { t } = useI18n()
 const appStore = useAppStore()
 
 const config = computed(() => appStore.config)
-const contactEmailHref = computed(() => {
-  const email = String(config.value?.contact?.email || '').trim().replace(/^mailto:/i, '')
-  return email ? `mailto:${email}` : ''
-})
+const contactEmail = computed(() => String(config.value?.contact?.email || '').trim().replace(/^mailto:/i, ''))
+const contactEmailHref = computed(() => contactEmail.value ? `mailto:${contactEmail.value}` : '')
 const contactSupportURL = computed(() => String(config.value?.contact?.support_url || '').trim())
 
 const brandSiteName = computed(() => {
