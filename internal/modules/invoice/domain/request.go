@@ -17,7 +17,6 @@ const (
 	PaymentMethodWallet = "wallet"
 
 	OrdinaryRateBPS = 300
-	SpecialRateBPS  = 600
 
 	StatusPendingPayment = "pending_payment"
 	StatusPendingIssue   = "pending_issue"
@@ -78,26 +77,24 @@ func RateBPS(invoiceType string) (int, error) {
 	switch strings.ToLower(strings.TrimSpace(invoiceType)) {
 	case TypeOrdinary:
 		return OrdinaryRateBPS, nil
-	case TypeSpecial:
-		return SpecialRateBPS, nil
 	default:
 		return 0, ErrInvalidInvoiceType
 	}
 }
 
-// CalculateAmounts uses decimal arithmetic and rounds once to fen. The 4%
-// payment-channel surcharge remains a separate immutable payment snapshot.
-func CalculateAmounts(original money.Amount, invoiceType string) (fee money.Amount, total money.Amount, rateBPS int, err error) {
-	if original.Decimal.LessThanOrEqual(decimal.Zero) {
-		return money.Amount{}, money.Amount{}, 0, errors.New("original amount must be positive")
+// CalculateAmounts calculates the 3% service fee from the face amount entered
+// by the applicant. The face amount itself is not increased by that fee.
+func CalculateAmounts(invoiceAmount money.Amount, invoiceType string) (fee money.Amount, total money.Amount, rateBPS int, err error) {
+	if invoiceAmount.Decimal.LessThanOrEqual(decimal.Zero) {
+		return money.Amount{}, money.Amount{}, 0, errors.New("invoice amount must be positive")
 	}
 	rateBPS, err = RateBPS(invoiceType)
 	if err != nil {
 		return money.Amount{}, money.Amount{}, 0, err
 	}
-	feeValue := original.Decimal.Mul(decimal.NewFromInt(int64(rateBPS))).Div(decimal.NewFromInt(10_000)).Round(2)
+	feeValue := invoiceAmount.Decimal.Mul(decimal.NewFromInt(int64(rateBPS))).Div(decimal.NewFromInt(10_000)).Round(2)
 	fee = money.FromDecimal(feeValue)
-	total = money.FromDecimal(original.Decimal.Add(feeValue))
+	total = money.FromDecimal(invoiceAmount.Decimal)
 	return fee, total, rateBPS, nil
 }
 

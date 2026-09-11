@@ -148,6 +148,7 @@ type CreateInput struct {
 	OriginalOrderID  *uint
 	OriginalOrderNo  string
 	OriginalAmount   money.Amount
+	InvoiceAmount    money.Amount
 	InvoiceType      string
 	BuyerTitle       string
 	TaxNumber        string
@@ -156,6 +157,53 @@ type CreateInput struct {
 	PaymentMethod    string
 	UserID           uint
 	WalletResellerID *uint
+}
+
+type AmountPreview struct {
+	InvoiceFeeAmount   money.Amount
+	InvoiceTotalAmount money.Amount
+	RateBPS            int
+	PaymentFeeRate     money.Amount
+	PaymentFeeAmount   money.Amount
+	PaymentAmount      money.Amount
+}
+
+func (s *Service) PreviewAmounts(invoiceAmount money.Amount, paymentMethod string) (AmountPreview, error) {
+	preview, _, err := s.calculateAmounts(invoiceAmount, paymentMethod)
+	return preview, err
+}
+
+func (s *Service) calculateAmounts(invoiceAmount money.Amount, paymentMethod string) (AmountPreview, *paymentdomain.PaymentChannel, error) {
+	paymentMethod = strings.ToLower(strings.TrimSpace(paymentMethod))
+	if paymentMethod == "" {
+		paymentMethod = domain.PaymentMethodAlipay
+	}
+	if paymentMethod != domain.PaymentMethodAlipay && paymentMethod != domain.PaymentMethodWallet {
+		return AmountPreview{}, nil, ErrInvalidInput
+	}
+
+	invoiceFee, invoiceTotal, rateBPS, err := domain.CalculateAmounts(invoiceAmount, domain.TypeOrdinary)
+	if err != nil {
+		return AmountPreview{}, nil, ErrInvalidInput
+	}
+
+	feeRate := money.FromDecimal(decimal.Zero)
+	var channel *paymentdomain.PaymentChannel
+	if paymentMethod == domain.PaymentMethodAlipay {
+		channel, err = s.channels.GetByID(InvoicePaymentChannelID)
+		if err != nil || channel == nil || !channel.IsActive || channel.ProviderType != "epay" || channel.ChannelType != "alipay" {
+			return AmountPreview{}, nil, ErrPaymentUnavailable
+		}
+		feeRate = channel.FeeRate
+	}
+	paymentFee, paymentAmount, err := domain.CalculatePaymentAmount(invoiceFee, feeRate)
+	if err != nil {
+		return AmountPreview{}, nil, ErrPaymentUnavailable
+	}
+	return AmountPreview{
+		InvoiceFeeAmount: invoiceFee, InvoiceTotalAmount: invoiceTotal, RateBPS: rateBPS,
+		PaymentFeeRate: feeRate, PaymentFeeAmount: paymentFee, PaymentAmount: paymentAmount,
+	}, channel, nil
 }
 
 func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Request, error) {
@@ -194,23 +242,9 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 		return nil, ErrAlreadyRequested
 	}
 
-	invoiceFee, invoiceTotal, rateBPS, err := domain.CalculateAmounts(input.OriginalAmount, input.InvoiceType)
+	amounts, channel, err := s.calculateAmounts(input.InvoiceAmount, input.PaymentMethod)
 	if err != nil {
-		return nil, ErrInvalidInput
-	}
-	// 开票补款由商户承担支付通道成本，不把支付渠道的常规费率转嫁给开票客户。
-	invoicePaymentFeeRate := money.FromDecimal(decimal.Zero)
-	paymentFee, paymentAmount, err := domain.CalculatePaymentAmount(invoiceFee, invoicePaymentFeeRate)
-	if err != nil {
-		return nil, ErrPaymentUnavailable
-	}
-
-	var channel *paymentdomain.PaymentChannel
-	if input.PaymentMethod == domain.PaymentMethodAlipay {
-		channel, err = s.channels.GetByID(InvoicePaymentChannelID)
-		if err != nil || channel == nil || !channel.IsActive || channel.ProviderType != "epay" || channel.ChannelType != "alipay" {
-			return nil, ErrPaymentUnavailable
-		}
+		return nil, err
 	}
 	now := time.Now()
 	channelID := uint(0)
@@ -224,14 +258,14 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 		OriginalOrderID:    input.OriginalOrderID,
 		OriginalOrderNo:    input.OriginalOrderNo,
 		InvoiceType:        domain.TypeOrdinary,
-		RateBPS:            rateBPS,
+		RateBPS:            amounts.RateBPS,
 		OriginalAmount:     input.OriginalAmount,
-		InvoiceFeeAmount:   invoiceFee,
-		InvoiceTotalAmount: invoiceTotal,
+		InvoiceFeeAmount:   amounts.InvoiceFeeAmount,
+		InvoiceTotalAmount: amounts.InvoiceTotalAmount,
 		PaymentChannelID:   channelID,
-		PaymentFeeRate:     invoicePaymentFeeRate,
-		PaymentFeeAmount:   paymentFee,
-		PaymentAmount:      paymentAmount,
+		PaymentFeeRate:     amounts.PaymentFeeRate,
+		PaymentFeeAmount:   amounts.PaymentFeeAmount,
+		PaymentAmount:      amounts.PaymentAmount,
 		BuyerTitle:         input.BuyerTitle,
 		TaxNumber:          input.TaxNumber,
 		RecipientEmail:     input.RecipientEmail,

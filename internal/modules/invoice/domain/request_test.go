@@ -8,26 +8,12 @@ import (
 )
 
 func TestCalculateAmounts(t *testing.T) {
-	tests := []struct {
-		name        string
-		invoiceType string
-		wantFee     string
-		wantTotal   string
-		wantRate    int
-	}{
-		{name: "ordinary 3 percent", invoiceType: TypeOrdinary, wantFee: "18.90", wantTotal: "648.90", wantRate: 300},
-		{name: "special 6 percent", invoiceType: TypeSpecial, wantFee: "37.80", wantTotal: "667.80", wantRate: 600},
+	fee, total, rate, err := CalculateAmounts(money.FromDecimal(decimal.RequireFromString("130.00")), TypeOrdinary)
+	if err != nil {
+		t.Fatalf("CalculateAmounts() error = %v", err)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fee, total, rate, err := CalculateAmounts(money.FromDecimal(decimal.RequireFromString("630.00")), tt.invoiceType)
-			if err != nil {
-				t.Fatalf("CalculateAmounts() error = %v", err)
-			}
-			if fee.String() != tt.wantFee || total.String() != tt.wantTotal || rate != tt.wantRate {
-				t.Fatalf("CalculateAmounts() = fee %s total %s rate %d", fee.String(), total.String(), rate)
-			}
-		})
+	if fee.String() != "3.90" || total.String() != "130.00" || rate != 300 {
+		t.Fatalf("CalculateAmounts() = fee %s total %s rate %d", fee.String(), total.String(), rate)
 	}
 }
 
@@ -37,6 +23,9 @@ func TestCalculateAmountsRejectsInvalidInput(t *testing.T) {
 	}
 	if _, _, _, err := CalculateAmounts(money.FromDecimal(decimal.NewFromInt(1)), "unknown"); err == nil {
 		t.Fatal("unknown invoice type must fail")
+	}
+	if _, _, _, err := CalculateAmounts(money.FromDecimal(decimal.NewFromInt(1)), TypeSpecial); err == nil {
+		t.Fatal("special invoice must fail")
 	}
 }
 

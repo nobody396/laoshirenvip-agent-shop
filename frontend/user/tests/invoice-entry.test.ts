@@ -47,10 +47,13 @@ test('authenticated invoice applications can choose fee-free wallet payment', as
 test('invoice form is ordinary-only and previews the tax-inclusive total before payment', async () => {
   const invoice = await read('../src/views/Invoice.vue')
   assert.doesNotMatch(invoice, /专用发票|value="special"|公司地址|开户银行/)
-  assert.match(invoice, /发票金额预览/)
-  assert.match(invoice, /订单实付（含用户承担的支付手续费）/)
-  assert.match(invoice, /开票补款（3%）/)
-  assert.match(invoice, /发票价税合计/)
+  assert.match(invoice, /开票费用预览/)
+  assert.match(invoice, /订单实际结算金额/)
+	assert.match(invoice, /v-model="form\.invoice_amount"/)
+	assert.match(invoice, /发票金额（价税合计）/)
+	assert.match(invoice, /开票服务费（3%）/)
+	assert.match(invoice, /支付通道手续费/)
+	assert.match(invoice, /本次应付/)
 })
 
 test('invoice payment channels are radio choices below the receiving email with a generic submit label', async () => {
