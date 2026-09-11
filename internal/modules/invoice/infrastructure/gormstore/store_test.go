@@ -63,6 +63,29 @@ func TestCreateAndPayWithMainWalletIsAtomic(t *testing.T) {
 	}
 }
 
+func TestCreateAndPayWithWalletAllowsMultiplePendingInvoiceNumbers(t *testing.T) {
+	db := openWalletInvoiceDB(t)
+	account := walletdomain.Account{UserID: 7, Balance: money.FromDecimal(decimal.NewFromInt(20))}
+	if err := db.Create(&account).Error; err != nil {
+		t.Fatal(err)
+	}
+	store := New(db)
+	for _, orderNo := range []string{"OFFLINE-1", "OFFLINE-2"} {
+		request := walletInvoiceRequest(orderNo)
+		request.Source = "manual"
+		if err := store.CreateAndPayWithWallet(request, 7, nil); err != nil {
+			t.Fatalf("pending invoice %s failed: %v", orderNo, err)
+		}
+	}
+	var count int64
+	if err := db.Model(&domain.Request{}).Where("invoice_number = ''").Count(&count).Error; err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Fatalf("pending invoice count = %d, want 2", count)
+	}
+}
+
 func TestCreateAndPayWithResellerWalletUsesTenantBalance(t *testing.T) {
 	db := openWalletInvoiceDB(t)
 	account := walletdomain.ResellerAccount{ResellerID: 18, UserID: 7, Balance: money.FromDecimal(decimal.NewFromInt(5))}

@@ -58,9 +58,9 @@ type Request struct {
 	BankAccount        string       `gorm:"size:100" json:"bank_account,omitempty"`
 	RecipientEmail     string       `gorm:"index;size:320;not null" json:"recipient_email"`
 	Status             string       `gorm:"index;size:32;not null" json:"status"`
-	FeishuRecordID     string       `gorm:"uniqueIndex;size:100" json:"feishu_record_id,omitempty"`
+	FeishuRecordID     string       `gorm:"size:100" json:"feishu_record_id,omitempty"`
 	FeishuLastError    string       `gorm:"size:500" json:"feishu_last_error,omitempty"`
-	InvoiceNumber      string       `gorm:"uniqueIndex;size:64" json:"invoice_number,omitempty"`
+	InvoiceNumber      string       `gorm:"size:64" json:"invoice_number,omitempty"`
 	InvoiceDate        *time.Time   `json:"invoice_date,omitempty"`
 	InvoiceFileToken   string       `gorm:"size:255" json:"invoice_file_token,omitempty"`
 	InvoiceFileName    string       `gorm:"size:255" json:"invoice_file_name,omitempty"`

@@ -42,6 +42,32 @@ const (
 	userOAuthIdentityUserProviderUniqueIndex        = "idx_user_oauth_identity_user_provider"
 )
 
+// ensureInvoiceOptionalUniqueIndexes keeps issued identifiers unique without
+// treating the empty values on every pending request as duplicates.
+func ensureInvoiceOptionalUniqueIndexes() error {
+	if gormdb.DB == nil {
+		return errors.New("database is not initialized")
+	}
+	return gormdb.DB.Transaction(func(tx *gorm.DB) error {
+		for _, index := range []struct {
+			name   string
+			column string
+		}{
+			{name: "idx_invoice_requests_feishu_record_id", column: "feishu_record_id"},
+			{name: "idx_invoice_requests_invoice_number", column: "invoice_number"},
+		} {
+			if err := tx.Exec("DROP INDEX IF EXISTS " + index.name).Error; err != nil {
+				return err
+			}
+			statement := fmt.Sprintf("CREATE UNIQUE INDEX %s ON invoice_requests (%s) WHERE %s <> ''", index.name, index.column, index.column)
+			if err := tx.Exec(statement).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 // ensureProductMappingMultipleSourcesMigration lets one storefront product
 // group SKU variants supplied by different upstream connections.
 func ensureProductMappingMultipleSourcesMigration() error {
