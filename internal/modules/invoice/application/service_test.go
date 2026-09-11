@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -149,6 +150,26 @@ func TestCreateWithWalletPaysExactSupplementWithoutGateway(t *testing.T) {
 	}
 	if gateway.input.OrderNo != "" {
 		t.Fatalf("wallet payment unexpectedly called gateway: %+v", gateway.input)
+	}
+}
+
+func TestCreateManualInvoiceNeedsNoPlatformOrder(t *testing.T) {
+	store := &requestStoreStub{}
+	service := NewService(store, channelStoreStub{}, registryStub{gateway: &gatewayStub{}}, "https://lsrai.shop")
+	request, err := service.Create(context.Background(), CreateInput{
+		Source: "manual", SourceHost: "lsrai.shop",
+		InvoiceAmount: money.FromDecimal(decimal.RequireFromString("130.00")), InvoiceType: domain.TypeOrdinary,
+		BuyerTitle: "示例公司", TaxNumber: "91350000TEST", RecipientEmail: "finance@example.com", ClientIP: "127.0.0.1",
+		PaymentMethod: domain.PaymentMethodWallet, UserID: 7,
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if request.Source != "manual" || request.OriginalOrderID != nil || !strings.HasPrefix(request.OriginalOrderNo, "OFFLINE-") {
+		t.Fatalf("manual invoice audit reference mismatch: %+v", request)
+	}
+	if request.OriginalAmount.String() != "130.00" || request.InvoiceTotalAmount.String() != "130.00" || request.PaymentAmount.String() != "3.90" {
+		t.Fatalf("manual invoice amounts mismatch: %+v", request)
 	}
 }
 

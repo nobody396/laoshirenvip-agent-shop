@@ -7,6 +7,8 @@ func RegisterPublicRoutes(public *gin.RouterGroup, handler *Handler) {
 }
 
 func RegisterGuestRoutes(guest *gin.RouterGroup, handler *Handler) {
+	guest.POST("/invoices/manual/preview", handler.PreviewManualGuest)
+	guest.POST("/invoices/manual", handler.CreateManualGuest)
 	guest.POST("/invoices/preview", handler.PreviewGuest)
 	guest.POST("/invoices", handler.CreateGuest)
 	guest.POST("/invoices/gmshop/preview", handler.PreviewGMShop)
@@ -14,6 +16,8 @@ func RegisterGuestRoutes(guest *gin.RouterGroup, handler *Handler) {
 }
 
 func RegisterUserRoutes(user *gin.RouterGroup, handler *Handler) {
+	user.POST("/invoices/manual/preview", handler.PreviewManualUser)
+	user.POST("/invoices/manual", handler.CreateManualUser)
 	user.POST("/invoices/preview", handler.PreviewUser)
 	user.POST("/invoices", handler.CreateUser)
 	user.POST("/invoices/recharge/preview", handler.PreviewRecharge)

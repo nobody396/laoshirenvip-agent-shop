@@ -56,7 +56,7 @@ func NewHandler(service *invoiceapp.Service, orders OrderQuery, gmshop GMShopOrd
 }
 
 type previewRequest struct {
-	OrderNo       string `json:"order_no" binding:"required"`
+	OrderNo       string `json:"order_no"`
 	OrderEmail    string `json:"order_email"`
 	InvoiceAmount string `json:"invoice_amount"`
 	PaymentMethod string `json:"payment_method"`
@@ -74,13 +74,103 @@ type invoicePreview struct {
 }
 
 type createRequest struct {
-	OrderNo        string `json:"order_no" binding:"required"`
+	OrderNo        string `json:"order_no"`
 	BuyerTitle     string `json:"buyer_title" binding:"required"`
 	TaxNumber      string `json:"tax_number" binding:"required"`
 	RecipientEmail string `json:"recipient_email" binding:"required"`
 	OrderEmail     string `json:"order_email"`
 	InvoiceAmount  string `json:"invoice_amount" binding:"required"`
 	PaymentMethod  string `json:"payment_method"`
+}
+
+func (h *Handler) PreviewManualGuest(c *gin.Context) {
+	h.previewManual(c, domain.PaymentMethodAlipay)
+}
+
+func (h *Handler) PreviewManualUser(c *gin.Context) {
+	if _, ok := ginutil.GetUserID(c); !ok {
+		return
+	}
+	h.previewManual(c, "")
+}
+
+func (h *Handler) previewManual(c *gin.Context, forcedPaymentMethod string) {
+	var req previewRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		ginutil.RespondBindError(c, err)
+		return
+	}
+	invoiceAmount, err := parseInvoiceAmount(req.InvoiceAmount, money.Amount{})
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_invalid", nil)
+		return
+	}
+	paymentMethod := req.PaymentMethod
+	if forcedPaymentMethod != "" {
+		paymentMethod = forcedPaymentMethod
+	}
+	amounts, err := h.service.PreviewAmounts(invoiceAmount, paymentMethod)
+	if err != nil {
+		respondInvoiceCreateError(c, err)
+		return
+	}
+	response.Success(c, invoicePreview{
+		InvoiceFeeAmount: amounts.InvoiceFeeAmount, InvoiceTotalAmount: amounts.InvoiceTotalAmount,
+		RatePercent: amounts.RateBPS / 100, PaymentFeeRate: amounts.PaymentFeeRate,
+		PaymentFeeAmount: amounts.PaymentFeeAmount, PaymentAmount: amounts.PaymentAmount,
+		PaymentMethod: normalizedPaymentMethod(paymentMethod),
+	})
+}
+
+func (h *Handler) CreateManualGuest(c *gin.Context) {
+	h.createManual(c, 0, domain.PaymentMethodAlipay)
+}
+
+func (h *Handler) CreateManualUser(c *gin.Context) {
+	userID, ok := ginutil.GetUserID(c)
+	if !ok {
+		return
+	}
+	h.createManual(c, userID, "")
+}
+
+func (h *Handler) createManual(c *gin.Context, userID uint, forcedPaymentMethod string) {
+	var req createRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		ginutil.RespondBindError(c, err)
+		return
+	}
+	invoiceAmount, err := parseInvoiceAmount(req.InvoiceAmount, money.Amount{})
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_invalid", nil)
+		return
+	}
+	paymentMethod := req.PaymentMethod
+	if forcedPaymentMethod != "" {
+		paymentMethod = forcedPaymentMethod
+	}
+	host := tenant(c).Host
+	if host == "" {
+		host = resellercontract.NormalizeHost(c.Request.Host)
+	}
+	request, err := h.service.Create(c.Request.Context(), invoiceapp.CreateInput{
+		Source: "manual", SourceHost: host, InvoiceAmount: invoiceAmount, InvoiceType: domain.TypeOrdinary,
+		BuyerTitle: req.BuyerTitle, TaxNumber: req.TaxNumber, RecipientEmail: req.RecipientEmail,
+		ClientIP: c.ClientIP(), PaymentMethod: paymentMethod, UserID: userID, WalletResellerID: walletResellerID(c),
+	})
+	if err != nil {
+		respondInvoiceCreateError(c, err)
+		return
+	}
+	response.Success(c, publicRequest(request))
+}
+
+func normalizedPaymentMethod(paymentMethod string) string {
+	paymentMethod = strings.ToLower(strings.TrimSpace(paymentMethod))
+	if paymentMethod == "" {
+		return domain.PaymentMethodAlipay
+	}
+	return paymentMethod
 }
 
 func (h *Handler) CreateGMShop(c *gin.Context) {
@@ -350,10 +440,7 @@ func (h *Handler) respondPreview(c *gin.Context, orderAmount money.Amount, rawIn
 		OrderAmount: orderAmount, InvoiceFeeAmount: amounts.InvoiceFeeAmount,
 		InvoiceTotalAmount: amounts.InvoiceTotalAmount, RatePercent: amounts.RateBPS / 100,
 		PaymentFeeRate: amounts.PaymentFeeRate, PaymentFeeAmount: amounts.PaymentFeeAmount,
-		PaymentAmount: amounts.PaymentAmount, PaymentMethod: strings.ToLower(strings.TrimSpace(paymentMethod)),
-	}
-	if preview.PaymentMethod == "" {
-		preview.PaymentMethod = domain.PaymentMethodAlipay
+		PaymentAmount: amounts.PaymentAmount, PaymentMethod: normalizedPaymentMethod(paymentMethod),
 	}
 	response.Success(c, preview)
 }
