@@ -50,6 +50,7 @@ test('invoice form is ordinary-only and previews the tax-inclusive total before 
   assert.match(invoice, /开票费用预览/)
   assert.match(invoice, /订单实际结算金额/)
 	assert.match(invoice, /v-model="form\.invoice_amount"/)
+	assert.match(invoice, /invoice_amount:\s*String\(form\.invoice_amount/)
 	assert.match(invoice, /发票金额（价税合计）/)
 	assert.match(invoice, /开票服务费（3%）/)
 	assert.match(invoice, /支付通道手续费/)

@@ -126,7 +126,7 @@ async function loadPreview() {
   try {
     let response
     const paymentMethod = supportsWalletPayment.value ? form.payment_method : 'alipay'
-    const payload = { order_no: orderNo, invoice_amount: form.invoice_amount, payment_method: paymentMethod }
+    const payload = { order_no: orderNo, invoice_amount: String(form.invoice_amount || ''), payment_method: paymentMethod }
     if (isGMShop.value) response = await invoiceAPI.previewGMShop({ ...payload, order_email: guest.email })
     else if (isRecharge.value) response = await invoiceAPI.previewRecharge(payload)
     else if (isGuest.value) response = await invoiceAPI.previewGuest({ ...payload, ...guest })
@@ -174,7 +174,7 @@ async function submit() {
   loading.value = true
   try {
 	let response
-	const payload = { ...form, payment_method: supportsWalletPayment.value ? form.payment_method : 'alipay' }
+	const payload = { ...form, invoice_amount: String(form.invoice_amount || ''), payment_method: supportsWalletPayment.value ? form.payment_method : 'alipay' }
 	if (isGMShop.value) response = await invoiceAPI.createGMShop({ ...payload, order_email: guest.email })
 	else if (isRecharge.value) response = await invoiceAPI.createRecharge(payload)
 	else if (isGuest.value) response = await invoiceAPI.createGuest({ ...payload, ...guest })
