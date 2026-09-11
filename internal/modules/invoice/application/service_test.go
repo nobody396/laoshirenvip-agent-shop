@@ -94,7 +94,7 @@ func (r registryStub) Lookup(_, _ string) (paymentcontract.GatewayProvider, bool
 	return r.gateway, true
 }
 
-func TestCreateDoesNotChargePaymentChannelFeeForInvoiceSupplement(t *testing.T) {
+func TestCreateUsesDeclaredInvoiceAmountAndPassesAlipayFeeToApplicant(t *testing.T) {
 	store := &requestStoreStub{}
 	gateway := &gatewayStub{}
 	service := NewService(store, channelStoreStub{item: &paymentdomain.PaymentChannel{
@@ -104,19 +104,19 @@ func TestCreateDoesNotChargePaymentChannelFeeForInvoiceSupplement(t *testing.T) 
 
 	request, err := service.Create(context.Background(), CreateInput{
 		Source: "dujiao", SourceHost: "vip.lsrai.shop", OriginalOrderNo: "DJ-1",
-		OriginalAmount: money.FromDecimal(decimal.RequireFromString("630.00")), InvoiceType: domain.TypeOrdinary,
+		OriginalAmount: money.FromDecimal(decimal.RequireFromString("117.00")), InvoiceAmount: money.FromDecimal(decimal.RequireFromString("130.00")), InvoiceType: domain.TypeOrdinary,
 		BuyerTitle: "示例公司", TaxNumber: "91350000TEST", RecipientEmail: "finance@example.com", ClientIP: "127.0.0.1",
 	})
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
-	if request.InvoiceFeeAmount.String() != "18.90" || request.InvoiceTotalAmount.String() != "648.90" {
+	if request.OriginalAmount.String() != "117.00" || request.InvoiceFeeAmount.String() != "3.90" || request.InvoiceTotalAmount.String() != "130.00" {
 		t.Fatalf("unexpected invoice amounts: %+v", request)
 	}
-	if request.PaymentFeeRate.String() != "0.00" || request.PaymentFeeAmount.String() != "0.00" || request.PaymentAmount.String() != "18.90" {
+	if request.PaymentFeeRate.String() != "4.00" || request.PaymentFeeAmount.String() != "0.16" || request.PaymentAmount.String() != "4.06" {
 		t.Fatalf("unexpected payment amounts: %+v", request)
 	}
-	if gateway.input.OrderNo != request.RequestNo || gateway.input.Amount.String() != "18.90" || gateway.input.NotifyURL != "https://lsrai.shop/api/v1/invoices/payment/callback" {
+	if gateway.input.OrderNo != request.RequestNo || gateway.input.Amount.String() != "4.06" || gateway.input.NotifyURL != "https://lsrai.shop/api/v1/invoices/payment/callback" {
 		t.Fatalf("unexpected gateway input: %+v", gateway.input)
 	}
 	if gateway.input.ReturnURL != "https://lsrai.shop/invoice?request_no="+request.RequestNo {
@@ -131,14 +131,14 @@ func TestCreateWithWalletPaysExactSupplementWithoutGateway(t *testing.T) {
 	resellerID := uint(18)
 	request, err := service.Create(context.Background(), CreateInput{
 		Source: "dujiao", SourceHost: "agi.lsrai.shop", OriginalOrderNo: "DJ-WALLET-1",
-		OriginalAmount: money.FromDecimal(decimal.RequireFromString("117.00")), InvoiceType: domain.TypeOrdinary,
+		OriginalAmount: money.FromDecimal(decimal.RequireFromString("117.00")), InvoiceAmount: money.FromDecimal(decimal.RequireFromString("130.00")), InvoiceType: domain.TypeOrdinary,
 		BuyerTitle: "示例公司", TaxNumber: "91350000TEST", RecipientEmail: "finance@example.com", ClientIP: "127.0.0.1",
 		PaymentMethod: domain.PaymentMethodWallet, UserID: 7, WalletResellerID: &resellerID,
 	})
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
-	if request.Status != domain.StatusPendingIssue || request.PaymentAmount.String() != "3.51" || request.InvoiceTotalAmount.String() != "120.51" {
+	if request.Status != domain.StatusPendingIssue || request.PaymentAmount.String() != "3.90" || request.InvoiceTotalAmount.String() != "130.00" {
 		t.Fatalf("unexpected wallet invoice: %+v", request)
 	}
 	if request.PaymentFeeRate.String() != "0.00" || request.PaymentFeeAmount.String() != "0.00" || request.PaymentChannelID != 0 {

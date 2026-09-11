@@ -35,12 +35,12 @@ func TestInvoiceOrderAmountUsesWalletPaymentOnce(t *testing.T) {
 	}
 }
 
-func TestInvoicePreviewUsesThreePercentOfActualPaidAmount(t *testing.T) {
-	preview, err := ordinaryInvoicePreview(money.FromDecimal(decimal.RequireFromString("762.50")))
+func TestParseInvoiceAmountUsesDeclaredFaceAmount(t *testing.T) {
+	amount, err := parseInvoiceAmount("130.00", money.FromDecimal(decimal.RequireFromString("117.00")))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if preview.InvoiceFeeAmount.String() != "22.88" || preview.InvoiceTotalAmount.String() != "785.38" {
-		t.Fatalf("unexpected preview: %+v", preview)
+	if amount.String() != "130.00" {
+		t.Fatalf("parseInvoiceAmount() = %s, want 130.00", amount.String())
 	}
 }

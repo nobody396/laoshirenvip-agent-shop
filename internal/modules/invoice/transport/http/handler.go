@@ -56,8 +56,10 @@ func NewHandler(service *invoiceapp.Service, orders OrderQuery, gmshop GMShopOrd
 }
 
 type previewRequest struct {
-	OrderNo    string `json:"order_no" binding:"required"`
-	OrderEmail string `json:"order_email"`
+	OrderNo       string `json:"order_no" binding:"required"`
+	OrderEmail    string `json:"order_email"`
+	InvoiceAmount string `json:"invoice_amount"`
+	PaymentMethod string `json:"payment_method"`
 }
 
 type invoicePreview struct {
@@ -65,6 +67,10 @@ type invoicePreview struct {
 	InvoiceFeeAmount   money.Amount `json:"invoice_fee_amount"`
 	InvoiceTotalAmount money.Amount `json:"invoice_total_amount"`
 	RatePercent        int          `json:"rate_percent"`
+	PaymentFeeRate     money.Amount `json:"payment_fee_rate"`
+	PaymentFeeAmount   money.Amount `json:"payment_fee_amount"`
+	PaymentAmount      money.Amount `json:"payment_amount"`
+	PaymentMethod      string       `json:"payment_method"`
 }
 
 type createRequest struct {
@@ -73,6 +79,7 @@ type createRequest struct {
 	TaxNumber      string `json:"tax_number" binding:"required"`
 	RecipientEmail string `json:"recipient_email" binding:"required"`
 	OrderEmail     string `json:"order_email"`
+	InvoiceAmount  string `json:"invoice_amount" binding:"required"`
 	PaymentMethod  string `json:"payment_method"`
 }
 
@@ -91,9 +98,15 @@ func (h *Handler) CreateGMShop(c *gin.Context) {
 		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_order_ineligible", nil)
 		return
 	}
+	invoiceAmount, err := parseInvoiceAmount(req.InvoiceAmount, money.Amount{})
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_invalid", nil)
+		return
+	}
 	request, err := h.service.Create(c.Request.Context(), invoiceapp.CreateInput{
 		Source: "gmshop", SourceHost: "laoshirenvip.com", OriginalOrderNo: req.OrderNo, OriginalAmount: amount,
-		InvoiceType: domain.TypeOrdinary, BuyerTitle: req.BuyerTitle, TaxNumber: req.TaxNumber,
+		InvoiceAmount: invoiceAmount,
+		InvoiceType:   domain.TypeOrdinary, BuyerTitle: req.BuyerTitle, TaxNumber: req.TaxNumber,
 		RecipientEmail: req.RecipientEmail, ClientIP: c.ClientIP(), PaymentMethod: req.PaymentMethod,
 	})
 	if err != nil {
@@ -114,7 +127,7 @@ func (h *Handler) PreviewGMShop(c *gin.Context) {
 		return
 	}
 	amount, err := h.gmshop.Lookup(c.Request.Context(), req.OrderNo, req.OrderEmail)
-	h.respondPreview(c, amount, err)
+	h.respondPreview(c, amount, req.InvoiceAmount, domain.PaymentMethodAlipay, err)
 }
 
 func (h *Handler) CreateRecharge(c *gin.Context) {
@@ -144,9 +157,15 @@ func (h *Handler) CreateRecharge(c *gin.Context) {
 	if !amount.Decimal.IsPositive() {
 		amount = recharge.Amount
 	}
+	invoiceAmount, err := parseInvoiceAmount(req.InvoiceAmount, money.Amount{})
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_invalid", nil)
+		return
+	}
 	request, err := h.service.Create(c.Request.Context(), invoiceapp.CreateInput{
 		Source: "dujiao_recharge", SourceHost: host, OriginalOrderNo: recharge.RechargeNo, OriginalAmount: amount,
-		InvoiceType: domain.TypeOrdinary, BuyerTitle: req.BuyerTitle, TaxNumber: req.TaxNumber,
+		InvoiceAmount: invoiceAmount,
+		InvoiceType:   domain.TypeOrdinary, BuyerTitle: req.BuyerTitle, TaxNumber: req.TaxNumber,
 		RecipientEmail: req.RecipientEmail, ClientIP: c.ClientIP(), PaymentMethod: req.PaymentMethod,
 		UserID: userID, WalletResellerID: walletResellerID(c),
 	})
@@ -180,7 +199,7 @@ func (h *Handler) PreviewRecharge(c *gin.Context) {
 	if !amount.Decimal.IsPositive() {
 		amount = recharge.Amount
 	}
-	h.respondPreview(c, amount, nil)
+	h.respondPreview(c, amount, req.InvoiceAmount, req.PaymentMethod, nil)
 }
 
 func tenant(c *gin.Context) resellercontract.TenantContext {
@@ -222,12 +241,19 @@ func invoiceOrderAmount(order *orderdomain.Order, payments []paymentdomain.Payme
 	return order.TotalAmount
 }
 
-func ordinaryInvoicePreview(amount money.Amount) (invoicePreview, error) {
-	fee, total, _, err := domain.CalculateAmounts(amount, domain.TypeOrdinary)
-	if err != nil {
-		return invoicePreview{}, err
+func parseInvoiceAmount(raw string, fallback money.Amount) (money.Amount, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		if fallback.Decimal.IsPositive() {
+			return fallback, nil
+		}
+		return money.Amount{}, errors.New("invoice amount is required")
 	}
-	return invoicePreview{OrderAmount: amount, InvoiceFeeAmount: fee, InvoiceTotalAmount: total, RatePercent: 3}, nil
+	value, err := decimal.NewFromString(raw)
+	if err != nil || !value.IsPositive() {
+		return money.Amount{}, errors.New("invalid invoice amount")
+	}
+	return money.FromDecimal(value), nil
 }
 
 func (h *Handler) actualOrderAmount(order *orderdomain.Order) (money.Amount, error) {
@@ -259,7 +285,7 @@ func (h *Handler) PreviewUser(c *gin.Context) {
 	if !ok {
 		return
 	}
-	h.previewOrder(c, func(orderNo string) (*orderdomain.Order, error) {
+	h.previewOrder(c, true, func(orderNo string) (*orderdomain.Order, error) {
 		return h.orders.GetOrderByUserOrderNoForTenant(tenant(c), orderNo, userID)
 	})
 }
@@ -281,12 +307,12 @@ func (h *Handler) PreviewGuest(c *gin.Context) {
 		ginutil.RespondError(c, response.CodeUnauthorized, "error.unauthorized", nil)
 		return
 	}
-	h.previewOrder(c, func(orderNo string) (*orderdomain.Order, error) {
+	h.previewOrder(c, false, func(orderNo string) (*orderdomain.Order, error) {
 		return h.orders.GetOrderByGuestOrderNoForTenant(tenant(c), orderNo, email, password)
 	})
 }
 
-func (h *Handler) previewOrder(c *gin.Context, lookup func(string) (*orderdomain.Order, error)) {
+func (h *Handler) previewOrder(c *gin.Context, supportsWallet bool, lookup func(string) (*orderdomain.Order, error)) {
 	var req previewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		ginutil.RespondBindError(c, err)
@@ -298,18 +324,36 @@ func (h *Handler) previewOrder(c *gin.Context, lookup func(string) (*orderdomain
 		return
 	}
 	amount, err := h.actualOrderAmount(order)
-	h.respondPreview(c, amount, err)
+	paymentMethod := req.PaymentMethod
+	if !supportsWallet {
+		paymentMethod = domain.PaymentMethodAlipay
+	}
+	h.respondPreview(c, amount, req.InvoiceAmount, paymentMethod, err)
 }
 
-func (h *Handler) respondPreview(c *gin.Context, amount money.Amount, err error) {
-	if err != nil || !amount.Decimal.IsPositive() {
+func (h *Handler) respondPreview(c *gin.Context, orderAmount money.Amount, rawInvoiceAmount, paymentMethod string, err error) {
+	if err != nil || !orderAmount.Decimal.IsPositive() {
 		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_order_ineligible", err)
 		return
 	}
-	preview, err := ordinaryInvoicePreview(amount)
+	invoiceAmount, err := parseInvoiceAmount(rawInvoiceAmount, orderAmount)
 	if err != nil {
-		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_order_ineligible", err)
+		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_invalid", nil)
 		return
+	}
+	amounts, err := h.service.PreviewAmounts(invoiceAmount, paymentMethod)
+	if err != nil {
+		respondInvoiceCreateError(c, err)
+		return
+	}
+	preview := invoicePreview{
+		OrderAmount: orderAmount, InvoiceFeeAmount: amounts.InvoiceFeeAmount,
+		InvoiceTotalAmount: amounts.InvoiceTotalAmount, RatePercent: amounts.RateBPS / 100,
+		PaymentFeeRate: amounts.PaymentFeeRate, PaymentFeeAmount: amounts.PaymentFeeAmount,
+		PaymentAmount: amounts.PaymentAmount, PaymentMethod: strings.ToLower(strings.TrimSpace(paymentMethod)),
+	}
+	if preview.PaymentMethod == "" {
+		preview.PaymentMethod = domain.PaymentMethodAlipay
 	}
 	response.Success(c, preview)
 }
@@ -357,9 +401,14 @@ func (h *Handler) create(c *gin.Context, userID uint, lookup func(string) (*orde
 		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_order_ineligible", err)
 		return
 	}
+	invoiceAmount, err := parseInvoiceAmount(req.InvoiceAmount, money.Amount{})
+	if err != nil {
+		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_invalid", nil)
+		return
+	}
 	request, err := h.service.Create(c.Request.Context(), invoiceapp.CreateInput{
 		Source: "dujiao", SourceHost: host, OriginalOrderID: &order.ID,
-		OriginalOrderNo: order.OrderNo, OriginalAmount: amount,
+		OriginalOrderNo: order.OrderNo, OriginalAmount: amount, InvoiceAmount: invoiceAmount,
 		InvoiceType: domain.TypeOrdinary, BuyerTitle: req.BuyerTitle, TaxNumber: req.TaxNumber,
 		RecipientEmail: req.RecipientEmail, ClientIP: c.ClientIP(), PaymentMethod: req.PaymentMethod,
 		UserID: userID, WalletResellerID: walletResellerID(c),

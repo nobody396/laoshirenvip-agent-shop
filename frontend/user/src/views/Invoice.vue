@@ -12,12 +12,12 @@
 		  <img v-if="result.status === 'pending_payment' && qrImage" :src="qrImage" alt="支付宝付款二维码" class="mx-auto size-56 rounded-xl bg-white p-3" />
           <div class="space-y-3 text-sm">
             <p>申请编号：<strong>{{ result.request_no }}</strong></p>
-            <p>订单实付（含用户承担的支付手续费）：¥{{ result.original_amount }}</p>
-            <p>开票补款：¥{{ result.invoice_fee_amount }}</p>
+            <p>订单实际结算金额：¥{{ result.original_amount }}</p>
+            <p>发票金额（价税合计）：¥{{ result.invoice_total_amount }}</p>
+            <p>开票服务费（3%）：¥{{ result.invoice_fee_amount }}</p>
 			<p v-if="result.payment_method === 'wallet'">支付方式：钱包余额</p>
-            <p v-if="Number(result.payment_fee_amount) > 0">通道手续费（{{ result.payment_fee_rate }}%）：¥{{ result.payment_fee_amount }}</p>
-            <p class="text-lg">本次支付：<strong>¥{{ result.payment_amount }}</strong></p>
-            <p>发票价税合计：¥{{ result.invoice_total_amount }}</p>
+            <p>支付通道手续费<span v-if="Number(result.payment_fee_rate) > 0">（{{ result.payment_fee_rate }}%）</span>：¥{{ result.payment_fee_amount }}</p>
+            <p class="text-lg">本次应付：<strong>¥{{ result.payment_amount }}</strong></p>
 			<a v-if="result.status === 'pending_payment' && result.pay_url" :href="result.pay_url" target="_blank" rel="noopener noreferrer" class="inline-flex rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground">打开支付宝付款</a>
           </div>
         </div>
@@ -34,13 +34,20 @@
           <label class="grid gap-2 text-sm"><span>订单查询密码</span><Input v-model="guest.order_password" type="password" required @input="clearPreview" @blur="loadPreview" /></label>
         </div>
 
-		<div v-if="previewLoading" class="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">正在计算发票金额…</div>
-		<div v-else-if="preview" class="rounded-xl border bg-muted/30 p-5">
-		  <div class="font-semibold">发票金额预览</div>
-		  <div class="mt-4 grid gap-3 text-sm md:grid-cols-3">
-			<div><div class="text-muted-foreground">订单实付（含用户承担的支付手续费）</div><div class="mt-1 text-lg font-bold">¥{{ preview.order_amount }}</div></div>
-			<div><div class="text-muted-foreground">开票补款（3%）</div><div class="mt-1 text-lg font-bold">¥{{ preview.invoice_fee_amount }}</div></div>
-			<div><div class="text-muted-foreground">发票价税合计</div><div class="mt-1 text-lg font-bold text-primary">¥{{ preview.invoice_total_amount }}</div></div>
+		<div v-if="previewLoading" class="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">正在计算开票费用…</div>
+		<label v-if="preview || form.invoice_amount" class="grid gap-2 text-sm">
+		  <span>发票金额（价税合计）</span>
+		  <Input v-model="form.invoice_amount" type="number" inputmode="decimal" min="0.01" step="0.01" required @blur="loadPreview" />
+		  <span class="text-xs text-muted-foreground">代顾客开票时，请填写你与顾客的实际成交金额，系统按该金额收取 3% 开票服务费</span>
+		</label>
+		<div v-if="preview && !previewLoading" class="rounded-xl border bg-muted/30 p-5">
+		  <div class="font-semibold">开票费用预览</div>
+		  <div class="mt-4 grid gap-3 text-sm md:grid-cols-2 lg:grid-cols-5">
+			<div><div class="text-muted-foreground">订单实际结算金额</div><div class="mt-1 text-lg font-bold">¥{{ preview.order_amount }}</div></div>
+			<div><div class="text-muted-foreground">发票金额（价税合计）</div><div class="mt-1 text-lg font-bold">¥{{ preview.invoice_total_amount }}</div></div>
+			<div><div class="text-muted-foreground">开票服务费（3%）</div><div class="mt-1 text-lg font-bold">¥{{ preview.invoice_fee_amount }}</div></div>
+			<div><div class="text-muted-foreground">支付通道手续费</div><div class="mt-1 text-lg font-bold">¥{{ preview.payment_fee_amount }}</div></div>
+			<div><div class="text-muted-foreground">本次应付</div><div class="mt-1 text-lg font-bold text-primary">¥{{ preview.payment_amount }}</div></div>
 		  </div>
 		</div>
 		<p v-if="previewError" class="text-sm text-destructive">{{ previewError }}</p>
@@ -56,11 +63,11 @@
 		  <legend class="text-sm">支付方式</legend>
 		  <div class="grid gap-3 md:grid-cols-2">
 			<label class="flex cursor-pointer items-center gap-3 rounded-xl border p-4" :class="form.payment_method === 'alipay' ? 'border-primary bg-primary/5' : ''">
-			  <input v-model="form.payment_method" type="radio" value="alipay" />
+			  <input v-model="form.payment_method" type="radio" value="alipay" @change="loadPreview" />
 			  <span><span class="block font-medium">支付宝</span><span class="text-xs text-muted-foreground">扫码支付开票补款</span></span>
 			</label>
 			<label class="flex cursor-pointer items-center gap-3 rounded-xl border p-4" :class="form.payment_method === 'wallet' ? 'border-primary bg-primary/5' : ''">
-			  <input v-model="form.payment_method" type="radio" value="wallet" />
+			  <input v-model="form.payment_method" type="radio" value="wallet" @change="loadPreview" />
 			  <span><span class="block font-medium">钱包</span><span class="text-xs text-muted-foreground">免新增支付通道手续费</span></span>
 			</label>
 		  </div>
@@ -97,13 +104,14 @@ const qrImage = ref('')
 const guest = reactive({ email: '', order_password: '' })
 const form = reactive({
 	order_no: String(route.query.order_no || route.query.recharge_no || ''), invoice_type: 'ordinary', buyer_title: '', tax_number: '',
-	recipient_email: '', payment_method: 'wallet',
+	recipient_email: '', invoice_amount: '', payment_method: 'wallet',
 })
 let statusTimer: number | undefined
 
 function clearPreview() {
   preview.value = null
   previewError.value = ''
+  form.invoice_amount = ''
 }
 
 async function loadPreview() {
@@ -117,11 +125,14 @@ async function loadPreview() {
   previewError.value = ''
   try {
     let response
-    if (isGMShop.value) response = await invoiceAPI.previewGMShop({ order_no: orderNo, order_email: guest.email })
-    else if (isRecharge.value) response = await invoiceAPI.previewRecharge({ order_no: orderNo })
-    else if (isGuest.value) response = await invoiceAPI.previewGuest({ order_no: orderNo, ...guest })
-    else response = await invoiceAPI.preview({ order_no: orderNo })
+    const paymentMethod = supportsWalletPayment.value ? form.payment_method : 'alipay'
+    const payload = { order_no: orderNo, invoice_amount: form.invoice_amount, payment_method: paymentMethod }
+    if (isGMShop.value) response = await invoiceAPI.previewGMShop({ ...payload, order_email: guest.email })
+    else if (isRecharge.value) response = await invoiceAPI.previewRecharge(payload)
+    else if (isGuest.value) response = await invoiceAPI.previewGuest({ ...payload, ...guest })
+    else response = await invoiceAPI.preview(payload)
     preview.value = response.data.data
+    if (!form.invoice_amount) form.invoice_amount = preview.value.invoice_total_amount
   } catch (cause: any) {
     preview.value = null
     previewError.value = cause?.message || '暂时无法预览发票金额'
@@ -158,10 +169,8 @@ onBeforeUnmount(() => { if (statusTimer) window.clearInterval(statusTimer) })
 
 async function submit() {
   error.value = ''
-  if (!preview.value) {
-    await loadPreview()
-    if (!preview.value) return
-  }
+  await loadPreview()
+  if (!preview.value) return
   loading.value = true
   try {
 	let response
