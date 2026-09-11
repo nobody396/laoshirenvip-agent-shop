@@ -38,7 +38,7 @@
 		<label v-if="preview || form.invoice_amount" class="grid gap-2 text-sm">
 		  <span>发票金额（价税合计）</span>
 		  <Input v-model="form.invoice_amount" type="number" inputmode="decimal" min="0.01" step="0.01" required @blur="loadPreview" />
-		  <span class="text-xs text-muted-foreground">代顾客开票时，请填写你与顾客的实际成交金额，系统按该金额收取 3% 开票服务费</span>
+		  <span class="text-xs text-muted-foreground">请填写发票上显示的价税合计金额，系统按该金额收取 3% 开票服务费</span>
 		</label>
 		<div v-if="preview && !previewLoading" class="rounded-xl border bg-muted/30 p-5">
 		  <div class="font-semibold">开票费用预览</div>
