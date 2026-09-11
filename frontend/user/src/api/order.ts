@@ -92,6 +92,10 @@ export const paymentAPI = {
 export const invoiceAPI = {
 	preview: (data: any) => userApi.post('/invoices/preview', data),
 	create: (data: any) => userApi.post('/invoices', data),
+	previewManual: (data: any) => userApi.post('/invoices/manual/preview', data),
+	createManual: (data: any) => userApi.post('/invoices/manual', data),
+	previewManualGuest: (data: any) => userApi.post('/guest/invoices/manual/preview', data),
+	createManualGuest: (data: any) => userApi.post('/guest/invoices/manual', data),
 	previewGuest: (data: GuestAuthInput) => {
 		const request = withGuestAuth(data)
 		return userApi.post('/guest/invoices/preview', request.payload, request.options)

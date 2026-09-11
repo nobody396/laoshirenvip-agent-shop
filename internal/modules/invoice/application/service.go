@@ -207,6 +207,7 @@ func (s *Service) calculateAmounts(invoiceAmount money.Amount, paymentMethod str
 }
 
 func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Request, error) {
+	requestNo := serial.Generate("INV")
 	input.Source = strings.ToLower(strings.TrimSpace(input.Source))
 	input.SourceHost = strings.ToLower(strings.TrimSpace(input.SourceHost))
 	input.OriginalOrderNo = strings.TrimSpace(input.OriginalOrderNo)
@@ -221,7 +222,11 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 	if input.PaymentMethod == "" {
 		input.PaymentMethod = domain.PaymentMethodAlipay
 	}
-	if (input.Source != "dujiao" && input.Source != "dujiao_recharge" && input.Source != "gmshop") || input.SourceHost == "" || input.OriginalOrderNo == "" || input.BuyerTitle == "" || input.TaxNumber == "" || input.ClientIP == "" {
+	if input.Source == "manual" {
+		input.OriginalOrderNo = "OFFLINE-" + requestNo
+		input.OriginalAmount = input.InvoiceAmount
+	}
+	if (input.Source != "dujiao" && input.Source != "dujiao_recharge" && input.Source != "gmshop" && input.Source != "manual") || input.SourceHost == "" || input.OriginalOrderNo == "" || input.BuyerTitle == "" || input.TaxNumber == "" || input.ClientIP == "" {
 		return nil, ErrInvalidInput
 	}
 	if input.PaymentMethod != domain.PaymentMethodAlipay && input.PaymentMethod != domain.PaymentMethodWallet {
@@ -236,10 +241,12 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 	if address, err := mail.ParseAddress(input.RecipientEmail); err != nil || !strings.EqualFold(address.Address, input.RecipientEmail) {
 		return nil, ErrInvalidInput
 	}
-	if existing, err := s.store.GetByOriginalOrder(input.Source, input.SourceHost, input.OriginalOrderNo); err != nil {
-		return nil, err
-	} else if existing != nil {
-		return nil, ErrAlreadyRequested
+	if input.Source != "manual" {
+		if existing, err := s.store.GetByOriginalOrder(input.Source, input.SourceHost, input.OriginalOrderNo); err != nil {
+			return nil, err
+		} else if existing != nil {
+			return nil, ErrAlreadyRequested
+		}
 	}
 
 	amounts, channel, err := s.calculateAmounts(input.InvoiceAmount, input.PaymentMethod)
@@ -252,7 +259,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 		channelID = channel.ID
 	}
 	request := &domain.Request{
-		RequestNo:          serial.Generate("INV"),
+		RequestNo:          requestNo,
 		Source:             input.Source,
 		SourceHost:         input.SourceHost,
 		OriginalOrderID:    input.OriginalOrderID,
