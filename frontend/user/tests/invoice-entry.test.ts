@@ -28,6 +28,12 @@ test('invoice page unwraps the shared API response envelope', async () => {
   assert.match(invoice, /result\.value = response\.data\.data/)
 })
 
+test('new Alipay invoice applications poll until the payment callback is visible', async () => {
+  const invoice = await read('../src/views/Invoice.vue')
+  assert.match(invoice, /function startStatusPolling/)
+  assert.match(invoice, /startStatusPolling\(result\.value\.request_no\)/)
+})
+
 test('invoice status copy does not expose internal finance or Feishu workflow', async () => {
   const invoice = await read('../src/views/Invoice.vue')
   assert.match(invoice, /系统正在处理/)
