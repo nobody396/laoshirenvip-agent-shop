@@ -151,10 +151,6 @@ type CreateInput struct {
 	InvoiceType      string
 	BuyerTitle       string
 	TaxNumber        string
-	CompanyAddress   string
-	CompanyPhone     string
-	BankName         string
-	BankAccount      string
 	RecipientEmail   string
 	ClientIP         string
 	PaymentMethod    string
@@ -169,6 +165,10 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 	input.BuyerTitle = strings.TrimSpace(input.BuyerTitle)
 	input.TaxNumber = strings.TrimSpace(input.TaxNumber)
 	input.RecipientEmail = strings.ToLower(strings.TrimSpace(input.RecipientEmail))
+	input.InvoiceType = strings.ToLower(strings.TrimSpace(input.InvoiceType))
+	if input.InvoiceType == "" {
+		input.InvoiceType = domain.TypeOrdinary
+	}
 	input.PaymentMethod = strings.ToLower(strings.TrimSpace(input.PaymentMethod))
 	if input.PaymentMethod == "" {
 		input.PaymentMethod = domain.PaymentMethodAlipay
@@ -177,6 +177,9 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 		return nil, ErrInvalidInput
 	}
 	if input.PaymentMethod != domain.PaymentMethodAlipay && input.PaymentMethod != domain.PaymentMethodWallet {
+		return nil, ErrInvalidInput
+	}
+	if input.InvoiceType != domain.TypeOrdinary {
 		return nil, ErrInvalidInput
 	}
 	if input.PaymentMethod == domain.PaymentMethodWallet && (input.UserID == 0 || input.Source == "gmshop") {
@@ -220,7 +223,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 		SourceHost:         input.SourceHost,
 		OriginalOrderID:    input.OriginalOrderID,
 		OriginalOrderNo:    input.OriginalOrderNo,
-		InvoiceType:        strings.ToLower(strings.TrimSpace(input.InvoiceType)),
+		InvoiceType:        domain.TypeOrdinary,
 		RateBPS:            rateBPS,
 		OriginalAmount:     input.OriginalAmount,
 		InvoiceFeeAmount:   invoiceFee,
@@ -231,17 +234,10 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 		PaymentAmount:      paymentAmount,
 		BuyerTitle:         input.BuyerTitle,
 		TaxNumber:          input.TaxNumber,
-		CompanyAddress:     strings.TrimSpace(input.CompanyAddress),
-		CompanyPhone:       strings.TrimSpace(input.CompanyPhone),
-		BankName:           strings.TrimSpace(input.BankName),
-		BankAccount:        strings.TrimSpace(input.BankAccount),
 		RecipientEmail:     input.RecipientEmail,
 		Status:             domain.StatusPendingPayment,
 		CreatedAt:          now,
 		UpdatedAt:          now,
-	}
-	if request.InvoiceType == domain.TypeSpecial && (request.CompanyAddress == "" || request.CompanyPhone == "" || request.BankName == "" || request.BankAccount == "") {
-		return nil, ErrInvalidInput
 	}
 	if input.PaymentMethod == domain.PaymentMethodWallet {
 		if err := s.store.CreateAndPayWithWallet(request, input.UserID, input.WalletResellerID); err != nil {

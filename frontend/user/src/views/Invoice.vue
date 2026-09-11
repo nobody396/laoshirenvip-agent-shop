@@ -12,7 +12,7 @@
 		  <img v-if="result.status === 'pending_payment' && qrImage" :src="qrImage" alt="支付宝付款二维码" class="mx-auto size-56 rounded-xl bg-white p-3" />
           <div class="space-y-3 text-sm">
             <p>申请编号：<strong>{{ result.request_no }}</strong></p>
-            <p>订单金额：¥{{ result.original_amount }}</p>
+            <p>订单实付（含用户承担的支付手续费）：¥{{ result.original_amount }}</p>
             <p>开票补款：¥{{ result.invoice_fee_amount }}</p>
 			<p v-if="result.payment_method === 'wallet'">支付方式：钱包余额</p>
             <p v-if="Number(result.payment_fee_amount) > 0">通道手续费（{{ result.payment_fee_rate }}%）：¥{{ result.payment_fee_amount }}</p>
@@ -26,35 +26,49 @@
       <form v-else class="mt-8 space-y-6 rounded-2xl border bg-card p-6 shadow-sm" @submit.prevent="submit">
         <label class="grid gap-2 text-sm">
 		  <span>{{ isRecharge ? '充值单号' : '订单号' }}</span>
-          <Input v-model="form.order_no" required />
+          <Input v-model="form.order_no" required @input="clearPreview" @blur="loadPreview" />
         </label>
-		<div v-if="isGMShop" class="grid gap-2 text-sm"><span>下单邮箱</span><Input v-model="guest.email" type="email" required /></div>
+		<div v-if="isGMShop" class="grid gap-2 text-sm"><span>下单邮箱</span><Input v-model="guest.email" type="email" required @input="clearPreview" @blur="loadPreview" /></div>
         <div v-else-if="isGuest" class="grid gap-4 md:grid-cols-2">
-          <label class="grid gap-2 text-sm"><span>下单邮箱</span><Input v-model="guest.email" type="email" required /></label>
-          <label class="grid gap-2 text-sm"><span>订单查询密码</span><Input v-model="guest.order_password" type="password" required /></label>
+          <label class="grid gap-2 text-sm"><span>下单邮箱</span><Input v-model="guest.email" type="email" required @input="clearPreview" @blur="loadPreview" /></label>
+          <label class="grid gap-2 text-sm"><span>订单查询密码</span><Input v-model="guest.order_password" type="password" required @input="clearPreview" @blur="loadPreview" /></label>
         </div>
-		<label v-if="supportsWalletPayment" class="grid gap-2 text-sm">
-		  <span>支付方式</span>
-		  <select v-model="form.payment_method" class="h-11 rounded-md border bg-background px-3">
-			<option value="wallet">钱包余额支付（免新增通道手续费）</option>
-			<option value="alipay">支付宝扫码支付</option>
-		  </select>
-		  <span v-if="form.payment_method === 'wallet'" class="text-xs text-muted-foreground">从当前站点钱包扣除开票补款，余额不足时可改用支付宝</span>
-		</label>
-        <div class="grid gap-4 md:grid-cols-2">
-          <label class="grid gap-2 text-sm"><span>发票类型</span><select v-model="form.invoice_type" class="h-11 rounded-md border bg-background px-3"><option value="ordinary">普通发票（3%）</option><option value="special">专用发票（6%）</option></select></label>
-          <label class="grid gap-2 text-sm"><span>发票抬头</span><Input v-model="form.buyer_title" required /></label>
+
+		<div v-if="previewLoading" class="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">正在计算发票金额…</div>
+		<div v-else-if="preview" class="rounded-xl border bg-muted/30 p-5">
+		  <div class="font-semibold">发票金额预览</div>
+		  <div class="mt-4 grid gap-3 text-sm md:grid-cols-3">
+			<div><div class="text-muted-foreground">订单实付（含用户承担的支付手续费）</div><div class="mt-1 text-lg font-bold">¥{{ preview.order_amount }}</div></div>
+			<div><div class="text-muted-foreground">开票补款（3%）</div><div class="mt-1 text-lg font-bold">¥{{ preview.invoice_fee_amount }}</div></div>
+			<div><div class="text-muted-foreground">发票价税合计</div><div class="mt-1 text-lg font-bold text-primary">¥{{ preview.invoice_total_amount }}</div></div>
+		  </div>
+		</div>
+		<p v-if="previewError" class="text-sm text-destructive">{{ previewError }}</p>
+
+		<div class="grid gap-4 md:grid-cols-2">
+		  <div class="grid gap-2 text-sm"><span>发票类型</span><div class="flex h-11 items-center rounded-md border bg-muted/30 px-3 font-medium">普通发票（3%）</div></div>
+		  <label class="grid gap-2 text-sm"><span>发票抬头</span><Input v-model="form.buyer_title" required /></label>
         </div>
         <label class="grid gap-2 text-sm"><span>统一社会信用代码</span><Input v-model="form.tax_number" required /></label>
-        <div v-if="form.invoice_type === 'special'" class="grid gap-4 md:grid-cols-2">
-          <label class="grid gap-2 text-sm"><span>公司地址</span><Input v-model="form.company_address" required /></label>
-          <label class="grid gap-2 text-sm"><span>公司电话</span><Input v-model="form.company_phone" required /></label>
-          <label class="grid gap-2 text-sm"><span>开户银行</span><Input v-model="form.bank_name" required /></label>
-          <label class="grid gap-2 text-sm"><span>银行账号</span><Input v-model="form.bank_account" required /></label>
-        </div>
         <label class="grid gap-2 text-sm"><span>发票接收邮箱</span><Input v-model="form.recipient_email" type="email" required /></label>
+
+		<fieldset v-if="supportsWalletPayment" class="grid gap-3">
+		  <legend class="text-sm">支付方式</legend>
+		  <div class="grid gap-3 md:grid-cols-2">
+			<label class="flex cursor-pointer items-center gap-3 rounded-xl border p-4" :class="form.payment_method === 'alipay' ? 'border-primary bg-primary/5' : ''">
+			  <input v-model="form.payment_method" type="radio" value="alipay" />
+			  <span><span class="block font-medium">支付宝</span><span class="text-xs text-muted-foreground">扫码支付开票补款</span></span>
+			</label>
+			<label class="flex cursor-pointer items-center gap-3 rounded-xl border p-4" :class="form.payment_method === 'wallet' ? 'border-primary bg-primary/5' : ''">
+			  <input v-model="form.payment_method" type="radio" value="wallet" />
+			  <span><span class="block font-medium">钱包</span><span class="text-xs text-muted-foreground">免新增支付通道手续费</span></span>
+			</label>
+		  </div>
+		</fieldset>
+		<div v-else class="grid gap-2 text-sm"><span>支付方式</span><div class="flex h-11 items-center rounded-md border bg-muted/30 px-3">支付宝扫码支付</div></div>
+
         <p v-if="error" class="text-sm text-destructive">{{ error }}</p>
-        <Button type="submit" class="w-full" :disabled="loading">{{ submitLabel }}</Button>
+        <Button type="submit" class="w-full" :disabled="loading || previewLoading">{{ loading ? '正在提交…' : '确认资料并支付' }}</Button>
       </form>
     </div>
   </div>
@@ -76,17 +90,45 @@ const supportsWalletPayment = computed(() => !isGuest.value && !isGMShop.value)
 const loading = ref(false)
 const error = ref('')
 const result = ref<any>(null)
+const preview = ref<any>(null)
+const previewLoading = ref(false)
+const previewError = ref('')
 const qrImage = ref('')
 const guest = reactive({ email: '', order_password: '' })
 const form = reactive({
 	order_no: String(route.query.order_no || route.query.recharge_no || ''), invoice_type: 'ordinary', buyer_title: '', tax_number: '',
-	company_address: '', company_phone: '', bank_name: '', bank_account: '', recipient_email: '', payment_method: 'wallet',
-})
-const submitLabel = computed(() => {
-  if (loading.value) return '正在创建支付…'
-  return supportsWalletPayment.value && form.payment_method === 'wallet' ? '确认资料并使用钱包支付' : '确认资料并生成付款码'
+	recipient_email: '', payment_method: 'wallet',
 })
 let statusTimer: number | undefined
+
+function clearPreview() {
+  preview.value = null
+  previewError.value = ''
+}
+
+async function loadPreview() {
+  const orderNo = form.order_no.trim()
+  if (!orderNo || (isGMShop.value && !guest.email.trim()) || (isGuest.value && (!guest.email.trim() || !guest.order_password))) {
+    preview.value = null
+    previewError.value = ''
+    return
+  }
+  previewLoading.value = true
+  previewError.value = ''
+  try {
+    let response
+    if (isGMShop.value) response = await invoiceAPI.previewGMShop({ order_no: orderNo, order_email: guest.email })
+    else if (isRecharge.value) response = await invoiceAPI.previewRecharge({ order_no: orderNo })
+    else if (isGuest.value) response = await invoiceAPI.previewGuest({ order_no: orderNo, ...guest })
+    else response = await invoiceAPI.preview({ order_no: orderNo })
+    preview.value = response.data.data
+  } catch (cause: any) {
+    preview.value = null
+    previewError.value = cause?.message || '暂时无法预览发票金额'
+  } finally {
+    previewLoading.value = false
+  }
+}
 
 async function loadRequest(requestNo: string) {
   try {
@@ -105,14 +147,21 @@ async function loadRequest(requestNo: string) {
 
 onMounted(() => {
   const requestNo = String(route.query.request_no || '')
-  if (!requestNo) return
-  void loadRequest(requestNo)
-  statusTimer = window.setInterval(() => void loadRequest(requestNo), 3000)
+  if (requestNo) {
+    void loadRequest(requestNo)
+    statusTimer = window.setInterval(() => void loadRequest(requestNo), 3000)
+    return
+  }
+  if (form.order_no) void loadPreview()
 })
 onBeforeUnmount(() => { if (statusTimer) window.clearInterval(statusTimer) })
 
 async function submit() {
   error.value = ''
+  if (!preview.value) {
+    await loadPreview()
+    if (!preview.value) return
+  }
   loading.value = true
   try {
 	let response

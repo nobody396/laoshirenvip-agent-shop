@@ -73,7 +73,7 @@ func registerStorefrontRoutes(
 	storefront := apiV1.Group("")
 	storefront.Use(middleware.ResellerTenantMiddleware(c.ResellerDomainResolver))
 	affiliateHandler := affiliatebootstrap.NewStorefrontHandler(c)
-	invoiceHandler := invoicehttp.NewHandler(c.InvoiceService, c.OrderService, c.GMShopInvoiceReader, c.WalletService)
+	invoiceHandler := invoicehttp.NewHandler(c.InvoiceService, c.OrderService, c.GMShopInvoiceReader, c.WalletService, c.PaymentStore)
 
 	// 公开接口
 	public := storefront.Group("/public")
