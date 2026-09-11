@@ -38,7 +38,7 @@
 		<label v-if="preview || form.invoice_amount" class="grid gap-2 text-sm">
 		  <span>发票金额（价税合计）</span>
 		  <Input v-model="form.invoice_amount" type="number" inputmode="decimal" min="0.01" step="0.01" required @blur="loadPreview" />
-		  <span class="text-xs text-muted-foreground">代顾客开票时，请填写你与顾客的实际成交金额，系统按该金额收取 3% 开票服务费</span>
+		  <span class="text-xs text-muted-foreground">请填写发票上显示的价税合计金额，系统按该金额收取 3% 开票服务费</span>
 		</label>
 		<div v-if="preview && !previewLoading" class="rounded-xl border bg-muted/30 p-5">
 		  <div class="font-semibold">开票费用预览</div>
@@ -126,7 +126,7 @@ async function loadPreview() {
   try {
     let response
     const paymentMethod = supportsWalletPayment.value ? form.payment_method : 'alipay'
-    const payload = { order_no: orderNo, invoice_amount: form.invoice_amount, payment_method: paymentMethod }
+    const payload = { order_no: orderNo, invoice_amount: String(form.invoice_amount || ''), payment_method: paymentMethod }
     if (isGMShop.value) response = await invoiceAPI.previewGMShop({ ...payload, order_email: guest.email })
     else if (isRecharge.value) response = await invoiceAPI.previewRecharge(payload)
     else if (isGuest.value) response = await invoiceAPI.previewGuest({ ...payload, ...guest })
@@ -174,7 +174,7 @@ async function submit() {
   loading.value = true
   try {
 	let response
-	const payload = { ...form, payment_method: supportsWalletPayment.value ? form.payment_method : 'alipay' }
+	const payload = { ...form, invoice_amount: String(form.invoice_amount || ''), payment_method: supportsWalletPayment.value ? form.payment_method : 'alipay' }
 	if (isGMShop.value) response = await invoiceAPI.createGMShop({ ...payload, order_email: guest.email })
 	else if (isRecharge.value) response = await invoiceAPI.createRecharge(payload)
 	else if (isGuest.value) response = await invoiceAPI.createGuest({ ...payload, ...guest })
