@@ -11,6 +11,7 @@ import (
 	cardsecretdomain "github.com/dujiao-next/internal/modules/cardsecret/domain"
 	cartdomain "github.com/dujiao-next/internal/modules/cart/domain"
 	externalidentitydomain "github.com/dujiao-next/internal/modules/identity/externalidentity/domain"
+	invoicedomain "github.com/dujiao-next/internal/modules/invoice/domain"
 
 	mappingdomain "github.com/dujiao-next/internal/modules/catalog/mapping/domain"
 	productdomain "github.com/dujiao-next/internal/modules/catalog/product/domain"
@@ -66,6 +67,52 @@ func TestEnsureProductMappingMultipleSourcesMigrationAllowsOneProductAcrossConne
 	}
 	if err := ensureProductMappingMultipleSourcesMigration(); err != nil {
 		t.Fatalf("migration should be idempotent: %v", err)
+	}
+}
+
+func TestEnsureInvoiceOptionalUniqueIndexesAllowsMultiplePendingRequests(t *testing.T) {
+	db := setupSKUMigrationTestDB(t)
+	if err := db.AutoMigrate(&invoicedomain.Request{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, index := range []string{"idx_invoice_requests_feishu_record_id", "idx_invoice_requests_invoice_number"} {
+		if err := db.Exec("DROP INDEX IF EXISTS " + index).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := db.Exec("CREATE UNIQUE INDEX idx_invoice_requests_feishu_record_id ON invoice_requests (feishu_record_id)").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec("CREATE UNIQUE INDEX idx_invoice_requests_invoice_number ON invoice_requests (invoice_number)").Error; err != nil {
+		t.Fatal(err)
+	}
+	first := walletInvoiceMigrationRequest("INV-PENDING-1")
+	if err := db.Create(first).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureInvoiceOptionalUniqueIndexes(); err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureInvoiceOptionalUniqueIndexes(); err != nil {
+		t.Fatalf("migration must be idempotent: %v", err)
+	}
+	second := walletInvoiceMigrationRequest("INV-PENDING-2")
+	if err := db.Create(second).Error; err != nil {
+		t.Fatalf("second pending invoice should be accepted: %v", err)
+	}
+	if err := db.Model(first).Update("invoice_number", "FP-001").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Model(second).Update("invoice_number", "FP-001").Error; err == nil {
+		t.Fatal("duplicate issued invoice number must still be rejected")
+	}
+}
+
+func walletInvoiceMigrationRequest(requestNo string) *invoicedomain.Request {
+	return &invoicedomain.Request{
+		RequestNo: requestNo, Source: "manual", SourceHost: "lsrai.shop", OriginalOrderNo: "OFFLINE-" + requestNo,
+		InvoiceType: invoicedomain.TypeOrdinary, BuyerTitle: "示例公司", TaxNumber: "TEST", RecipientEmail: "test@example.com",
+		Status: invoicedomain.StatusPendingIssue,
 	}
 }
 

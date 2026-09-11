@@ -106,6 +106,9 @@ func AutoMigrate() error {
 	if err := ensureUserOAuthIdentityUserProviderUniqueIndex(); err != nil {
 		return err
 	}
+	if err := ensureInvoiceOptionalUniqueIndexes(); err != nil {
+		return err
+	}
 	if err := ensureProductMappingMultipleSourcesMigration(); err != nil {
 		return err
 	}
