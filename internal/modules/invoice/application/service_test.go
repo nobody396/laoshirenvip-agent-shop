@@ -165,6 +165,19 @@ func TestCreateRejectsDuplicateOriginalOrder(t *testing.T) {
 	}
 }
 
+func TestCreateRejectsNewSpecialInvoiceRequests(t *testing.T) {
+	store := &requestStoreStub{}
+	service := NewService(store, channelStoreStub{}, registryStub{gateway: &gatewayStub{}}, "https://lsrai.shop")
+	_, err := service.Create(context.Background(), CreateInput{
+		Source: "dujiao", SourceHost: "lsrai.shop", OriginalOrderNo: "DJ-SPECIAL",
+		OriginalAmount: money.FromDecimal(decimal.NewFromInt(750)), InvoiceType: domain.TypeSpecial,
+		BuyerTitle: "示例公司", TaxNumber: "91350000TEST", RecipientEmail: "finance@example.com", ClientIP: "127.0.0.1",
+	})
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("Create() error = %v, want ordinary-only rejection", err)
+	}
+}
+
 type paidSinkStub struct{ calls int }
 
 func (s *paidSinkStub) UpsertPaidRequest(context.Context, *domain.Request) (string, error) {

@@ -38,7 +38,28 @@ test('invoice status copy does not expose internal finance or Feishu workflow', 
 test('authenticated invoice applications can choose fee-free wallet payment', async () => {
   const invoice = await read('../src/views/Invoice.vue')
   assert.match(invoice, /value="wallet"/)
-  assert.match(invoice, /钱包余额支付（免新增通道手续费）/)
+  assert.match(invoice, /钱包/)
+  assert.match(invoice, /免新增支付通道手续费/)
   assert.match(invoice, /value="alipay"/)
   assert.match(invoice, /payment_method/)
+})
+
+test('invoice form is ordinary-only and previews the tax-inclusive total before payment', async () => {
+  const invoice = await read('../src/views/Invoice.vue')
+  assert.doesNotMatch(invoice, /专用发票|value="special"|公司地址|开户银行/)
+  assert.match(invoice, /发票金额预览/)
+  assert.match(invoice, /订单实付（含用户承担的支付手续费）/)
+  assert.match(invoice, /开票补款（3%）/)
+  assert.match(invoice, /发票价税合计/)
+})
+
+test('invoice payment channels are radio choices below the receiving email with a generic submit label', async () => {
+  const invoice = await read('../src/views/Invoice.vue')
+  const email = invoice.indexOf('发票接收邮箱')
+  const payment = invoice.indexOf('<fieldset')
+  assert.ok(email >= 0 && payment > email)
+  assert.match(invoice, /type="radio"[^>]+value="alipay"/)
+  assert.match(invoice, /type="radio"[^>]+value="wallet"/)
+  assert.match(invoice, /确认资料并支付/)
+  assert.doesNotMatch(invoice, /确认资料并使用钱包支付/)
 })

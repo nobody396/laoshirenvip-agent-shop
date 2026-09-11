@@ -90,12 +90,19 @@ export const paymentAPI = {
 }
 
 export const invoiceAPI = {
+	preview: (data: any) => userApi.post('/invoices/preview', data),
 	create: (data: any) => userApi.post('/invoices', data),
+	previewGuest: (data: GuestAuthInput) => {
+		const request = withGuestAuth(data)
+		return userApi.post('/guest/invoices/preview', request.payload, request.options)
+	},
 	createGuest: (data: GuestAuthInput) => {
 		const request = withGuestAuth(data)
 		return userApi.post('/guest/invoices', request.payload, request.options)
 	},
+	previewGMShop: (data: any) => userApi.post('/guest/invoices/gmshop/preview', data),
 	createGMShop: (data: any) => userApi.post('/guest/invoices/gmshop', data),
+	previewRecharge: (data: any) => userApi.post('/invoices/recharge/preview', data),
 	createRecharge: (data: any) => userApi.post('/invoices/recharge', data),
 	get: (requestNo: string) => userApi.get(`/public/invoices/${encodeURIComponent(requestNo)}`),
 }
