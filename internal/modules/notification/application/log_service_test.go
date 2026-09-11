@@ -345,3 +345,36 @@ func TestDispatchKeepsResellerFinancialSummaryOutOfEmail(t *testing.T) {
 		}
 	}
 }
+
+func TestResellerWithdrawNotificationIsAlwaysFeishuOnly(t *testing.T) {
+	repo := &notificationLogRepositoryStub{}
+	logService := NewLogService(repo)
+	feishuSender := &notificationFeishuStub{}
+	setting := settingsmessaging.NotificationCenterDefaultSetting()
+	setting.Channels.Email = settingsmessaging.NotificationChannelSetting{Enabled: true, Recipients: []string{"owner@example.com"}}
+	setting.Channels.Feishu = settingsmessaging.FeishuNotificationChannelSetting{
+		Enabled:       true,
+		AppID:         "cli_demo",
+		AppSecret:     "secret",
+		ReceiveIDType: settingsmessaging.FeishuReceiveIDTypeChatID,
+		Recipients:    []string{"oc_owner"},
+	}
+	service := NewService(notificationSettingsStub{notification: setting}, notificationEmailStub{}, nil, nil, logService, nil, feishuSender)
+	err := service.Dispatch(context.Background(), queue.NotificationDispatchPayload{
+		EventType: constants.NotificationEventResellerWithdrawRequested,
+		BizType:   constants.NotificationBizTypeResellerWithdraw,
+		BizID:     42,
+		Locale:    constants.LocaleZhCN,
+		Force:     true,
+		Data:      map[string]interface{}{"message": "申请人：代理甲\n站点：甲站\n佣金明细：SKU-A｜¥8.00"},
+	})
+	if err != nil {
+		t.Fatalf("withdraw dispatch failed: %v", err)
+	}
+	if len(feishuSender.calls) != 1 || !strings.Contains(feishuSender.calls[0].message, "新的子站代理提现申请") || !strings.Contains(feishuSender.calls[0].message, "SKU-A") {
+		t.Fatalf("unexpected Feishu calls: %#v", feishuSender.calls)
+	}
+	if len(repo.items) != 1 || repo.items[0].Channel != constants.NotificationChannelFeishu {
+		t.Fatalf("withdraw notification must not fan out to email or Telegram: %#v", repo.items)
+	}
+}

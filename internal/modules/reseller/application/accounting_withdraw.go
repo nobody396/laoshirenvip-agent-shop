@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dujiao-next/internal/logger"
 	resellercontract "github.com/dujiao-next/internal/modules/reseller/contract"
 
 	resellerdomain "github.com/dujiao-next/internal/modules/reseller/domain"
@@ -17,11 +18,24 @@ import (
 
 // AccountingWithdrawService 分销提现申请与审核用例。
 type AccountingWithdrawService struct {
-	store resellercontract.AccountingWithdrawStore
+	store    resellercontract.AccountingWithdrawStore
+	notifier WithdrawAppliedNotifier
+}
+
+// WithdrawAppliedNotifier is called only after the withdrawal transaction has
+// committed. Notification failure must never roll back or duplicate money.
+type WithdrawAppliedNotifier interface {
+	NotifyWithdrawApplied(withdrawID uint) error
 }
 
 func NewAccountingWithdrawService(store resellercontract.AccountingWithdrawStore) *AccountingWithdrawService {
 	return &AccountingWithdrawService{store: store}
+}
+
+func (s *AccountingWithdrawService) SetAppliedNotifier(notifier WithdrawAppliedNotifier) {
+	if s != nil {
+		s.notifier = notifier
+	}
 }
 
 func (s *AccountingWithdrawService) ApplyUserWithdraw(userID uint, input resellercontract.WithdrawApplyInput) (*resellerdomain.WithdrawRequest, error) {
@@ -157,7 +171,16 @@ func (s *AccountingWithdrawService) ApplyWithdraw(resellerID uint, input reselle
 	if err != nil {
 		return nil, err
 	}
-	return s.store.GetWithdrawRequestByID(createdID)
+	created, err := s.store.GetWithdrawRequestByID(createdID)
+	if err != nil || created == nil {
+		return created, err
+	}
+	if s.notifier != nil {
+		if notifyErr := s.notifier.NotifyWithdrawApplied(created.ID); notifyErr != nil {
+			logger.Warnw("reseller_withdraw_notification_enqueue_failed", "withdraw_id", created.ID, "error", notifyErr)
+		}
+	}
+	return created, nil
 }
 
 func (s *AccountingWithdrawService) ReviewWithdraw(adminID uint, withdrawID uint, action string, rejectReason string) (*resellerdomain.WithdrawRequest, error) {

@@ -139,10 +139,17 @@ func (s *Service) dispatchSingleEvent(ctx context.Context, setting settingsmessa
 	}
 
 	locale := format.ResolveLocale(payload.Locale, setting.DefaultLocale)
-	template := setting.Templates.TemplateByEvent(payload.EventType).ResolveLocaleTemplate(locale)
 	variables := format.BuildTemplateVariables(payload)
-	title := format.RenderTemplate(template.Title, variables)
-	body := format.RenderTemplate(template.Body, variables)
+	feishuOnly := payload.EventType == constants.NotificationEventResellerWithdrawRequested
+	var title, body string
+	if feishuOnly {
+		title = "新的子站代理提现申请"
+		body = strings.TrimSpace(fmt.Sprint(variables["message"]))
+	} else {
+		template := setting.Templates.TemplateByEvent(payload.EventType).ResolveLocaleTemplate(locale)
+		title = format.RenderTemplate(template.Title, variables)
+		body = format.RenderTemplate(template.Body, variables)
+	}
 	if strings.TrimSpace(body) == "" {
 		body = title
 	}
@@ -151,7 +158,7 @@ func (s *Service) dispatchSingleEvent(ctx context.Context, setting settingsmessa
 	}
 
 	var firstErr error
-	if setting.Channels.Email.Enabled && len(setting.Channels.Email.Recipients) > 0 {
+	if !feishuOnly && setting.Channels.Email.Enabled && len(setting.Channels.Email.Recipients) > 0 {
 		for _, recipient := range setting.Channels.Email.Recipients {
 			var sendErr error
 			if s.emailService == nil {
@@ -185,7 +192,7 @@ func (s *Service) dispatchSingleEvent(ctx context.Context, setting settingsmessa
 			}
 		}
 	}
-	if setting.Channels.Telegram.Enabled && len(setting.Channels.Telegram.Recipients) > 0 {
+	if !feishuOnly && setting.Channels.Telegram.Enabled && len(setting.Channels.Telegram.Recipients) > 0 {
 		message := format.ComposePlainTextMessage(title, body)
 		for _, recipient := range setting.Channels.Telegram.Recipients {
 			var sendErr error

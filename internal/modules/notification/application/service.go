@@ -81,7 +81,7 @@ func (s *Service) Dispatch(ctx context.Context, payload queue.NotificationDispat
 	if err != nil {
 		return err
 	}
-	if !setting.Scenes.IsSceneEnabled(eventType) {
+	if eventType != constants.NotificationEventResellerWithdrawRequested && !setting.Scenes.IsSceneEnabled(eventType) {
 		return nil
 	}
 
