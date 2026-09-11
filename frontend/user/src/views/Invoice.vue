@@ -108,6 +108,18 @@ const form = reactive({
 })
 let statusTimer: number | undefined
 
+function stopStatusPolling() {
+  if (!statusTimer) return
+  window.clearInterval(statusTimer)
+  statusTimer = undefined
+}
+
+function startStatusPolling(requestNo: string) {
+  stopStatusPolling()
+  if (!requestNo) return
+  statusTimer = window.setInterval(() => void loadRequest(requestNo), 3000)
+}
+
 function clearPreview() {
   preview.value = null
   previewError.value = ''
@@ -153,10 +165,7 @@ async function loadRequest(requestNo: string) {
     if (result.value.status === 'pending_payment') {
       const qr = result.value.qr_code || result.value.pay_url
       if (qr) qrImage.value = await QRCode.toDataURL(qr, { width: 360, margin: 1 })
-    } else if (statusTimer) {
-      window.clearInterval(statusTimer)
-      statusTimer = undefined
-    }
+	} else stopStatusPolling()
   } catch (cause: any) {
     error.value = cause?.message || '开票申请查询失败'
   }
@@ -166,12 +175,12 @@ onMounted(() => {
   const requestNo = String(route.query.request_no || '')
   if (requestNo) {
     void loadRequest(requestNo)
-    statusTimer = window.setInterval(() => void loadRequest(requestNo), 3000)
+	startStatusPolling(requestNo)
     return
   }
   if (form.order_no) void loadPreview()
 })
-onBeforeUnmount(() => { if (statusTimer) window.clearInterval(statusTimer) })
+onBeforeUnmount(stopStatusPolling)
 
 async function submit() {
   error.value = ''
@@ -187,6 +196,8 @@ async function submit() {
 	else if (isGuest.value) response = await invoiceAPI.createGuest({ ...payload, ...guest })
 	else response = await invoiceAPI.create(payload)
 	result.value = response.data.data
+	if (result.value.status === 'pending_payment') startStatusPolling(result.value.request_no)
+	else stopStatusPolling()
     const qr = result.value.qr_code || result.value.pay_url
     if (qr) qrImage.value = await QRCode.toDataURL(qr, { width: 360, margin: 1 })
   } catch (cause: any) {
