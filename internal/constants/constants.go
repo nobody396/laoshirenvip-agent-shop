@@ -358,11 +358,12 @@ const (
 
 // 通知中心事件常量
 const (
-	NotificationEventWalletRechargeSuccess    = "wallet_recharge_success"
-	NotificationEventOrderPaidSuccess         = "order_paid_success"
-	NotificationEventManualFulfillmentPending = "manual_fulfillment_pending"
-	NotificationEventExceptionAlert           = "exception_alert"
-	NotificationEventExceptionAlertCheck      = "exception_alert_check"
+	NotificationEventWalletRechargeSuccess     = "wallet_recharge_success"
+	NotificationEventOrderPaidSuccess          = "order_paid_success"
+	NotificationEventManualFulfillmentPending  = "manual_fulfillment_pending"
+	NotificationEventResellerWithdrawRequested = "reseller_withdraw_requested"
+	NotificationEventExceptionAlert            = "exception_alert"
+	NotificationEventExceptionAlertCheck       = "exception_alert_check"
 )
 
 // 通知中心渠道常量
@@ -555,12 +556,13 @@ var SupportedLocales = []string{LocaleZhCN, LocaleZhTW, LocaleEnUS}
 
 // 通知业务类型常量
 const (
-	NotificationBizTypeOrder           = "order"
-	NotificationBizTypeWalletRecharge  = "wallet_recharge"
-	NotificationBizTypeDashboardAlert  = "dashboard_alert"
-	NotificationBizTypePaymentCallback = "payment_callback"
-	NotificationBizTypeProcurement     = "procurement"
-	NotificationBizTypeReconciliation  = "reconciliation"
+	NotificationBizTypeOrder            = "order"
+	NotificationBizTypeWalletRecharge   = "wallet_recharge"
+	NotificationBizTypeDashboardAlert   = "dashboard_alert"
+	NotificationBizTypePaymentCallback  = "payment_callback"
+	NotificationBizTypeProcurement      = "procurement"
+	NotificationBizTypeReconciliation   = "reconciliation"
+	NotificationBizTypeResellerWithdraw = "reseller_withdraw"
 )
 
 // 对账差异类型常量

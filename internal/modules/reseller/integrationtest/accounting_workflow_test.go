@@ -39,6 +39,15 @@ type resellerAccountingTestHarness struct {
 	store    *resellergormstore.Store
 }
 
+type failingWithdrawNotifier struct {
+	ids []uint
+}
+
+func (n *failingWithdrawNotifier) NotifyWithdrawApplied(withdrawID uint) error {
+	n.ids = append(n.ids, withdrawID)
+	return errors.New("simulated notification outage")
+}
+
 func newResellerAccountingTestHarness(store *resellergormstore.Store, confirmDays int) resellerAccountingTestHarness {
 	ledger := resellerapplication.NewAccountingLedgerService(store, confirmDays)
 	return resellerAccountingTestHarness{
@@ -745,6 +754,27 @@ func TestResellerAccountingUserWithdrawUsesSavedAlipayAccount(t *testing.T) {
 	}
 	if req.Channel != "支付宝" || req.Account != "alipay@example.com" {
 		t.Fatalf("withdraw did not use saved Alipay account: %+v", req)
+	}
+}
+
+func TestResellerAccountingNotificationFailureDoesNotRollBackWithdraw(t *testing.T) {
+	db := openResellerAccountingServiceTestDB(t)
+	profile := seedResellerAccountingProfile(t, db)
+	now := time.Now()
+	row := resellerdomain.LedgerEntry{ResellerID: profile.ID, Type: resellerdomain.LedgerTypeOrderProfit, Amount: money.FromDecimal(decimal.NewFromInt(10)), Currency: "CNY", IdempotencyKey: "order_profit:notify-failure", Status: resellerdomain.LedgerStatusAvailable, AvailableAt: &now}
+	if err := db.Create(&row).Error; err != nil {
+		t.Fatalf("seed ledger failed: %v", err)
+	}
+	repo := resellergormstore.New(db)
+	svc := resellerapplication.NewAccountingWithdrawService(repo)
+	notifier := &failingWithdrawNotifier{}
+	svc.SetAppliedNotifier(notifier)
+	req, err := svc.ApplyWithdraw(profile.ID, resellercontract.WithdrawApplyInput{Amount: decimal.NewFromInt(10), Currency: "CNY", Channel: "支付宝", Account: "account"})
+	if err != nil {
+		t.Fatalf("notification failure must not fail committed withdraw: %v", err)
+	}
+	if req == nil || req.Status != resellerdomain.WithdrawStatusPending || len(notifier.ids) != 1 || notifier.ids[0] != req.ID {
+		t.Fatalf("unexpected committed withdraw or notification call: req=%+v ids=%v", req, notifier.ids)
 	}
 }
 

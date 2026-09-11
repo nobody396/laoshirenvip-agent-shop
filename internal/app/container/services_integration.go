@@ -64,6 +64,7 @@ func (c *Container) initIntegrationServices() {
 		telegramNotifyService,
 		notificationfeishu.New(c.Config.Notification.FeishuAppSecret),
 	)
+	c.ResellerAccountingWithdraw.SetAppliedNotifier(newResellerWithdrawNotifier(gormdb.DB, c.NotificationService))
 	c.ApiCredentialService = apicredentialapp.NewService(c.ApiCredentialRepo)
 	c.SiteConnectionService = siteconnectionapp.NewService(
 		c.SiteConnectionRepo,
