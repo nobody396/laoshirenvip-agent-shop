@@ -580,6 +580,7 @@
       "types": {
         "recharge": "Top-up",
         "order_pay": "Order payment",
+		"invoice_pay": "Invoice supplement",
         "order_refund": "Order refund",
         "gift_card_redeem": "Gift card redeem",
         "admin_adjust": "Admin adjustment",

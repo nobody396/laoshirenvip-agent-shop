@@ -34,3 +34,11 @@ test('invoice status copy does not expose internal finance or Feishu workflow', 
   assert.match(invoice, /发票开好后会自动发送到你填写的邮箱/)
   assert.doesNotMatch(invoice, /财务待办|飞书待办|财务将在飞书/)
 })
+
+test('authenticated invoice applications can choose fee-free wallet payment', async () => {
+  const invoice = await read('../src/views/Invoice.vue')
+  assert.match(invoice, /value="wallet"/)
+  assert.match(invoice, /钱包余额支付（免新增通道手续费）/)
+  assert.match(invoice, /value="alipay"/)
+  assert.match(invoice, /payment_method/)
+})

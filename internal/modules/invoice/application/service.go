@@ -12,6 +12,7 @@ import (
 	"github.com/dujiao-next/internal/modules/invoice/domain"
 	paymentcontract "github.com/dujiao-next/internal/modules/payment/contract"
 	paymentdomain "github.com/dujiao-next/internal/modules/payment/domain"
+	walletcontract "github.com/dujiao-next/internal/modules/wallet/contract"
 	"github.com/dujiao-next/internal/shared/jsonmap"
 	"github.com/dujiao-next/internal/shared/money"
 	"github.com/dujiao-next/internal/shared/serial"
@@ -24,10 +25,12 @@ var (
 	ErrInvalidInput       = errors.New("invalid invoice input")
 	ErrAlreadyRequested   = errors.New("invoice already requested")
 	ErrPaymentUnavailable = errors.New("invoice payment unavailable")
+	ErrWalletInsufficient = errors.New("invoice wallet balance insufficient")
 )
 
 type Store interface {
 	Create(*domain.Request) error
+	CreateAndPayWithWallet(*domain.Request, uint, *uint) error
 	Save(*domain.Request) error
 	GetByRequestNo(string) (*domain.Request, error)
 	GetByOriginalOrder(source, sourceHost, orderNo string) (*domain.Request, error)
@@ -72,17 +75,7 @@ func (s *Service) HandlePaymentCallback(form map[string][]string, body []byte) (
 	if err != nil || paidRequest == nil {
 		return paidRequest, !changed, err
 	}
-	if s.paidSink != nil && paidRequest.FeishuRecordID == "" {
-		recordID, syncErr := s.paidSink.UpsertPaidRequest(context.Background(), paidRequest)
-		if syncErr != nil {
-			paidRequest.FeishuLastError = syncErr.Error()
-			_ = s.store.SetFeishuSync(paidRequest.RequestNo, "", syncErr.Error())
-		} else {
-			paidRequest.FeishuRecordID = recordID
-			paidRequest.FeishuLastError = ""
-			_ = s.store.SetFeishuSync(paidRequest.RequestNo, recordID, "")
-		}
-	}
+	s.syncPaidRequest(paidRequest)
 	return paidRequest, !changed, nil
 }
 
@@ -150,20 +143,23 @@ func (s *Service) Get(requestNo string) (*domain.Request, error) {
 }
 
 type CreateInput struct {
-	Source          string
-	SourceHost      string
-	OriginalOrderID *uint
-	OriginalOrderNo string
-	OriginalAmount  money.Amount
-	InvoiceType     string
-	BuyerTitle      string
-	TaxNumber       string
-	CompanyAddress  string
-	CompanyPhone    string
-	BankName        string
-	BankAccount     string
-	RecipientEmail  string
-	ClientIP        string
+	Source           string
+	SourceHost       string
+	OriginalOrderID  *uint
+	OriginalOrderNo  string
+	OriginalAmount   money.Amount
+	InvoiceType      string
+	BuyerTitle       string
+	TaxNumber        string
+	CompanyAddress   string
+	CompanyPhone     string
+	BankName         string
+	BankAccount      string
+	RecipientEmail   string
+	ClientIP         string
+	PaymentMethod    string
+	UserID           uint
+	WalletResellerID *uint
 }
 
 func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Request, error) {
@@ -173,7 +169,17 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 	input.BuyerTitle = strings.TrimSpace(input.BuyerTitle)
 	input.TaxNumber = strings.TrimSpace(input.TaxNumber)
 	input.RecipientEmail = strings.ToLower(strings.TrimSpace(input.RecipientEmail))
+	input.PaymentMethod = strings.ToLower(strings.TrimSpace(input.PaymentMethod))
+	if input.PaymentMethod == "" {
+		input.PaymentMethod = domain.PaymentMethodAlipay
+	}
 	if (input.Source != "dujiao" && input.Source != "dujiao_recharge" && input.Source != "gmshop") || input.SourceHost == "" || input.OriginalOrderNo == "" || input.BuyerTitle == "" || input.TaxNumber == "" || input.ClientIP == "" {
+		return nil, ErrInvalidInput
+	}
+	if input.PaymentMethod != domain.PaymentMethodAlipay && input.PaymentMethod != domain.PaymentMethodWallet {
+		return nil, ErrInvalidInput
+	}
+	if input.PaymentMethod == domain.PaymentMethodWallet && (input.UserID == 0 || input.Source == "gmshop") {
 		return nil, ErrInvalidInput
 	}
 	if address, err := mail.ParseAddress(input.RecipientEmail); err != nil || !strings.EqualFold(address.Address, input.RecipientEmail) {
@@ -189,10 +195,6 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 	if err != nil {
 		return nil, ErrInvalidInput
 	}
-	channel, err := s.channels.GetByID(InvoicePaymentChannelID)
-	if err != nil || channel == nil || !channel.IsActive || channel.ProviderType != "epay" || channel.ChannelType != "alipay" {
-		return nil, ErrPaymentUnavailable
-	}
 	// 开票补款由商户承担支付通道成本，不把支付渠道的常规费率转嫁给开票客户。
 	invoicePaymentFeeRate := money.FromDecimal(decimal.Zero)
 	paymentFee, paymentAmount, err := domain.CalculatePaymentAmount(invoiceFee, invoicePaymentFeeRate)
@@ -200,7 +202,18 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 		return nil, ErrPaymentUnavailable
 	}
 
+	var channel *paymentdomain.PaymentChannel
+	if input.PaymentMethod == domain.PaymentMethodAlipay {
+		channel, err = s.channels.GetByID(InvoicePaymentChannelID)
+		if err != nil || channel == nil || !channel.IsActive || channel.ProviderType != "epay" || channel.ChannelType != "alipay" {
+			return nil, ErrPaymentUnavailable
+		}
+	}
 	now := time.Now()
+	channelID := uint(0)
+	if channel != nil {
+		channelID = channel.ID
+	}
 	request := &domain.Request{
 		RequestNo:          serial.Generate("INV"),
 		Source:             input.Source,
@@ -212,7 +225,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 		OriginalAmount:     input.OriginalAmount,
 		InvoiceFeeAmount:   invoiceFee,
 		InvoiceTotalAmount: invoiceTotal,
-		PaymentChannelID:   channel.ID,
+		PaymentChannelID:   channelID,
 		PaymentFeeRate:     invoicePaymentFeeRate,
 		PaymentFeeAmount:   paymentFee,
 		PaymentAmount:      paymentAmount,
@@ -229,6 +242,16 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 	}
 	if request.InvoiceType == domain.TypeSpecial && (request.CompanyAddress == "" || request.CompanyPhone == "" || request.BankName == "" || request.BankAccount == "") {
 		return nil, ErrInvalidInput
+	}
+	if input.PaymentMethod == domain.PaymentMethodWallet {
+		if err := s.store.CreateAndPayWithWallet(request, input.UserID, input.WalletResellerID); err != nil {
+			if errors.Is(err, walletcontract.ErrInsufficientBalance) || errors.Is(err, walletcontract.ErrAccountNotFound) {
+				return nil, ErrWalletInsufficient
+			}
+			return nil, err
+		}
+		s.syncPaidRequest(request)
+		return request, nil
 	}
 	if err := s.store.Create(request); err != nil {
 		return nil, err
@@ -265,6 +288,21 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 		return nil, err
 	}
 	return request, nil
+}
+
+func (s *Service) syncPaidRequest(request *domain.Request) {
+	if s == nil || s.paidSink == nil || request == nil || request.FeishuRecordID != "" {
+		return
+	}
+	recordID, err := s.paidSink.UpsertPaidRequest(context.Background(), request)
+	if err != nil {
+		request.FeishuLastError = err.Error()
+		_ = s.store.SetFeishuSync(request.RequestNo, "", err.Error())
+		return
+	}
+	request.FeishuRecordID = recordID
+	request.FeishuLastError = ""
+	_ = s.store.SetFeishuSync(request.RequestNo, recordID, "")
 }
 
 func (s *Service) paymentURLs(requestNo string) (string, string, error) {

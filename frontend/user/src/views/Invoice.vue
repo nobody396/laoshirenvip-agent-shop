@@ -14,6 +14,7 @@
             <p>申请编号：<strong>{{ result.request_no }}</strong></p>
             <p>订单金额：¥{{ result.original_amount }}</p>
             <p>开票补款：¥{{ result.invoice_fee_amount }}</p>
+			<p v-if="result.payment_method === 'wallet'">支付方式：钱包余额</p>
             <p v-if="Number(result.payment_fee_amount) > 0">通道手续费（{{ result.payment_fee_rate }}%）：¥{{ result.payment_fee_amount }}</p>
             <p class="text-lg">本次支付：<strong>¥{{ result.payment_amount }}</strong></p>
             <p>发票价税合计：¥{{ result.invoice_total_amount }}</p>
@@ -32,6 +33,14 @@
           <label class="grid gap-2 text-sm"><span>下单邮箱</span><Input v-model="guest.email" type="email" required /></label>
           <label class="grid gap-2 text-sm"><span>订单查询密码</span><Input v-model="guest.order_password" type="password" required /></label>
         </div>
+		<label v-if="supportsWalletPayment" class="grid gap-2 text-sm">
+		  <span>支付方式</span>
+		  <select v-model="form.payment_method" class="h-11 rounded-md border bg-background px-3">
+			<option value="wallet">钱包余额支付（免新增通道手续费）</option>
+			<option value="alipay">支付宝扫码支付</option>
+		  </select>
+		  <span v-if="form.payment_method === 'wallet'" class="text-xs text-muted-foreground">从当前站点钱包扣除开票补款，余额不足时可改用支付宝</span>
+		</label>
         <div class="grid gap-4 md:grid-cols-2">
           <label class="grid gap-2 text-sm"><span>发票类型</span><select v-model="form.invoice_type" class="h-11 rounded-md border bg-background px-3"><option value="ordinary">普通发票（3%）</option><option value="special">专用发票（6%）</option></select></label>
           <label class="grid gap-2 text-sm"><span>发票抬头</span><Input v-model="form.buyer_title" required /></label>
@@ -45,7 +54,7 @@
         </div>
         <label class="grid gap-2 text-sm"><span>发票接收邮箱</span><Input v-model="form.recipient_email" type="email" required /></label>
         <p v-if="error" class="text-sm text-destructive">{{ error }}</p>
-        <Button type="submit" class="w-full" :disabled="loading">{{ loading ? '正在创建支付…' : '确认资料并生成付款码' }}</Button>
+        <Button type="submit" class="w-full" :disabled="loading">{{ submitLabel }}</Button>
       </form>
     </div>
   </div>
@@ -63,6 +72,7 @@ const route = useRoute()
 const isGuest = computed(() => route.query.guest === '1')
 const isGMShop = computed(() => route.query.source === 'gmshop')
 const isRecharge = computed(() => route.query.source === 'recharge')
+const supportsWalletPayment = computed(() => !isGuest.value && !isGMShop.value)
 const loading = ref(false)
 const error = ref('')
 const result = ref<any>(null)
@@ -70,7 +80,11 @@ const qrImage = ref('')
 const guest = reactive({ email: '', order_password: '' })
 const form = reactive({
 	order_no: String(route.query.order_no || route.query.recharge_no || ''), invoice_type: 'ordinary', buyer_title: '', tax_number: '',
-	company_address: '', company_phone: '', bank_name: '', bank_account: '', recipient_email: '',
+	company_address: '', company_phone: '', bank_name: '', bank_account: '', recipient_email: '', payment_method: 'wallet',
+})
+const submitLabel = computed(() => {
+  if (loading.value) return '正在创建支付…'
+  return supportsWalletPayment.value && form.payment_method === 'wallet' ? '确认资料并使用钱包支付' : '确认资料并生成付款码'
 })
 let statusTimer: number | undefined
 
@@ -102,10 +116,11 @@ async function submit() {
   loading.value = true
   try {
 	let response
-	if (isGMShop.value) response = await invoiceAPI.createGMShop({ ...form, order_email: guest.email })
-	else if (isRecharge.value) response = await invoiceAPI.createRecharge(form)
-	else if (isGuest.value) response = await invoiceAPI.createGuest({ ...form, ...guest })
-	else response = await invoiceAPI.create(form)
+	const payload = { ...form, payment_method: supportsWalletPayment.value ? form.payment_method : 'alipay' }
+	if (isGMShop.value) response = await invoiceAPI.createGMShop({ ...payload, order_email: guest.email })
+	else if (isRecharge.value) response = await invoiceAPI.createRecharge(payload)
+	else if (isGuest.value) response = await invoiceAPI.createGuest({ ...payload, ...guest })
+	else response = await invoiceAPI.create(payload)
 	result.value = response.data.data
     const qr = result.value.qr_code || result.value.pay_url
     if (qr) qrImage.value = await QRCode.toDataURL(qr, { width: 360, margin: 1 })
