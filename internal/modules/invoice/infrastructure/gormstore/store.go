@@ -2,10 +2,18 @@ package gormstore
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
+	"github.com/dujiao-next/internal/constants"
 	"github.com/dujiao-next/internal/modules/invoice/domain"
+	walletcontract "github.com/dujiao-next/internal/modules/wallet/contract"
+	walletdomain "github.com/dujiao-next/internal/modules/wallet/domain"
+	"github.com/dujiao-next/internal/shared/money"
+	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Store struct{ db *gorm.DB }
@@ -31,6 +39,93 @@ func (s *Store) MarkPaid(requestNo, providerRef string, paidAt time.Time) (bool,
 	}
 	request, err := s.GetByRequestNo(requestNo)
 	return result.RowsAffected == 1, request, err
+}
+
+func (s *Store) CreateAndPayWithWallet(request *domain.Request, userID uint, resellerID *uint) error {
+	if request == nil || userID == 0 || !request.PaymentAmount.Decimal.IsPositive() {
+		return walletcontract.ErrInvalidAmount
+	}
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		now := time.Now()
+		reference := fmt.Sprintf("invoice:%s:wallet", strings.TrimSpace(request.RequestNo))
+		request.Status = domain.StatusPendingIssue
+		request.PaymentChannelID = 0
+		request.ProviderRef = reference
+		request.PaidAt = &now
+		request.UpdatedAt = now
+		if err := tx.Create(request).Error; err != nil {
+			return err
+		}
+
+		amount := request.PaymentAmount.Decimal.Round(2)
+		currency := constants.SiteCurrencyDefault
+		if resellerID == nil || *resellerID == 0 {
+			return debitMainWallet(tx, request, userID, amount, currency, reference, now)
+		}
+		return debitResellerWallet(tx, request, *resellerID, userID, amount, currency, reference, now)
+	})
+}
+
+func debitMainWallet(tx *gorm.DB, request *domain.Request, userID uint, amount decimal.Decimal, currency, reference string, now time.Time) error {
+	var account walletdomain.Account
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("user_id = ? AND deleted_at IS NULL", userID).First(&account).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return walletcontract.ErrAccountNotFound
+		}
+		return err
+	}
+	before := account.Balance.Decimal.Round(2)
+	if before.LessThan(amount) {
+		return walletcontract.ErrInsufficientBalance
+	}
+	after := before.Sub(amount).Round(2)
+	account.Balance = money.FromDecimal(after)
+	account.UpdatedAt = now
+	if err := tx.Save(&account).Error; err != nil {
+		return walletcontract.ErrAccountUpdateFailed
+	}
+	entry := &walletdomain.Transaction{
+		UserID: userID, OrderID: request.OriginalOrderID,
+		Type: constants.WalletTxnTypeInvoicePay, Direction: constants.WalletTxnDirectionOut,
+		Amount: money.FromDecimal(amount), BalanceBefore: money.FromDecimal(before), BalanceAfter: money.FromDecimal(after),
+		Currency: currency, Reference: reference, Remark: "开票补款钱包支付", CreatedAt: now, UpdatedAt: now,
+	}
+	if err := tx.Create(entry).Error; err != nil {
+		return walletcontract.ErrTransactionCreateFailed
+	}
+	return nil
+}
+
+func debitResellerWallet(tx *gorm.DB, request *domain.Request, resellerID, userID uint, amount decimal.Decimal, currency, reference string, now time.Time) error {
+	var account walletdomain.ResellerAccount
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("reseller_id = ? AND user_id = ? AND deleted_at IS NULL", resellerID, userID).First(&account).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return walletcontract.ErrAccountNotFound
+		}
+		return err
+	}
+	before := account.Balance.Decimal.Round(2)
+	if before.LessThan(amount) {
+		return walletcontract.ErrInsufficientBalance
+	}
+	after := before.Sub(amount).Round(2)
+	account.Balance = money.FromDecimal(after)
+	account.UpdatedAt = now
+	if err := tx.Save(&account).Error; err != nil {
+		return walletcontract.ErrAccountUpdateFailed
+	}
+	entry := &walletdomain.ResellerTransaction{
+		ResellerID: resellerID, UserID: userID, OrderID: request.OriginalOrderID,
+		Type: constants.WalletTxnTypeInvoicePay, Direction: constants.WalletTxnDirectionOut,
+		Amount: money.FromDecimal(amount), BalanceBefore: money.FromDecimal(before), BalanceAfter: money.FromDecimal(after),
+		Currency: currency, Reference: reference, Remark: "开票补款钱包支付", CreatedAt: now, UpdatedAt: now,
+	}
+	if err := tx.Create(entry).Error; err != nil {
+		return walletcontract.ErrTransactionCreateFailed
+	}
+	return nil
 }
 
 func (s *Store) SetFeishuSync(requestNo, recordID, lastError string) error {

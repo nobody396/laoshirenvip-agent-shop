@@ -529,6 +529,7 @@
       "types": {
         "recharge": "余额充值",
         "order_pay": "订单支付",
+		"invoice_pay": "开票补款",
         "order_refund": "订单退款",
         "gift_card_redeem": "礼品卡兑换",
         "admin_adjust": "管理员调账",

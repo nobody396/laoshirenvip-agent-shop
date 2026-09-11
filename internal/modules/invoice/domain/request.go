@@ -10,9 +10,11 @@ import (
 )
 
 const (
-	TypeOrdinary    = "ordinary"
-	TypeSpecial     = "special"
-	InvoiceItemName = "生产生活服务信息系统服务"
+	TypeOrdinary        = "ordinary"
+	TypeSpecial         = "special"
+	InvoiceItemName     = "生产生活服务信息系统服务"
+	PaymentMethodAlipay = "alipay"
+	PaymentMethodWallet = "wallet"
 
 	OrdinaryRateBPS = 300
 	SpecialRateBPS  = 600

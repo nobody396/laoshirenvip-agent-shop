@@ -2416,6 +2416,7 @@ const messages = {
           types: {
             recharge: '余额充值',
 			order_pay: '订单支付',
+			invoice_pay: '开票补款',
 			reseller_payment_fee_reserve: '子站支付手续费暂扣',
 			reseller_payment_fee_release: '子站支付手续费退回',
             order_refund: '订单退款',
@@ -6887,6 +6888,7 @@ const messages = {
           types: {
             recharge: '餘額儲值',
 			order_pay: '訂單支付',
+			invoice_pay: '開票補款',
 			reseller_payment_fee_reserve: '子站支付手續費暫扣',
 			reseller_payment_fee_release: '子站支付手續費退回',
             order_refund: '訂單退款',
@@ -11358,6 +11360,7 @@ const messages = {
           types: {
             recharge: 'Top-up',
 			order_pay: 'Order payment',
+			invoice_pay: 'Invoice supplement',
 			reseller_payment_fee_reserve: 'Child-site payment fee hold',
 			reseller_payment_fee_release: 'Child-site payment fee release',
             order_refund: 'Order refund',

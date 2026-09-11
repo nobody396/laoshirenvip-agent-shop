@@ -124,6 +124,7 @@ const (
 const (
 	WalletTxnTypeRecharge                  = "recharge"
 	WalletTxnTypeOrderPay                  = "order_pay"
+	WalletTxnTypeInvoicePay                = "invoice_pay"
 	WalletTxnTypeOrderRefund               = "order_refund"
 	WalletTxnTypeAdminAdjust               = "admin_adjust"
 	WalletTxnTypeAdminRefund               = "admin_refund"

@@ -580,6 +580,7 @@
       "types": {
         "recharge": "餘額儲值",
         "order_pay": "訂單支付",
+		"invoice_pay": "開票補款",
         "order_refund": "訂單退款",
         "gift_card_redeem": "禮品卡兌換",
         "admin_adjust": "管理員調帳",

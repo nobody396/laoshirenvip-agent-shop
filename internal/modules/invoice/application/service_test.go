@@ -14,10 +14,26 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type requestStoreStub struct{ item *domain.Request }
+type requestStoreStub struct {
+	item             *domain.Request
+	walletCalls      int
+	walletUserID     uint
+	walletResellerID *uint
+}
 
 func (s *requestStoreStub) Create(item *domain.Request) error { s.item = item; return nil }
 func (s *requestStoreStub) Save(item *domain.Request) error   { s.item = item; return nil }
+func (s *requestStoreStub) CreateAndPayWithWallet(item *domain.Request, userID uint, resellerID *uint) error {
+	s.item = item
+	s.walletCalls++
+	s.walletUserID = userID
+	s.walletResellerID = resellerID
+	now := time.Now()
+	item.Status = domain.StatusPendingIssue
+	item.ProviderRef = "invoice:" + item.RequestNo + ":wallet"
+	item.PaidAt = &now
+	return nil
+}
 func (s *requestStoreStub) GetByRequestNo(string) (*domain.Request, error) {
 	return s.item, nil
 }
@@ -105,6 +121,34 @@ func TestCreateDoesNotChargePaymentChannelFeeForInvoiceSupplement(t *testing.T) 
 	}
 	if gateway.input.ReturnURL != "https://lsrai.shop/invoice?request_no="+request.RequestNo {
 		t.Fatalf("unexpected return URL: %s", gateway.input.ReturnURL)
+	}
+}
+
+func TestCreateWithWalletPaysExactSupplementWithoutGateway(t *testing.T) {
+	store := &requestStoreStub{}
+	gateway := &gatewayStub{}
+	service := NewService(store, channelStoreStub{}, registryStub{gateway: gateway}, "https://lsrai.shop")
+	resellerID := uint(18)
+	request, err := service.Create(context.Background(), CreateInput{
+		Source: "dujiao", SourceHost: "agi.lsrai.shop", OriginalOrderNo: "DJ-WALLET-1",
+		OriginalAmount: money.FromDecimal(decimal.RequireFromString("117.00")), InvoiceType: domain.TypeOrdinary,
+		BuyerTitle: "示例公司", TaxNumber: "91350000TEST", RecipientEmail: "finance@example.com", ClientIP: "127.0.0.1",
+		PaymentMethod: domain.PaymentMethodWallet, UserID: 7, WalletResellerID: &resellerID,
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if request.Status != domain.StatusPendingIssue || request.PaymentAmount.String() != "3.51" || request.InvoiceTotalAmount.String() != "120.51" {
+		t.Fatalf("unexpected wallet invoice: %+v", request)
+	}
+	if request.PaymentFeeRate.String() != "0.00" || request.PaymentFeeAmount.String() != "0.00" || request.PaymentChannelID != 0 {
+		t.Fatalf("wallet invoice must not use a payment channel fee: %+v", request)
+	}
+	if store.walletCalls != 1 || store.walletUserID != 7 || store.walletResellerID == nil || *store.walletResellerID != resellerID {
+		t.Fatalf("wallet payment scope mismatch: calls=%d user=%d reseller=%v", store.walletCalls, store.walletUserID, store.walletResellerID)
+	}
+	if gateway.input.OrderNo != "" {
+		t.Fatalf("wallet payment unexpectedly called gateway: %+v", gateway.input)
 	}
 }
 

@@ -59,6 +59,7 @@ type createRequest struct {
 	BankAccount    string `json:"bank_account"`
 	RecipientEmail string `json:"recipient_email" binding:"required"`
 	OrderEmail     string `json:"order_email"`
+	PaymentMethod  string `json:"payment_method"`
 }
 
 func (h *Handler) CreateGMShop(c *gin.Context) {
@@ -80,10 +81,10 @@ func (h *Handler) CreateGMShop(c *gin.Context) {
 		Source: "gmshop", SourceHost: "laoshirenvip.com", OriginalOrderNo: req.OrderNo, OriginalAmount: amount,
 		InvoiceType: req.InvoiceType, BuyerTitle: req.BuyerTitle, TaxNumber: req.TaxNumber,
 		CompanyAddress: req.CompanyAddress, CompanyPhone: req.CompanyPhone, BankName: req.BankName, BankAccount: req.BankAccount,
-		RecipientEmail: req.RecipientEmail, ClientIP: c.ClientIP(),
+		RecipientEmail: req.RecipientEmail, ClientIP: c.ClientIP(), PaymentMethod: req.PaymentMethod,
 	})
 	if err != nil {
-		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_create_failed", err)
+		respondInvoiceCreateError(c, err)
 		return
 	}
 	response.Success(c, publicRequest(request))
@@ -116,10 +117,11 @@ func (h *Handler) CreateRecharge(c *gin.Context) {
 		Source: "dujiao_recharge", SourceHost: host, OriginalOrderNo: recharge.RechargeNo, OriginalAmount: recharge.Amount,
 		InvoiceType: req.InvoiceType, BuyerTitle: req.BuyerTitle, TaxNumber: req.TaxNumber,
 		CompanyAddress: req.CompanyAddress, CompanyPhone: req.CompanyPhone, BankName: req.BankName, BankAccount: req.BankAccount,
-		RecipientEmail: req.RecipientEmail, ClientIP: c.ClientIP(),
+		RecipientEmail: req.RecipientEmail, ClientIP: c.ClientIP(), PaymentMethod: req.PaymentMethod,
+		UserID: userID, WalletResellerID: walletResellerID(c),
 	})
 	if err != nil {
-		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_create_failed", err)
+		respondInvoiceCreateError(c, err)
 		return
 	}
 	response.Success(c, publicRequest(request))
@@ -149,7 +151,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	if !ok {
 		return
 	}
-	h.create(c, func(orderNo string) (*orderdomain.Order, error) {
+	h.create(c, userID, func(orderNo string) (*orderdomain.Order, error) {
 		return h.orders.GetOrderByUserOrderNoForTenant(tenant(c), orderNo, userID)
 	})
 }
@@ -160,7 +162,7 @@ func (h *Handler) CreateGuest(c *gin.Context) {
 		ginutil.RespondError(c, response.CodeUnauthorized, "error.unauthorized", nil)
 		return
 	}
-	h.create(c, func(orderNo string) (*orderdomain.Order, error) {
+	h.create(c, 0, func(orderNo string) (*orderdomain.Order, error) {
 		return h.orders.GetOrderByGuestOrderNoForTenant(tenant(c), orderNo, email, password)
 	})
 }
@@ -187,7 +189,7 @@ func (h *Handler) PaymentCallback(c *gin.Context) {
 	c.String(200, "success")
 }
 
-func (h *Handler) create(c *gin.Context, lookup func(string) (*orderdomain.Order, error)) {
+func (h *Handler) create(c *gin.Context, userID uint, lookup func(string) (*orderdomain.Order, error)) {
 	var req createRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		ginutil.RespondBindError(c, err)
@@ -209,20 +211,38 @@ func (h *Handler) create(c *gin.Context, lookup func(string) (*orderdomain.Order
 		InvoiceType: req.InvoiceType, BuyerTitle: req.BuyerTitle, TaxNumber: req.TaxNumber,
 		CompanyAddress: req.CompanyAddress, CompanyPhone: req.CompanyPhone,
 		BankName: req.BankName, BankAccount: req.BankAccount,
-		RecipientEmail: req.RecipientEmail, ClientIP: c.ClientIP(),
+		RecipientEmail: req.RecipientEmail, ClientIP: c.ClientIP(), PaymentMethod: req.PaymentMethod,
+		UserID: userID, WalletResellerID: walletResellerID(c),
 	})
 	if err != nil {
-		switch {
-		case errors.Is(err, invoiceapp.ErrAlreadyRequested):
-			ginutil.RespondError(c, response.CodeConflict, "error.invoice_already_requested", nil)
-		case errors.Is(err, invoiceapp.ErrInvalidInput):
-			ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_invalid", nil)
-		default:
-			ginutil.RespondError(c, response.CodeInternal, "error.invoice_create_failed", err)
-		}
+		respondInvoiceCreateError(c, err)
 		return
 	}
 	response.Success(c, publicRequest(request))
+}
+
+func walletResellerID(c *gin.Context) *uint {
+	value := tenant(c).ResellerID
+	if value == nil || *value == 0 {
+		return nil
+	}
+	id := *value
+	return &id
+}
+
+func respondInvoiceCreateError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, invoiceapp.ErrAlreadyRequested):
+		ginutil.RespondError(c, response.CodeConflict, "error.invoice_already_requested", nil)
+	case errors.Is(err, invoiceapp.ErrWalletInsufficient):
+		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_wallet_insufficient", nil)
+	case errors.Is(err, invoiceapp.ErrInvalidInput):
+		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_invalid", nil)
+	case errors.Is(err, invoiceapp.ErrPaymentUnavailable):
+		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_create_failed", err)
+	default:
+		ginutil.RespondError(c, response.CodeInternal, "error.invoice_create_failed", err)
+	}
 }
 
 func (h *Handler) GetPublic(c *gin.Context) {
@@ -235,12 +255,17 @@ func (h *Handler) GetPublic(c *gin.Context) {
 }
 
 func publicRequest(request *domain.Request) gin.H {
+	paymentMethod := domain.PaymentMethodAlipay
+	if strings.HasSuffix(strings.TrimSpace(request.ProviderRef), ":wallet") {
+		paymentMethod = domain.PaymentMethodWallet
+	}
 	return gin.H{
 		"request_no": request.RequestNo, "status": request.Status,
 		"original_order_no": request.OriginalOrderNo, "invoice_type": request.InvoiceType,
 		"original_amount": request.OriginalAmount, "invoice_fee_amount": request.InvoiceFeeAmount,
 		"invoice_total_amount": request.InvoiceTotalAmount, "payment_fee_rate": request.PaymentFeeRate,
 		"payment_fee_amount": request.PaymentFeeAmount, "payment_amount": request.PaymentAmount,
-		"pay_url": request.PayURL, "qr_code": request.QRCode,
+		"payment_method": paymentMethod,
+		"pay_url":        request.PayURL, "qr_code": request.QRCode,
 	}
 }
