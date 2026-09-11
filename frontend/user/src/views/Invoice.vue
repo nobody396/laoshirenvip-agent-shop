@@ -2,12 +2,12 @@
   <div class="min-h-screen bg-background px-4 pb-16 pt-24 text-foreground">
     <div class="mx-auto max-w-3xl">
       <h1 class="text-3xl font-black">申请电子发票</h1>
-      <p class="mt-2 text-sm text-muted-foreground">填写资料并支付开票补款，支付成功后自动进入财务待办</p>
+	  <p class="mt-2 text-sm text-muted-foreground">填写资料并支付开票补款，支付成功后系统将开始处理</p>
 	  <p class="mt-1 text-sm text-muted-foreground">开票项目：生产生活服务信息系统服务</p>
 
       <div v-if="result" class="mt-8 rounded-2xl border bg-card p-6 shadow-sm">
-		<h2 class="text-xl font-bold">{{ result.status === 'pending_payment' ? '请扫码支付' : '开票申请已付款' }}</h2>
-		<p v-if="result.status !== 'pending_payment'" class="mt-2 text-sm text-emerald-600">财务将在飞书待办中处理，发票开好后会自动发送到你填写的邮箱</p>
+		<h2 class="text-xl font-bold">{{ result.status === 'pending_payment' ? '请扫码支付' : '系统正在处理' }}</h2>
+		<p v-if="result.status !== 'pending_payment'" class="mt-2 text-sm text-emerald-600">发票开好后会自动发送到你填写的邮箱</p>
         <div class="mt-5 grid gap-6 md:grid-cols-2">
 		  <img v-if="result.status === 'pending_payment' && qrImage" :src="qrImage" alt="支付宝付款二维码" class="mx-auto size-56 rounded-xl bg-white p-3" />
           <div class="space-y-3 text-sm">
@@ -76,7 +76,7 @@ let statusTimer: number | undefined
 
 async function loadRequest(requestNo: string) {
   try {
-    result.value = (await invoiceAPI.get(requestNo)).data
+    result.value = (await invoiceAPI.get(requestNo)).data.data
     if (result.value.status === 'pending_payment') {
       const qr = result.value.qr_code || result.value.pay_url
       if (qr) qrImage.value = await QRCode.toDataURL(qr, { width: 360, margin: 1 })
@@ -106,7 +106,7 @@ async function submit() {
 	else if (isRecharge.value) response = await invoiceAPI.createRecharge(form)
 	else if (isGuest.value) response = await invoiceAPI.createGuest({ ...form, ...guest })
 	else response = await invoiceAPI.create(form)
-    result.value = response.data
+	result.value = response.data.data
     const qr = result.value.qr_code || result.value.pay_url
     if (qr) qrImage.value = await QRCode.toDataURL(qr, { width: 360, margin: 1 })
   } catch (cause: any) {
