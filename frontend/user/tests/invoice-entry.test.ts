@@ -21,3 +21,16 @@ test('invoice form asks for the receiving email only once', async () => {
   assert.match(invoice, /发票接收邮箱/)
   assert.doesNotMatch(invoice, /再次确认邮箱|confirm_email|两次输入的发票接收邮箱/)
 })
+
+test('invoice page unwraps the shared API response envelope', async () => {
+  const invoice = await read('../src/views/Invoice.vue')
+  assert.match(invoice, /invoiceAPI\.get\(requestNo\)\)\.data\.data/)
+  assert.match(invoice, /result\.value = response\.data\.data/)
+})
+
+test('invoice status copy does not expose internal finance or Feishu workflow', async () => {
+  const invoice = await read('../src/views/Invoice.vue')
+  assert.match(invoice, /系统正在处理/)
+  assert.match(invoice, /发票开好后会自动发送到你填写的邮箱/)
+  assert.doesNotMatch(invoice, /财务待办|飞书待办|财务将在飞书/)
+})
