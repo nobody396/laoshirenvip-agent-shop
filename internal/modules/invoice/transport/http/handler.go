@@ -123,7 +123,11 @@ func (h *Handler) previewManual(c *gin.Context, forcedPaymentMethod string) {
 }
 
 func (h *Handler) CreateManualGuest(c *gin.Context) {
-	h.createManual(c, 0, domain.PaymentMethodAlipay)
+	h.createManual(c, 0, domain.PaymentMethodAlipay, "")
+}
+
+func (h *Handler) CreateGMShopManual(c *gin.Context) {
+	h.createManual(c, 0, domain.PaymentMethodAlipay, "laoshirenvip.com")
 }
 
 func (h *Handler) CreateManualUser(c *gin.Context) {
@@ -131,10 +135,10 @@ func (h *Handler) CreateManualUser(c *gin.Context) {
 	if !ok {
 		return
 	}
-	h.createManual(c, userID, "")
+	h.createManual(c, userID, "", "")
 }
 
-func (h *Handler) createManual(c *gin.Context, userID uint, forcedPaymentMethod string) {
+func (h *Handler) createManual(c *gin.Context, userID uint, forcedPaymentMethod string, sourceHost string) {
 	var req createRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		ginutil.RespondBindError(c, err)
@@ -152,6 +156,9 @@ func (h *Handler) createManual(c *gin.Context, userID uint, forcedPaymentMethod 
 	host := tenant(c).Host
 	if host == "" {
 		host = resellercontract.NormalizeHost(c.Request.Host)
+	}
+	if sourceHost != "" {
+		host = sourceHost
 	}
 	request, err := h.service.Create(c.Request.Context(), invoiceapp.CreateInput{
 		Source: "manual", SourceHost: host, InvoiceAmount: invoiceAmount, InvoiceType: domain.TypeOrdinary,

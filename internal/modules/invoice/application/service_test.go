@@ -226,3 +226,33 @@ func TestPaymentCallbackMarksPaidAndSyncsFeishuOnce(t *testing.T) {
 		t.Fatalf("unexpected callback result: request=%+v sink_calls=%d", store.item, sink.calls)
 	}
 }
+
+func TestGMShopInvoiceReturnsToItsOwnWebsite(t *testing.T) {
+	store := &requestStoreStub{}
+	gateway := &gatewayStub{}
+	service := NewService(store, channelStoreStub{item: &paymentdomain.PaymentChannel{
+		ID: 2, ProviderType: "epay", ChannelType: "alipay", InteractionMode: "qr", IsActive: true,
+		FeeRate: money.FromDecimal(decimal.RequireFromString("4.00")),
+	}}, registryStub{gateway: gateway}, "https://lsrai.shop")
+
+	request, err := service.Create(context.Background(), CreateInput{
+		Source: "gmshop", SourceHost: "laoshirenvip.com", OriginalOrderNo: "DJ-1",
+		OriginalAmount: money.FromDecimal(decimal.RequireFromString("117.00")), InvoiceAmount: money.FromDecimal(decimal.RequireFromString("130.00")), InvoiceType: domain.TypeOrdinary,
+		BuyerTitle: "示例公司", TaxNumber: "91350000TEST", RecipientEmail: "finance@example.com", ClientIP: "127.0.0.1",
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if request.OriginalAmount.String() != "117.00" || request.InvoiceFeeAmount.String() != "3.90" || request.InvoiceTotalAmount.String() != "130.00" {
+		t.Fatalf("unexpected invoice amounts: %+v", request)
+	}
+	if request.PaymentFeeRate.String() != "4.00" || request.PaymentFeeAmount.String() != "0.16" || request.PaymentAmount.String() != "4.06" {
+		t.Fatalf("unexpected payment amounts: %+v", request)
+	}
+	if gateway.input.OrderNo != request.RequestNo || gateway.input.Amount.String() != "4.06" || gateway.input.NotifyURL != "https://lsrai.shop/api/v1/invoices/payment/callback" {
+		t.Fatalf("unexpected gateway input: %+v", gateway.input)
+	}
+	if gateway.input.ReturnURL != "https://laoshirenvip.com/invoice?request_no="+request.RequestNo {
+		t.Fatalf("unexpected return URL: %s", gateway.input.ReturnURL)
+	}
+}

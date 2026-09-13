@@ -302,6 +302,9 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 	if err != nil {
 		return nil, ErrPaymentUnavailable
 	}
+	if request.SourceHost == "laoshirenvip.com" {
+		returnURL = "https://laoshirenvip.com/invoice?" + url.Values{"request_no": []string{request.RequestNo}}.Encode()
+	}
 	result, err := provider.CreatePayment(ctx, channel.ConfigJSON, paymentcontract.GatewayCreateInput{
 		OrderNo:     request.RequestNo,
 		Subject:     "电子发票补款",
