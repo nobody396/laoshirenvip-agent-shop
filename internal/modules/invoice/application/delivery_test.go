@@ -80,3 +80,14 @@ func TestProcessReadyInvoicesKeepsVIPSubjectForGMShop(t *testing.T) {
 		t.Fatalf("unexpected GMShop mail: source=%q subject=%q", mailer.source, mailer.subject)
 	}
 }
+
+func TestVIPManualInvoiceKeepsVIPMailer(t *testing.T) {
+	store := &deliveryStoreStub{request: &domain.Request{RequestNo: "INV-1", Source: "manual", SourceHost: "laoshirenvip.com", BuyerTitle: "示例公司", OriginalOrderNo: "GM-1", RecipientEmail: "finance@example.com", InvoiceTotalAmount: money.FromDecimal(decimal.RequireFromString("648.90")), Status: domain.StatusPendingIssue}}
+	source, mailer := &documentSourceStub{}, &mailerStub{}
+	if err := ProcessReadyInvoices(context.Background(), store, source, mailer); err != nil {
+		t.Fatal(err)
+	}
+	if mailer.source != "gmshop" || mailer.subject != "【老实人AI VIP】电子发票已开具｜648.90元" {
+		t.Fatalf("unexpected GMShop mail: source=%q subject=%q", mailer.source, mailer.subject)
+	}
+}
