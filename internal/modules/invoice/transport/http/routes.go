@@ -11,6 +11,8 @@ func RegisterGuestRoutes(guest *gin.RouterGroup, handler *Handler) {
 	guest.POST("/invoices/manual", handler.CreateManualGuest)
 	guest.POST("/invoices/preview", handler.PreviewGuest)
 	guest.POST("/invoices", handler.CreateGuest)
+	guest.POST("/invoices/gmshop/manual/preview", handler.PreviewManualGuest)
+	guest.POST("/invoices/gmshop/manual", handler.CreateGMShopManual)
 	guest.POST("/invoices/gmshop/preview", handler.PreviewGMShop)
 	guest.POST("/invoices/gmshop", handler.CreateGMShop)
 }
