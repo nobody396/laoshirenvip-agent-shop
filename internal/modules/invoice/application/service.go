@@ -31,7 +31,7 @@ var (
 type Store interface {
 	Create(*domain.Request) error
 	CreateAndPayWithWallet(*domain.Request, uint, *uint) error
-	Save(*domain.Request) error
+	SavePayment(*domain.Request) error
 	GetByRequestNo(string) (*domain.Request, error)
 	GetByOriginalOrder(source, sourceHost, orderNo string) (*domain.Request, error)
 	MarkPaid(requestNo, providerRef string, paidAt time.Time) (bool, *domain.Request, error)
@@ -245,7 +245,17 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 		if existing, err := s.store.GetByOriginalOrder(input.Source, input.SourceHost, input.OriginalOrderNo); err != nil {
 			return nil, err
 		} else if existing != nil {
-			return nil, ErrAlreadyRequested
+			if input.Source != "gmshop" || existing.Status == domain.StatusCancelled || existing.BuyerTitle != input.BuyerTitle || existing.TaxNumber != input.TaxNumber || existing.RecipientEmail != input.RecipientEmail || !existing.InvoiceTotalAmount.Decimal.Equal(input.InvoiceAmount.Decimal) {
+				return nil, ErrAlreadyRequested
+			}
+			if existing.Status != domain.StatusPendingPayment || existing.PaidAt != nil || existing.PayURL != "" || existing.QRCode != "" {
+				return existing, nil
+			}
+			channel, err := s.channels.GetByID(existing.PaymentChannelID)
+			if err != nil || channel == nil || !channel.IsActive || channel.ProviderType != "epay" || channel.ChannelType != "alipay" {
+				return nil, ErrPaymentUnavailable
+			}
+			return s.createPayment(ctx, existing, channel, input.ClientIP)
 		}
 	}
 
@@ -294,6 +304,10 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 		return nil, err
 	}
 
+	return s.createPayment(ctx, request, channel, input.ClientIP)
+}
+
+func (s *Service) createPayment(ctx context.Context, request *domain.Request, channel *paymentdomain.PaymentChannel, clientIP string) (*domain.Request, error) {
 	provider, ok := s.gateways.Lookup(channel.ProviderType, channel.ChannelType)
 	if !ok {
 		return nil, ErrPaymentUnavailable
@@ -313,21 +327,21 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 		Email:       request.RecipientEmail,
 		NotifyURL:   notifyURL,
 		ReturnURL:   returnURL,
-		ClientIP:    input.ClientIP,
+		ClientIP:    clientIP,
 		ChannelType: channel.ChannelType,
 		Extra:       jsonmap.JSON{"interaction_mode": channel.InteractionMode},
 	})
-	if err != nil {
+	if err != nil || result == nil || (strings.TrimSpace(result.RedirectURL) == "" && strings.TrimSpace(result.QRCodeURL) == "") {
 		return request, ErrPaymentUnavailable
 	}
 	request.ProviderRef = strings.TrimSpace(result.ProviderRef)
 	request.PayURL = strings.TrimSpace(result.RedirectURL)
 	request.QRCode = strings.TrimSpace(result.QRCodeURL)
 	request.UpdatedAt = time.Now()
-	if err := s.store.Save(request); err != nil {
+	if err := s.store.SavePayment(request); err != nil {
 		return nil, err
 	}
-	return request, nil
+	return s.store.GetByRequestNo(request.RequestNo)
 }
 
 func (s *Service) syncPaidRequest(request *domain.Request) {

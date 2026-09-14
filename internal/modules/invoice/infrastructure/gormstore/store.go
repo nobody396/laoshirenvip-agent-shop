@@ -170,7 +170,10 @@ func (s *Store) FinishEmail(requestNo string, success bool, lastError string, at
 
 func (s *Store) Create(request *domain.Request) error { return s.db.Create(request).Error }
 
-func (s *Store) Save(request *domain.Request) error { return s.db.Save(request).Error }
+// SavePayment never overwrites a callback that already marked the invoice paid.
+func (s *Store) SavePayment(request *domain.Request) error {
+	return s.db.Model(&domain.Request{}).Where("request_no = ? AND status = ? AND paid_at IS NULL", request.RequestNo, domain.StatusPendingPayment).Updates(map[string]interface{}{"provider_ref": request.ProviderRef, "pay_url": request.PayURL, "qr_code": request.QRCode, "updated_at": time.Now()}).Error
+}
 
 func (s *Store) GetByRequestNo(requestNo string) (*domain.Request, error) {
 	var request domain.Request
