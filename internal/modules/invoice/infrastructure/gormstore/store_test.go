@@ -132,3 +132,24 @@ func TestCreateAndPayWithWalletRollsBackWhenBalanceIsInsufficient(t *testing.T) 
 		t.Fatalf("insufficient payment was not atomic: requests=%d entries=%d balance=%s", requests, entries, account.Balance.String())
 	}
 }
+
+func TestSavePaymentDoesNotOverwriteConcurrentPaidCallback(t *testing.T) {
+	db := openWalletInvoiceDB(t)
+	store := New(db)
+	request := walletInvoiceRequest("CALLBACK-RACE")
+	if err := store.Create(request); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := store.MarkPaid(request.RequestNo, "paid-ref", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	request.ProviderRef = "stale-ref"
+	request.PayURL = "https://pay.example/test"
+	if err := store.SavePayment(request); err != nil {
+		t.Fatal(err)
+	}
+	current, err := store.GetByRequestNo(request.RequestNo)
+	if err != nil || current.Status != domain.StatusPendingIssue || current.ProviderRef != "paid-ref" || current.PaidAt == nil {
+		t.Fatal("payment save overwrote the callback")
+	}
+}

@@ -18,12 +18,17 @@ import (
 type requestStoreStub struct {
 	item             *domain.Request
 	walletCalls      int
+	createCalls      int
 	walletUserID     uint
 	walletResellerID *uint
 }
 
-func (s *requestStoreStub) Create(item *domain.Request) error { s.item = item; return nil }
-func (s *requestStoreStub) Save(item *domain.Request) error   { s.item = item; return nil }
+func (s *requestStoreStub) Create(item *domain.Request) error {
+	s.item = item
+	s.createCalls++
+	return nil
+}
+func (s *requestStoreStub) SavePayment(item *domain.Request) error { s.item = item; return nil }
 func (s *requestStoreStub) CreateAndPayWithWallet(item *domain.Request, userID uint, resellerID *uint) error {
 	s.item = item
 	s.walletCalls++
@@ -72,8 +77,10 @@ type channelStoreStub struct{ item *paymentdomain.PaymentChannel }
 func (s channelStoreStub) GetByID(uint) (*paymentdomain.PaymentChannel, error) { return s.item, nil }
 
 type gatewayStub struct {
-	input    paymentcontract.GatewayCreateInput
-	callback *paymentcontract.GatewayCallbackResult
+	createErr   error
+	createCalls int
+	input       paymentcontract.GatewayCreateInput
+	callback    *paymentcontract.GatewayCallbackResult
 }
 
 func (g *gatewayStub) VerifyCallback(jsonmap.JSON, map[string][]string, []byte) (*paymentcontract.GatewayCallbackResult, error) {
@@ -84,6 +91,10 @@ func (g *gatewayStub) Type() string                              { return "epay"
 func (g *gatewayStub) ValidateConfig(jsonmap.JSON, string) error { return nil }
 func (g *gatewayStub) CreatePayment(_ context.Context, _ jsonmap.JSON, input paymentcontract.GatewayCreateInput) (*paymentcontract.GatewayCreateResult, error) {
 	g.input = input
+	g.createCalls++
+	if g.createErr != nil {
+		return nil, g.createErr
+	}
 	return &paymentcontract.GatewayCreateResult{ProviderRef: "provider-1", QRCodeURL: "https://pay.example/qr"}, nil
 }
 
@@ -254,5 +265,41 @@ func TestGMShopInvoiceReturnsToItsOwnWebsite(t *testing.T) {
 	}
 	if gateway.input.ReturnURL != "https://laoshirenvip.com/invoice?request_no="+request.RequestNo {
 		t.Fatalf("unexpected return URL: %s", gateway.input.ReturnURL)
+	}
+}
+
+func TestGMShopRetryResumesSameFrozenInvoiceWithoutDuplicate(t *testing.T) {
+	store := &requestStoreStub{}
+	gateway := &gatewayStub{createErr: errors.New("upstream unavailable")}
+	channel := &paymentdomain.PaymentChannel{ID: 2, ProviderType: "epay", ChannelType: "alipay", InteractionMode: "qr", IsActive: true, FeeRate: money.FromDecimal(decimal.NewFromInt(4))}
+	service := NewService(store, channelStoreStub{item: channel}, registryStub{gateway: gateway}, "https://lsrai.shop")
+	input := CreateInput{Source: "gmshop", SourceHost: "laoshirenvip.com", OriginalOrderNo: "GM-RETRY", OriginalAmount: money.FromDecimal(decimal.NewFromInt(685)), InvoiceAmount: money.FromDecimal(decimal.NewFromInt(685)), BuyerTitle: "Example", TaxNumber: "TEST", RecipientEmail: "buyer@example.com", ClientIP: "127.0.0.1"}
+	first, err := service.Create(context.Background(), input)
+	if !errors.Is(err, ErrPaymentUnavailable) || first == nil {
+		t.Fatalf("expected saved pending invoice and gateway failure: %v", err)
+	}
+	gateway.createErr = nil
+	// Retrying must not re-price a stored payment after channel pricing changes.
+	channel.FeeRate = money.FromDecimal(decimal.NewFromInt(20))
+	retried, err := service.Create(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if retried.RequestNo != first.RequestNo || store.createCalls != 1 || gateway.input.OrderNo != first.RequestNo || gateway.input.Amount.String() != "21.37" {
+		t.Fatal("retry changed invoice/payment identity or amount")
+	}
+	calls := gateway.createCalls
+	if _, err = service.Create(context.Background(), input); err != nil || gateway.createCalls != calls {
+		t.Fatal("ready payment must be reused")
+	}
+	retried.Status = domain.StatusPendingIssue
+	paidAt := time.Now()
+	retried.PaidAt = &paidAt
+	if _, err = service.Create(context.Background(), input); err != nil || gateway.createCalls != calls {
+		t.Fatal("paid invoice must not create another payment")
+	}
+	input.RecipientEmail = "other@example.com"
+	if _, err = service.Create(context.Background(), input); !errors.Is(err, ErrAlreadyRequested) {
+		t.Fatal("mismatched invoice identity must be rejected")
 	}
 }

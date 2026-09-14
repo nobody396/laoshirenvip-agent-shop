@@ -75,3 +75,41 @@ func TestListReadyInvoicesParsesFeishuRichTextCells(t *testing.T) {
 		t.Fatalf("unexpected ready invoices: %+v", items)
 	}
 }
+
+func TestPaidRequestPromotesExistingUnpaidRow(t *testing.T) {
+	for _, status := range []string{"待付款", "付款异常", "已完成"} {
+		t.Run(status, func(t *testing.T) {
+			updated := false
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case r.URL.Path == "/open-apis/auth/v3/tenant_access_token/internal":
+					json.NewEncoder(w).Encode(map[string]any{"code": 0, "tenant_access_token": "test-token"})
+				case r.Method == http.MethodPost:
+					json.NewEncoder(w).Encode(map[string]any{"code": 0, "data": map[string]any{"items": []any{map[string]any{"record_id": "rec-existing"}}}})
+				case r.Method == http.MethodGet:
+					json.NewEncoder(w).Encode(map[string]any{"code": 0, "data": map[string]any{"record": map[string]any{"fields": map[string]any{"处理状态": status}}}})
+				case r.Method == http.MethodPut:
+					updated = true
+					var body struct {
+						Fields map[string]any `json:"fields"`
+					}
+					json.NewDecoder(r.Body).Decode(&body)
+					if body.Fields["处理状态"] != "待开票" {
+						t.Fatal("wrong payment promotion")
+					}
+					json.NewEncoder(w).Encode(map[string]any{"code": 0, "data": map[string]any{}})
+				default:
+					t.Fatal("unexpected request")
+				}
+			}))
+			defer server.Close()
+			client := New(Config{AppID: "app", AppSecret: "secret", BaseToken: "base", TableID: "table"})
+			client.baseURL = server.URL
+			paid := time.Now()
+			id, err := client.UpsertPaidRequest(context.Background(), &domain.Request{RequestNo: "INV-TEST", PaidAt: &paid})
+			if err != nil || id != "rec-existing" || updated != (status != "已完成") {
+				t.Fatalf("promotion mismatch %s %v %v", id, err, updated)
+			}
+		})
+	}
+}

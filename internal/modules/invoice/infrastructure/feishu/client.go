@@ -115,6 +115,28 @@ func (c *Client) UpsertPaidRequest(ctx context.Context, request *domain.Request)
 	if recordID, err := c.findByRequestNo(ctx, request.RequestNo); err != nil {
 		return "", err
 	} else if recordID != "" {
+		// An owner-visible unpaid application must advance only after actual payment.
+		if request.PaidAt != nil {
+			raw, err := c.request(ctx, http.MethodGet, c.recordPath("/"+recordID), nil)
+			if err != nil {
+				return "", err
+			}
+			var existing struct {
+				Record struct {
+					Fields struct {
+						Status string `json:"处理状态"`
+					} `json:"fields"`
+				} `json:"record"`
+			}
+			if err := json.Unmarshal(raw.Data, &existing); err != nil {
+				return "", err
+			}
+			if existing.Record.Fields.Status == "待付款" || existing.Record.Fields.Status == "付款异常" {
+				if _, err := c.request(ctx, http.MethodPut, c.recordPath("/"+recordID), map[string]any{"fields": map[string]any{"处理状态": "待开票", "实际支付": request.PaymentAmount.Decimal.InexactFloat64(), "支付流水": request.ProviderRef, "失败原因": ""}}); err != nil {
+					return "", err
+				}
+			}
+		}
 		return recordID, nil
 	}
 	fields := map[string]any{
