@@ -29,6 +29,7 @@ type ProductSKU struct {
 	AutoStockSold      int64        `gorm:"-" json:"auto_stock_sold"`                                                                   // 自动发货库存已售量（仅结构，不写入数据库）
 	UpstreamStock      int          `gorm:"-" json:"upstream_stock"`                                                                    // 上游库存（-1=无限, 0=售罄, >0=有货；仅结构，不写入数据库）
 	IsActive           bool         `gorm:"default:true;index" json:"is_active"`                                                        // 是否启用
+	SaleDisabled       bool         `gorm:"not null;default:false" json:"sale_disabled"`                                                // 是否可见但禁售
 	SortOrder          int          `gorm:"default:0;index" json:"sort_order"`                                                          // 排序权重
 	CreatedAt          time.Time    `gorm:"index" json:"created_at"`                                                                    // 创建时间
 	UpdatedAt          time.Time    `gorm:"index" json:"updated_at"`                                                                    // 更新时间

@@ -68,6 +68,7 @@ type UpstreamProduct struct {
 	FulfillmentType  string                            `json:"fulfillment_type"`
 	ManualFormSchema jsonmap.JSON                      `json:"manual_form_schema"`
 	IsActive         bool                              `json:"is_active"`
+	SaleDisabled     bool                              `json:"sale_disabled"`
 	CategoryID       uint                              `json:"category_id"`
 	SKUs             []UpstreamSKU                     `json:"skus"`
 	UpdatedAt        time.Time                         `json:"updated_at"`
@@ -100,6 +101,7 @@ type UpstreamSKU struct {
 	StockStatus   string       `json:"stock_status"`
 	StockQuantity int          `json:"stock_quantity"` // 实际可用库存（-1=无限）
 	IsActive      bool         `json:"is_active"`
+	SaleDisabled  bool         `json:"sale_disabled"`
 }
 
 // CreateUpstreamOrderReq 创建上游采购单请求

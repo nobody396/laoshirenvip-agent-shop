@@ -20,6 +20,7 @@
 
     <!-- 属性徽章：交付方式 · 购买类型 · 库存 -->
     <div class="mx-1 flex flex-wrap items-center gap-1.5">
+    <span v-if="saleDisabled" class="inline-flex items-center rounded-full bg-[color:var(--gold-soft)] px-2 py-0.5 text-[11px] font-semibold text-[color:var(--gold-strong)]">{{ t('products.saleDisabled') }}</span>
       <span class="inline-flex items-center gap-1 rounded-full bg-[color:var(--teal-soft)] px-2 py-0.5 text-[11px] font-semibold text-[color:var(--teal-strong)]">
         <component :is="product.fulfillment_type === 'auto' ? Zap : Pencil" class="h-3 w-3" />
         {{ getFulfillmentTypeLabel(product.fulfillment_type) }}
@@ -45,7 +46,7 @@
         </div>
         <span v-if="priceSignal" class="inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="priceSignal.tone">{{ priceSignal.label }}</span>
       </div>
-      <span v-if="soldOut" class="inline-flex flex-none items-center rounded-full border-2 border-hairline-strong px-3.5 py-1.5 text-[13px] font-bold text-foreground" aria-disabled="true">{{ t('products.stockStatus.outOfStock') }}</span>
+    <span v-if="soldOut || saleDisabled" class="inline-flex flex-none items-center rounded-full border-2 border-hairline-strong px-3.5 py-1.5 text-[13px] font-bold text-foreground" aria-disabled="true">{{ soldOut ? t('products.stockStatus.outOfStock') : t('products.saleDisabled') }}</span>
       <button
         v-else
         type="button"
@@ -91,6 +92,7 @@ const coverClass = computed(() => covers[(props.index ?? 0) % covers.length])
 const title = computed(() => getLocalizedText(props.product?.title))
 const categoryName = computed(() => getLocalizedText(props.product?.category?.name))
 const soldOut = computed(() => isSoldOut(props.product))
+const saleDisabled = computed(() => Boolean(props.product?.sale_disabled))
 const promo = computed(() => hasPromotionPrice(props.product))
 
 const imageErrored = ref(false)

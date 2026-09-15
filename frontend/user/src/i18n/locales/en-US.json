@@ -178,6 +178,7 @@
     "wholesaleTag": "Wholesale",
     "memberPriceTag": "VIP",
     "saveAmount": "Save",
+    "saleDisabled": "Temporarily unavailable",
     "stockStatus": {
       "unlimited": "Unlimited stock",
       "inStock": "In stock",
@@ -234,6 +235,7 @@
     "skuStockRange": "{min}-{max} left",
     "skuStockRangePlus": "{min}+ left",
     "stockUnavailable": "This product is currently out of stock and cannot be purchased",
+    "saleDisabled": "This item remains visible but is temporarily unavailable for purchase",
     "stockBelowMinPurchase": "Available stock is below the minimum purchase quantity ({count})",
     "addCartStockExceeded": "Insufficient stock for this SKU. You can purchase up to {count}",
     "addCartStockExceededWithCart": "Insufficient stock for this SKU. You can purchase up to {count} ({cartCount} already in cart)",

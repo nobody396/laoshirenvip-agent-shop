@@ -143,12 +143,13 @@
                 class="flex min-w-[86px] flex-col items-start gap-0.5 rounded-sm border-2 px-4 py-2.5 text-sm font-semibold"
                 :class="[
                   normalizeSkuId(sku.id) === selectedSkuId ? 'border-primary bg-primary/10 text-primary' : 'border-hairline-strong bg-card text-foreground',
-                  !isSkuPurchasable(sku) ? 'cursor-not-allowed opacity-[0.42]' : '',
+          !isSkuSelectable(sku) ? 'cursor-not-allowed opacity-[0.42]' : '',
                 ]"
-                :disabled="!isSkuPurchasable(sku)"
+        :disabled="!isSkuSelectable(sku)"
                 @click="selectedSkuId = normalizeSkuId(sku.id)"
               >
                 {{ skuDisplayText(sku) }}
+        <span v-if="isSkuSaleDisabled(sku)" class="text-xs font-semibold text-[color:var(--gold-strong)]">{{ t('products.saleDisabled') }}</span>
                 <span class="text-xs font-semibold" :class="normalizeSkuId(sku.id) === selectedSkuId ? 'text-primary' : 'text-muted-foreground'">{{ skuStockText(sku) }}</span>
               </button>
             </div>
@@ -291,7 +292,7 @@ const {
   selectedSkuWholesaleRules,
   selectedSkuPromotionPrice, selectedSkuPromotionFinalIsMember, selectedSkuPromotionFinalPrice,
   showSelectedSkuMemberBadge,
-  isSkuPurchasable, skuDisplayText, skuStockText,
+  isSkuSelectable, isSkuSaleDisabled, skuDisplayText, skuStockText,
   quantityEffectiveLimit, quantityEffectiveMin, handleQuantityInput,
   requiresLogin, requiresSKUSelection, canPurchase, cannotPurchaseReason,
   categoryName, images,

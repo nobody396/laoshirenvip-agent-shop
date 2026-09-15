@@ -45,6 +45,7 @@
 
       <!-- Row 2: Badges -->
       <div class="flex flex-wrap items-center gap-1">
+    <Badge v-if="isSaleDisabled(product)" size="xs" variant="warning">{{ t('products.saleDisabled') }}</Badge>
         <!-- Mobile: fulfillment + stock warning -->
         <Badge class="sm:hidden" size="xs" :variant="product.fulfillment_type === 'auto' ? 'info' : 'neutral'">
           {{ getFulfillmentTypeLabel(product.fulfillment_type) }}
@@ -108,7 +109,7 @@
         variant="outline"
         size="icon"
         class="w-7 h-7 sm:w-8 sm:h-8 flex-shrink-0"
-        :disabled="isSoldOut(product)"
+    :disabled="isSoldOut(product) || isSaleDisabled(product)"
         @click.stop="$emit('quickBuy', product)"
       >
         <ShoppingCart class="h-4 w-4" />
@@ -146,5 +147,5 @@ defineEmits<{
 
 const { t } = useI18n()
 const { getLocalizedText, siteCurrency, formatPrice } = useLocalized()
-const { getPurchaseTypeLabel, getFulfillmentTypeLabel, getStockBadgeVariant, getStockStatusLabel, isSoldOut, hasPromotionPrice, getPromotionPriceAmount, hasPromotionRules, hasWholesalePrices } = useProductLabels()
+const { getPurchaseTypeLabel, getFulfillmentTypeLabel, getStockBadgeVariant, getStockStatusLabel, isSoldOut, isSaleDisabled, hasPromotionPrice, getPromotionPriceAmount, hasPromotionRules, hasWholesalePrices } = useProductLabels()
 </script>

@@ -31,7 +31,7 @@ func TestGMShopEdgeAdapterMapsCatalogAndOrderDelivery(t *testing.T) {
 		case "/api/v1/supplier/categories":
 			_, _ = fmt.Fprint(w, `{"items":[{"id":"1","name":"AI"}]}`)
 		case "/api/v1/supplier/products":
-			_, _ = fmt.Fprint(w, `{"total":1,"items":[{"id":"product-uuid","name":"ChatGPT","description":"Plans","image_urls":["https://example.com/image.png"],"category_names":["AI"],"active":true,"updated_at":"2026-09-08T00:00:00Z","skus":[{"id":"sku-uuid","name":"Go iOS","cost_minor":"4000","stock_quantity":8,"active":true}]}]}`)
+			_, _ = fmt.Fprint(w, `{"total":1,"items":[{"id":"product-uuid","name":"ChatGPT","description":"Plans","image_urls":["https://example.com/image.png"],"category_names":["AI"],"active":true,"sale_disabled":true,"updated_at":"2026-09-08T00:00:00Z","skus":[{"id":"sku-uuid","name":"Go iOS","cost_minor":"4000","stock_quantity":8,"active":true,"sale_disabled":true}]}]}`)
 		case "/api/v1/supplier/products/product-uuid":
 			_, _ = fmt.Fprint(w, `{"product":{"id":"product-uuid","name":"ChatGPT","description":"Plans","image_urls":[],"category_names":["AI"],"active":true,"updated_at":"2026-09-08T00:00:00Z","skus":[{"id":"sku-uuid","name":"Go iOS","cost_minor":"4000","stock_quantity":8,"active":true}]}}`)
 		case "/api/v1/supplier/orders":
@@ -78,7 +78,7 @@ func TestGMShopEdgeAdapterMapsCatalogAndOrderDelivery(t *testing.T) {
 		t.Fatalf("product category must reuse the category-list identity: product=%d category=%d", products.Items[0].CategoryID, categories.Categories[0].ID)
 	}
 	product := products.Items[0]
-	if product.Title["zh-CN"] != "ChatGPT" || product.SKUs[0].PriceAmount != "40" || product.SKUs[0].StockQuantity != 8 {
+	if product.Title["zh-CN"] != "ChatGPT" || product.SKUs[0].PriceAmount != "40" || product.SKUs[0].StockQuantity != 8 || !product.SaleDisabled || !product.SKUs[0].SaleDisabled {
 		t.Fatalf("unexpected mapped product: %+v", product)
 	}
 

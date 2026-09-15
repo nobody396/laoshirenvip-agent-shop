@@ -178,6 +178,7 @@
     "wholesaleTag": "批发价",
     "memberPriceTag": "会员价",
     "saveAmount": "立省",
+    "saleDisabled": "暂停售",
     "stockStatus": {
       "unlimited": "库存不限",
       "inStock": "有库存",
@@ -1822,6 +1823,7 @@
     "skuStockRange": "{min}-{max} 件",
     "skuStockRangePlus": "{min}+ 件",
     "stockUnavailable": "当前商品库存不足，暂不可购买",
+    "saleDisabled": "当前商品或规格暂停售，库存仍可查看",
     "stockBelowMinPurchase": "当前库存不足以满足该商品的最小购买数量（{count} 件）",
     "addCartStockExceeded": "该规格库存不足，最多可购买 {count} 件",
     "addCartStockExceededWithCart": "该规格库存不足，最多可购买 {count} 件（购物车中已有 {cartCount} 件）",

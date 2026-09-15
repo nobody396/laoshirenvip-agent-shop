@@ -60,6 +60,7 @@ type gmshopProduct struct {
 	ImageURLs     []string    `json:"image_urls"`
 	CategoryNames []string    `json:"category_names"`
 	Active        bool        `json:"active"`
+	SaleDisabled  bool        `json:"sale_disabled"`
 	UpdatedAt     string      `json:"updated_at"`
 	SKUs          []gmshopSKU `json:"skus"`
 }
@@ -70,6 +71,7 @@ type gmshopSKU struct {
 	CostMinor     string `json:"cost_minor"`
 	StockQuantity int    `json:"stock_quantity"`
 	Active        bool   `json:"active"`
+	SaleDisabled  bool   `json:"sale_disabled"`
 }
 
 func (a *GMShopEdgeAdapter) Ping(ctx context.Context) (*PingResult, error) {
@@ -281,14 +283,14 @@ func (a *GMShopEdgeAdapter) product(value gmshopProduct) (UpstreamProduct, error
 		skus = append(skus, UpstreamSKU{
 			ID: id, SKUCode: item.ID, SpecValues: jsonmap.JSON{"name": item.Name},
 			PriceAmount: minorToMajor(item.CostMinor, 2), StockStatus: status,
-			StockQuantity: item.StockQuantity, IsActive: item.Active,
+			StockQuantity: item.StockQuantity, IsActive: item.Active, SaleDisabled: item.SaleDisabled,
 		})
 	}
 	updatedAt, _ := time.Parse(time.RFC3339, value.UpdatedAt)
 	return UpstreamProduct{
 		ID: productID, Title: localized(value.Name), Description: localized(value.Description), Content: localized(value.Description),
 		Images: value.ImageURLs, Tags: value.CategoryNames, PriceAmount: minimumPrice(skus), Currency: "CNY",
-		FulfillmentType: "auto", ManualFormSchema: jsonmap.JSON{}, IsActive: value.Active,
+		FulfillmentType: "auto", ManualFormSchema: jsonmap.JSON{}, IsActive: value.Active, SaleDisabled: value.SaleDisabled,
 		CategoryID: categoryID, SKUs: skus, UpdatedAt: updatedAt,
 	}, nil
 }

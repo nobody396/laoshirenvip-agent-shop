@@ -25,6 +25,7 @@
         <component :is="stockPill.icon" class="h-3 w-3" />
         {{ stockPill.label }}
       </span>
+    <span v-if="saleDisabled" class="inline-flex w-fit rounded-full bg-[color:var(--gold-soft)] px-2 py-0.5 text-[11px] font-semibold text-[color:var(--gold-strong)]">{{ t('products.saleDisabled') }}</span>
     </div>
 
     <!-- Price + actions -->
@@ -37,7 +38,7 @@
         <span v-else class="block text-sm font-extrabold tabular-nums text-foreground sm:text-base">{{ formatPrice(product.price_amount, siteCurrency) }}</span>
       </div>
       <button
-        v-if="!soldOut"
+    v-if="!soldOut && !saleDisabled"
         type="button"
         class="grid h-9 w-9 flex-none place-items-center rounded-full bg-primary text-white transition hover:bg-primary/90"
         :aria-label="t('products.quickBuyAria')"
@@ -77,6 +78,7 @@ const coverClass = computed(() => covers[(props.index ?? 0) % covers.length])
 const title = computed(() => getLocalizedText(props.product?.title))
 const categoryName = computed(() => getLocalizedText(props.product?.category?.name))
 const soldOut = computed(() => isSoldOut(props.product))
+const saleDisabled = computed(() => Boolean(props.product?.sale_disabled))
 const promo = computed(() => hasPromotionPrice(props.product))
 
 const imageErrored = ref(false)

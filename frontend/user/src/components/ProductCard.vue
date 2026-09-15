@@ -55,6 +55,7 @@
 
       <!-- Badges -->
       <div class="mb-2 md:mb-3 flex flex-wrap items-center gap-1 md:gap-2">
+    <Badge v-if="isSaleDisabled(product)" size="xs" variant="warning">{{ t('products.saleDisabled') }}</Badge>
         <!-- Mobile: show only fulfillment type badge -->
         <Badge
           class="md:hidden"
@@ -150,7 +151,7 @@
             size="icon"
             class="w-8 h-8 md:w-9 md:h-9"
             :aria-label="t('products.quickBuyAria')"
-            :disabled="isSoldOut(product)"
+      :disabled="isSoldOut(product) || isSaleDisabled(product)"
             @click.stop="$emit('quickBuy', product)"
           >
             <ShoppingCart class="h-4 w-4" />
@@ -199,7 +200,7 @@ defineEmits<{
 
 const { t } = useI18n()
 const { getLocalizedText, siteCurrency, formatPrice } = useLocalized()
-const { getPurchaseTypeLabel, getFulfillmentTypeLabel, getStockBadgeVariant, getStockStatusLabel, isSoldOut, hasPromotionPrice, getPromotionPriceAmount, hasPromotionRules, hasWholesalePrices } = useProductLabels()
+const { getPurchaseTypeLabel, getFulfillmentTypeLabel, getStockBadgeVariant, getStockStatusLabel, isSoldOut, isSaleDisabled, hasPromotionPrice, getPromotionPriceAmount, hasPromotionRules, hasWholesalePrices } = useProductLabels()
 
 const imageErrored = ref(false)
 const attemptIdx = ref(0)

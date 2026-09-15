@@ -74,6 +74,7 @@ export function useProductLabels() {
   }
 
   const isSoldOut = (product: any) => Boolean(product?.is_sold_out || product?.stock_status === 'out_of_stock')
+  const isSaleDisabled = (product: any) => Boolean(product?.sale_disabled)
 
   const parsePriceAmount = (amount: any) => amountToCents(amount)
 
@@ -200,6 +201,7 @@ export function useProductLabels() {
     getStockBadgeVariant,
     getStockStatusLabel,
     isSoldOut,
+    isSaleDisabled,
     hasPromotionPrice,
     getPromotionPriceAmount,
     getPromotionSaveAmount,

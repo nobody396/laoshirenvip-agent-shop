@@ -247,3 +247,25 @@ func TestPublicProductResponseRangeModeReturnsBucketOnly(t *testing.T) {
 		t.Fatalf("expected sku manual stock to be masked, got exact value %d", sku.ManualStockTotal)
 	}
 }
+
+func TestPublicProductResponseKeepsSaleDisabledProductAndSKUVisible(t *testing.T) {
+	h := &PublicHandler{}
+	product := &productdomain.Product{
+		ID: 1, IsActive: true, SaleDisabled: true,
+		FulfillmentType: constants.FulfillmentTypeManual,
+		SKUs: []productdomain.ProductSKU{{
+			ID: 11, IsActive: true, SaleDisabled: true, ManualStockTotal: 7,
+		}},
+	}
+
+	resp, err := h.decoratePublicProduct(product, nil)
+	if err != nil {
+		t.Fatalf("decoratePublicProduct failed: %v", err)
+	}
+	if !resp.SaleDisabled || len(resp.SKUs) != 1 || !resp.SKUs[0].SaleDisabled {
+		t.Fatalf("sale-disabled state missing from visible response: %+v", resp)
+	}
+	if resp.IsSoldOut || resp.SKUs[0].IsSoldOut || resp.SKUs[0].ManualStockTotal != 7 {
+		t.Fatalf("sale-disabled response must preserve inventory state: %+v", resp)
+	}
+}

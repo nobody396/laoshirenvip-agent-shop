@@ -36,13 +36,15 @@ import (
 )
 
 type orderPurchaseQuantityLimitFixture struct {
-	dsnPrefix       string
-	categorySlug    string
-	productSlug     string
-	minQuantity     int
-	maxQuantity     int
-	requestQuantity int
-	expectedErr     error
+	dsnPrefix           string
+	categorySlug        string
+	productSlug         string
+	minQuantity         int
+	maxQuantity         int
+	requestQuantity     int
+	expectedErr         error
+	productSaleDisabled bool
+	skuSaleDisabled     bool
 }
 
 func assertBuildOrderResultRejectsPurchaseQuantity(t *testing.T, fixture orderPurchaseQuantityLimitFixture) {
@@ -77,6 +79,7 @@ func assertBuildOrderResultRejectsPurchaseQuantity(t *testing.T, fixture orderPu
 		MinPurchaseQuantity: fixture.minQuantity,
 		MaxPurchaseQuantity: fixture.maxQuantity,
 		IsActive:            true,
+		SaleDisabled:        fixture.productSaleDisabled,
 		CreatedAt:           now,
 		UpdatedAt:           now,
 	}
@@ -89,6 +92,7 @@ func assertBuildOrderResultRejectsPurchaseQuantity(t *testing.T, fixture orderPu
 		SKUCode:           productdomain.DefaultSKUCode,
 		PriceAmount:       money.FromDecimal(decimal.NewFromInt(10)),
 		IsActive:          true,
+		SaleDisabled:      fixture.skuSaleDisabled,
 		ManualStockTotal:  constants.ManualStockUnlimited,
 		ManualStockLocked: 0,
 		ManualStockSold:   0,

@@ -230,11 +230,13 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
     return resolveSkuAvailableStock(product.value, sku)
   }
 
-  const isSkuPurchasable = (sku: any) => {
+  const isSkuSaleDisabled = (sku: any) => Boolean(sku?.sale_disabled)
+  const isSkuSelectable = (sku: any) => {
     const available = skuAvailableStock(sku)
     if (available === null) return true
     return available > 0
   }
+  const isSkuPurchasable = (sku: any) => !isSkuSaleDisabled(sku) && isSkuSelectable(sku)
 
   const formatSkuStockDisplay = (display: PublicStockDisplay) => {
     switch (display.kind) {
@@ -309,6 +311,7 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
   })
   const canPurchase = computed(() => {
     if (!product.value) return false
+    if (product.value.sale_disabled) return false
     if (activeSkus.value.length === 0) return false
     if (product.value.is_sold_out) return false
     if (requiresSKUSelection.value) return false
@@ -320,6 +323,7 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
   const cannotPurchaseReason = computed(() => {
     if (!product.value) return ''
     if (requiresLogin.value) return ''
+    if (product.value.sale_disabled || selectedSku.value?.sale_disabled) return t('productDetail.saleDisabled')
     if (requiresSKUSelection.value) return t('productDetail.skuRequired')
     if (stockBelowMinPurchase.value) return t('productDetail.stockBelowMinPurchase', { count: quantityEffectiveMin.value })
     if (canPurchase.value) return ''
@@ -684,7 +688,7 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
     selectedSkuPromotionPrice, selectedSkuPromotionFinalIsMember, selectedSkuPromotionFinalPrice,
     showSelectedSkuMemberBadge,
     // SKU / 库存 / 数量
-    isSkuPurchasable, skuDisplayText, skuStockText, skuStockBadgeClass,
+    isSkuPurchasable, isSkuSelectable, isSkuSaleDisabled, skuDisplayText, skuStockText, skuStockBadgeClass,
     quantityEffectiveLimit, quantityEffectiveMin, handleQuantityInput,
     // 购买能力
     purchaseType, requiresLogin, requiresSKUSelection, canPurchase, cannotPurchaseReason,

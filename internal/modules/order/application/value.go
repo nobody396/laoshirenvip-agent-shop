@@ -46,7 +46,7 @@ func resolveProductOrderSKU(productSKURepo productcontract.SKURepository, produc
 		if err != nil {
 			return nil, err
 		}
-		if sku == nil || sku.ProductID != product.ID || !sku.IsActive {
+		if sku == nil || sku.ProductID != product.ID || !sku.IsActive || sku.SaleDisabled {
 			return nil, ErrProductSKUInvalid
 		}
 		return sku, nil
@@ -56,11 +56,18 @@ func resolveProductOrderSKU(productSKURepo productcontract.SKURepository, produc
 	if err != nil {
 		return nil, err
 	}
-	if len(activeSKUs) == 1 {
-		return &activeSKUs[0], nil
+	var availableSKU *productdomain.ProductSKU
+	for i := range activeSKUs {
+		if activeSKUs[i].SaleDisabled {
+			continue
+		}
+		if availableSKU != nil {
+			return nil, ErrProductSKURequired
+		}
+		availableSKU = &activeSKUs[i]
 	}
-	if len(activeSKUs) == 0 {
+	if availableSKU == nil {
 		return nil, ErrProductSKUInvalid
 	}
-	return nil, ErrProductSKURequired
+	return availableSKU, nil
 }
