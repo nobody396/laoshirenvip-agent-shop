@@ -73,6 +73,7 @@ func (v *publicProductView) toProductResp() productpresenter.Product {
 			StockQuantityHidden:  skuDisplay.QuantityHidden,
 			IsSoldOut:            skuStatus == constants.ProductStockStatusOutOfStock,
 			IsActive:             sv.IsActive,
+			SaleDisabled:         sv.SaleDisabled,
 			PromotionPriceAmount: sv.PromotionPriceAmount,
 			MemberPriceAmount:    sv.MemberPriceAmount,
 		})
@@ -106,6 +107,7 @@ func (v *publicProductView) toProductResp() productpresenter.Product {
 		AutoStockAvailable:   domaincatalog.MaskStockInt64(mode, v.AutoStockAvailable),
 		StockStatus:          v.StockStatus,
 		IsSoldOut:            v.IsSoldOut,
+		SaleDisabled:         v.Product.SaleDisabled,
 		PaymentChannelIDs:    productdomain.DecodePaymentChannelIDs(v.Product.PaymentChannelIDs),
 		Category:             categorypresenter.New(&v.Product.Category),
 		SKUs:                 skus,

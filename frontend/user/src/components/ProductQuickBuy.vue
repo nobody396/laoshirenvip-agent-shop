@@ -225,16 +225,16 @@
                     normalizeSkuId(sku.id) === selectedSkuId
                       ? 'border-primary/45 bg-primary/10 ring-1 ring-primary/30 font-semibold'
                       : 'bg-secondary text-secondary-foreground hover:bg-secondary/80 font-medium',
-                    isSkuPurchasable(sku) ? 'cursor-pointer' : 'cursor-not-allowed opacity-45 border-dashed',
+          isSkuSelectable(sku) ? 'cursor-pointer' : 'cursor-not-allowed opacity-45 border-dashed',
                   ]"
-                  :disabled="!isSkuPurchasable(sku)"
+          :disabled="!isSkuSelectable(sku)"
                   @click="selectedSkuId = normalizeSkuId(sku.id)"
                 >
                   <span>{{ skuDisplayText(sku) }}</span>
                   <span
-                    v-if="!isSkuPurchasable(sku)"
+          v-if="isSkuSaleDisabled(sku) || !isSkuSelectable(sku)"
                     class="ml-1 text-[10px] opacity-70"
-                  >({{ t('productDetail.skuStockOut') }})</span>
+          >({{ isSkuSaleDisabled(sku) ? t('products.saleDisabled') : t('productDetail.skuStockOut') }})</span>
                 </button>
               </div>
             </div>
@@ -286,7 +286,10 @@
             </div>
 
             <!-- Warning -->
-            <p v-if="stockBelowMinPurchase" class="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs font-medium text-warning">
+      <p v-if="product?.sale_disabled || selectedSku?.sale_disabled" class="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs font-medium text-warning">
+        {{ t('productDetail.saleDisabled') }}
+      </p>
+      <p v-else-if="stockBelowMinPurchase" class="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs font-medium text-warning">
               {{ t('productDetail.stockBelowMinPurchase', { count: effectiveMin }) }}
             </p>
             <p v-else-if="purchaseWarning" class="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs font-medium text-warning">
@@ -578,11 +581,13 @@ const skuAvailableStock = (sku: any) => {
   return resolveSkuAvailableStock(props.product, sku)
 }
 
-const isSkuPurchasable = (sku: any) => {
+const isSkuSaleDisabled = (sku: any) => Boolean(sku?.sale_disabled)
+const isSkuSelectable = (sku: any) => {
   const available = skuAvailableStock(sku)
   if (available === null) return true
   return available > 0
 }
+const isSkuPurchasable = (sku: any) => !isSkuSaleDisabled(sku) && isSkuSelectable(sku)
 
 const syncSelectedSku = () => {
   const rows = activeSkus.value
@@ -674,6 +679,7 @@ const stockBelowMinPurchase = computed(() => {
 })
 const canPurchase = computed(() => {
   if (!props.product) return false
+  if (props.product.sale_disabled) return false
   if (activeSkus.value.length === 0) return false
   if (props.product.is_sold_out) return false
   if (requiresSKUSelection.value) return false

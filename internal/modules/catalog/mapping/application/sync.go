@@ -83,6 +83,10 @@ func (s *Service) SyncProduct(mappingID uint) error {
 	}
 	if localProduct != nil {
 		needsProductUpdate := false
+		if conn.Protocol == constants.ConnectionProtocolGMShopEdge && localProduct.SaleDisabled != upProduct.SaleDisabled {
+			localProduct.SaleDisabled = upProduct.SaleDisabled
+			needsProductUpdate = true
+		}
 		// 同步人工交付表单配置
 		if upProduct.ManualFormSchema != nil {
 			localProduct.ManualFormSchemaJSON = upProduct.ManualFormSchema
@@ -144,6 +148,9 @@ func (s *Service) SyncProduct(mappingID uint) error {
 		if localSKU != nil {
 			localSKU.SpecValuesJSON = syncedSpecValues(localSKU.SpecValuesJSON, upSKU.SpecValues)
 			localSKU.IsActive = upSKU.IsActive
+			if conn.Protocol == constants.ConnectionProtocolGMShopEdge {
+				localSKU.SaleDisabled = upSKU.SaleDisabled
+			}
 			// 如果启用了自动同步价格，按加价比例更新本地售价和成本价
 			if conn.AutoSyncPrice {
 				newLocalPrice := CalculateLocalPrice(upPrice, conn.ExchangeRate, conn.PriceMarkupPercent, conn.PriceRoundingMode)
@@ -169,6 +176,7 @@ func (s *Service) SyncProduct(mappingID uint) error {
 			PriceAmount:     money.FromDecimal(localPrice.Round(2)),
 			CostPriceAmount: money.FromDecimal(convertCurrency(skuPrice, conn.ExchangeRate).Round(2)), // 成本价 = 上游价格 × 汇率（本地币种）
 			IsActive:        upSKU.IsActive,
+			SaleDisabled:    conn.Protocol == constants.ConnectionProtocolGMShopEdge && upSKU.SaleDisabled,
 			SortOrder:       0,
 		}
 		if err := s.skus.Create(&newLocalSKU); err != nil {
@@ -656,8 +664,16 @@ func (s *Service) syncProductFromData(mapping *mappingdomain.Mapping, conn *site
 		return
 	}
 
+	needsProductUpdate := false
+	if conn.Protocol == constants.ConnectionProtocolGMShopEdge && localProduct.SaleDisabled != upProduct.SaleDisabled {
+		localProduct.SaleDisabled = upProduct.SaleDisabled
+		needsProductUpdate = true
+	}
 	if upProduct.ManualFormSchema != nil {
 		localProduct.ManualFormSchemaJSON = upProduct.ManualFormSchema
+		needsProductUpdate = true
+	}
+	if needsProductUpdate {
 		_ = s.products.Update(localProduct)
 	}
 
@@ -705,6 +721,13 @@ func (s *Service) syncProductFromData(mapping *mappingdomain.Mapping, conn *site
 			skuMappings[i].StockSyncedAt = now
 			skuMappings[i].UpstreamStock = upSKU.StockQuantity
 			_ = s.skuMappings.Update(&skuMappings[i])
+			if conn.Protocol == constants.ConnectionProtocolGMShopEdge {
+				localSKU, _ := s.skus.GetByID(skuMappings[i].LocalSKUID)
+				if localSKU != nil {
+					localSKU.SaleDisabled = upSKU.SaleDisabled
+					_ = s.skus.Update(localSKU)
+				}
+			}
 			continue
 		}
 		skuMappings[i].UpstreamPrice = money.FromDecimal(upPrice.Round(2))
@@ -717,6 +740,9 @@ func (s *Service) syncProductFromData(mapping *mappingdomain.Mapping, conn *site
 		if localSKU != nil {
 			localSKU.SpecValuesJSON = syncedSpecValues(localSKU.SpecValuesJSON, upSKU.SpecValues)
 			localSKU.IsActive = upSKU.IsActive
+			if conn.Protocol == constants.ConnectionProtocolGMShopEdge {
+				localSKU.SaleDisabled = upSKU.SaleDisabled
+			}
 			if conn.AutoSyncPrice {
 				newLocalPrice := CalculateLocalPrice(upPrice, conn.ExchangeRate, conn.PriceMarkupPercent, conn.PriceRoundingMode)
 				localSKU.PriceAmount = money.FromDecimal(newLocalPrice.Round(2))
@@ -748,6 +774,7 @@ func (s *Service) syncProductFromData(mapping *mappingdomain.Mapping, conn *site
 			PriceAmount:     money.FromDecimal(localPrice.Round(2)),
 			CostPriceAmount: money.FromDecimal(convertCurrency(skuPrice, conn.ExchangeRate).Round(2)),
 			IsActive:        upSKU.IsActive,
+			SaleDisabled:    conn.Protocol == constants.ConnectionProtocolGMShopEdge && upSKU.SaleDisabled,
 			SortOrder:       0,
 		}
 		if err := s.skus.Create(&newLocalSKU); err != nil {

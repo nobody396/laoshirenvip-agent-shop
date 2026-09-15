@@ -41,6 +41,7 @@ type Product struct {
 	AutoStockAvailable   int64             `json:"auto_stock_available"`
 	StockStatus          string            `json:"stock_status"`
 	IsSoldOut            bool              `json:"is_sold_out"`
+	SaleDisabled         bool              `json:"sale_disabled"`
 
 	PaymentChannelIDs []uint `json:"payment_channel_ids,omitempty"`
 
@@ -115,6 +116,7 @@ type SKU struct {
 	StockQuantityHidden  bool          `json:"stock_quantity_hidden"`
 	IsSoldOut            bool          `json:"is_sold_out"`
 	IsActive             bool          `json:"is_active"`
+	SaleDisabled         bool          `json:"sale_disabled"`
 
 	PromotionPriceAmount *money.Amount `json:"promotion_price_amount,omitempty"`
 	MemberPriceAmount    *money.Amount `json:"member_price_amount,omitempty"`

@@ -95,7 +95,7 @@ func (s *OrderService) buildOrderResult(input orderCreateParams) (*orderBuildRes
 		if err != nil {
 			return nil, err
 		}
-		if product == nil || !product.IsActive {
+		if product == nil || !product.IsActive || product.SaleDisabled {
 			return nil, ErrProductNotAvailable
 		}
 		if err := productdomain.ValidatePurchaseQuantity(product, item.Quantity); err != nil {

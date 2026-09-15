@@ -209,7 +209,7 @@ func TestImportUpstreamProductRollbackWhenSKUMappingCreateFails(t *testing.T) {
 }
 
 // setupMappingWithUpstreamHandler 准备一份本地映射 + 启动可定制响应的上游 httptest server
-func setupMappingWithUpstreamHandler(t *testing.T, dsn string, handler http.HandlerFunc) (*mappingapp.Service, *gorm.DB, *mappingdomain.Mapping, func()) {
+func setupMappingWithUpstreamHandler(t *testing.T, dsn string, handler http.HandlerFunc, protocols ...string) (*mappingapp.Service, *gorm.DB, *mappingdomain.Mapping, func()) {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -220,6 +220,7 @@ func setupMappingWithUpstreamHandler(t *testing.T, dsn string, handler http.Hand
 		&productdomain.Product{},
 		&productdomain.ProductSKU{},
 		&siteconnectiondomain.Connection{},
+		&siteconnectiondomain.ExternalReference{},
 		&mappingdomain.Mapping{},
 		&mappingdomain.SKUMapping{},
 	); err != nil {
@@ -252,13 +253,22 @@ func setupMappingWithUpstreamHandler(t *testing.T, dsn string, handler http.Hand
 		t.Fatalf("create sku failed: %v", err)
 	}
 
-	connService := siteconnectionapp.NewService(siteconnectiongormstore.New(db), "test-secret-key", t.TempDir())
+	connService := siteconnectionapp.NewService(
+		siteconnectiongormstore.New(db),
+		"test-secret-key",
+		t.TempDir(),
+		siteconnectionapp.WithExternalReferenceRegistry(siteconnectiongormstore.NewExternalReferenceStore(db)),
+	)
+	protocol := constants.ConnectionProtocolDujiaoNext
+	if len(protocols) > 0 {
+		protocol = protocols[0]
+	}
 	conn, err := connService.Create(siteconnectionapp.CreateInput{
 		Name:      "upstream",
 		BaseURL:   server.URL,
 		ApiKey:    "k",
 		ApiSecret: "s",
-		Protocol:  constants.ConnectionProtocolDujiaoNext,
+		Protocol:  protocol,
 	})
 	if err != nil {
 		t.Fatalf("create connection failed: %v", err)
@@ -291,6 +301,50 @@ func setupMappingWithUpstreamHandler(t *testing.T, dsn string, handler http.Hand
 		t.Fatalf("create product mapping service: %v", err)
 	}
 	return svc, db, mapping, server.Close
+}
+
+func TestSyncProductMirrorsGMShopSaleDisabledWithoutUnpublishing(t *testing.T) {
+	svc, db, mapping, cleanup := setupMappingWithUpstreamHandler(t,
+		"file:sync_gmshop_sale_disabled?mode=memory&cache=shared",
+		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"product": map[string]any{
+					"id": "product-uuid", "name": "P", "active": true, "sale_disabled": true,
+					"updated_at": "2026-09-15T00:00:00Z",
+					"skus": []map[string]any{{
+						"id": "sku-uuid", "name": "SKU-A", "cost_minor": "1000",
+						"stock_quantity": 9, "active": true, "sale_disabled": true,
+					}},
+				},
+			})
+		},
+		constants.ConnectionProtocolGMShopEdge,
+	)
+	defer cleanup()
+	for _, ref := range []siteconnectiondomain.ExternalReference{
+		{ID: 101, ConnectionID: mapping.ConnectionID, Kind: siteconnectiondomain.ExternalReferenceKindProduct, ExternalKey: "product-uuid"},
+		{ID: 201, ConnectionID: mapping.ConnectionID, Kind: siteconnectiondomain.ExternalReferenceKindSKU, ExternalKey: "sku-uuid"},
+	} {
+		if err := db.Create(&ref).Error; err != nil {
+			t.Fatalf("create external reference failed: %v", err)
+		}
+	}
+
+	if err := svc.SyncProduct(mapping.ID); err != nil {
+		t.Fatalf("SyncProduct returned error: %v", err)
+	}
+	var product productdomain.Product
+	if err := db.First(&product, mapping.LocalProductID).Error; err != nil {
+		t.Fatal(err)
+	}
+	var sku productdomain.ProductSKU
+	if err := db.Where("product_id = ?", mapping.LocalProductID).First(&sku).Error; err != nil {
+		t.Fatal(err)
+	}
+	if !product.IsActive || !sku.IsActive || !product.SaleDisabled || !sku.SaleDisabled {
+		t.Fatalf("expected visible sale-disabled catalog, product=%+v sku=%+v", product, sku)
+	}
 }
 
 func TestSyncProductMarksDeletedWhenUpstreamSoftDeleted(t *testing.T) {
