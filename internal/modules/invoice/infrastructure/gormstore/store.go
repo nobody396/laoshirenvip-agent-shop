@@ -42,6 +42,15 @@ func (s *Store) MarkPaid(requestNo, providerRef string, paidAt time.Time) (bool,
 }
 
 func (s *Store) CreateAndPayWithWallet(request *domain.Request, userID uint, resellerID *uint) error {
+	return s.payWithWallet(request, userID, resellerID, func(tx *gorm.DB) error { return tx.Create(request).Error })
+}
+
+// ReviseAndPayWithWallet rewrites an unpaid request and pays it from the wallet atomically.
+func (s *Store) ReviseAndPayWithWallet(previousRequestNo string, request *domain.Request, userID uint, resellerID *uint) error {
+	return s.payWithWallet(request, userID, resellerID, func(tx *gorm.DB) error { return reviseUnpaid(tx, previousRequestNo, request) })
+}
+
+func (s *Store) payWithWallet(request *domain.Request, userID uint, resellerID *uint, write func(*gorm.DB) error) error {
 	if request == nil || userID == 0 || !request.PaymentAmount.Decimal.IsPositive() {
 		return walletcontract.ErrInvalidAmount
 	}
@@ -51,9 +60,11 @@ func (s *Store) CreateAndPayWithWallet(request *domain.Request, userID uint, res
 		request.Status = domain.StatusPendingIssue
 		request.PaymentChannelID = 0
 		request.ProviderRef = reference
+		request.PayURL = ""
+		request.QRCode = ""
 		request.PaidAt = &now
 		request.UpdatedAt = now
-		if err := tx.Create(request).Error; err != nil {
+		if err := write(tx); err != nil {
 			return err
 		}
 
@@ -169,6 +180,44 @@ func (s *Store) FinishEmail(requestNo string, success bool, lastError string, at
 }
 
 func (s *Store) Create(request *domain.Request) error { return s.db.Create(request).Error }
+
+// RevisePending replaces an unpaid request's applicant data and pricing in place.
+func (s *Store) RevisePending(previousRequestNo string, request *domain.Request) error {
+	return reviseUnpaid(s.db, previousRequestNo, request)
+}
+
+func reviseUnpaid(tx *gorm.DB, previousRequestNo string, request *domain.Request) error {
+	result := tx.Model(&domain.Request{}).
+		Where("request_no = ? AND status = ? AND paid_at IS NULL", previousRequestNo, domain.StatusPendingPayment).
+		Updates(map[string]interface{}{
+			"request_no":           request.RequestNo,
+			"original_order_id":    request.OriginalOrderID,
+			"original_amount":      request.OriginalAmount,
+			"rate_bps":             request.RateBPS,
+			"invoice_fee_amount":   request.InvoiceFeeAmount,
+			"invoice_total_amount": request.InvoiceTotalAmount,
+			"payment_channel_id":   request.PaymentChannelID,
+			"payment_fee_rate":     request.PaymentFeeRate,
+			"payment_fee_amount":   request.PaymentFeeAmount,
+			"payment_amount":       request.PaymentAmount,
+			"provider_ref":         request.ProviderRef,
+			"pay_url":              request.PayURL,
+			"qr_code":              request.QRCode,
+			"buyer_title":          request.BuyerTitle,
+			"tax_number":           request.TaxNumber,
+			"recipient_email":      request.RecipientEmail,
+			"status":               request.Status,
+			"paid_at":              request.PaidAt,
+			"updated_at":           request.UpdatedAt,
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return domain.ErrRequestNotRevisable
+	}
+	return nil
+}
 
 // SavePayment never overwrites a callback that already marked the invoice paid.
 func (s *Store) SavePayment(request *domain.Request) error {
