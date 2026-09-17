@@ -19,6 +19,7 @@ type requestStoreStub struct {
 	item             *domain.Request
 	walletCalls      int
 	createCalls      int
+	reviseCalls      int
 	walletUserID     uint
 	walletResellerID *uint
 }
@@ -39,6 +40,21 @@ func (s *requestStoreStub) CreateAndPayWithWallet(item *domain.Request, userID u
 	item.ProviderRef = "invoice:" + item.RequestNo + ":wallet"
 	item.PaidAt = &now
 	return nil
+}
+func (s *requestStoreStub) RevisePending(previous string, item *domain.Request) error {
+	if s.item == nil || s.item.RequestNo != previous || s.item.Status != domain.StatusPendingPayment || s.item.PaidAt != nil {
+		return domain.ErrRequestNotRevisable
+	}
+	s.item = item
+	s.reviseCalls++
+	return nil
+}
+func (s *requestStoreStub) ReviseAndPayWithWallet(previous string, item *domain.Request, userID uint, resellerID *uint) error {
+	if err := s.RevisePending(previous, item); err != nil {
+		return err
+	}
+	s.createCalls--
+	return s.CreateAndPayWithWallet(item, userID, resellerID)
 }
 func (s *requestStoreStub) GetByRequestNo(string) (*domain.Request, error) {
 	return s.item, nil
@@ -185,7 +201,7 @@ func TestCreateManualInvoiceNeedsNoPlatformOrder(t *testing.T) {
 }
 
 func TestCreateRejectsDuplicateOriginalOrder(t *testing.T) {
-	store := &requestStoreStub{item: &domain.Request{RequestNo: "INV-OLD"}}
+	store := &requestStoreStub{item: &domain.Request{RequestNo: "INV-OLD", Status: domain.StatusPendingIssue}}
 	service := NewService(store, channelStoreStub{}, registryStub{gateway: &gatewayStub{}}, "https://lsrai.shop")
 	_, err := service.Create(context.Background(), CreateInput{
 		Source: "dujiao", SourceHost: "lsrai.shop", OriginalOrderNo: "DJ-1",
@@ -300,6 +316,74 @@ func TestGMShopRetryResumesSameFrozenInvoiceWithoutDuplicate(t *testing.T) {
 	}
 	input.RecipientEmail = "other@example.com"
 	if _, err = service.Create(context.Background(), input); !errors.Is(err, ErrAlreadyRequested) {
-		t.Fatal("mismatched invoice identity must be rejected")
+		t.Fatal("paid invoice must not be revised")
+	}
+}
+
+func unpaidRevisionService(t *testing.T) (*Service, *requestStoreStub, *gatewayStub, CreateInput, *domain.Request) {
+	t.Helper()
+	store := &requestStoreStub{}
+	gateway := &gatewayStub{}
+	channel := &paymentdomain.PaymentChannel{ID: 2, ProviderType: "epay", ChannelType: "alipay", InteractionMode: "qr", IsActive: true, FeeRate: money.FromDecimal(decimal.NewFromInt(4))}
+	service := NewService(store, channelStoreStub{item: channel}, registryStub{gateway: gateway}, "https://lsrai.shop")
+	input := CreateInput{Source: "gmshop", SourceHost: "laoshirenvip.com", OriginalOrderNo: "GM-EDIT", OriginalAmount: money.FromDecimal(decimal.NewFromInt(1800)), InvoiceAmount: money.FromDecimal(decimal.NewFromInt(1900)), BuyerTitle: "Example", TaxNumber: "TEST", RecipientEmail: "buyer@example.com", ClientIP: "127.0.0.1"}
+	first, err := service.Create(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return service, store, gateway, input, first
+}
+
+func TestUnpaidInvoiceAmountRevisionReissuesPayment(t *testing.T) {
+	service, store, gateway, input, first := unpaidRevisionService(t)
+	firstNo, firstID := first.RequestNo, first.ID
+	input.InvoiceAmount = money.FromDecimal(decimal.NewFromInt(1957))
+	input.BuyerTitle = "Example Two"
+	revised, err := service.Create(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if store.createCalls != 1 || store.reviseCalls != 1 || revised.ID != firstID || revised.RequestNo == firstNo {
+		t.Fatalf("revision must reuse the row under a new payment number: %+v", revised)
+	}
+	if revised.InvoiceTotalAmount.String() != "1957.00" || revised.BuyerTitle != "Example Two" || revised.PaymentAmount.String() != "61.06" {
+		t.Fatalf("revision amounts mismatch: %+v", revised)
+	}
+	if gateway.createCalls != 2 || gateway.input.OrderNo != revised.RequestNo || gateway.input.Amount.String() != "61.06" {
+		t.Fatalf("revised payment not issued: %+v", gateway.input)
+	}
+}
+
+func TestUnpaidInvoiceTitleRevisionKeepsPaymentLink(t *testing.T) {
+	service, store, gateway, input, first := unpaidRevisionService(t)
+	firstNo, firstPay := first.RequestNo, first.QRCode
+	input.TaxNumber = "TEST-2"
+	input.RecipientEmail = "Other@Example.com"
+	revised, err := service.Create(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if store.reviseCalls != 1 || gateway.createCalls != 1 || revised.RequestNo != firstNo || revised.QRCode != firstPay {
+		t.Fatalf("same payment amount must keep the issued link: %+v", revised)
+	}
+	if revised.TaxNumber != "TEST-2" || revised.RecipientEmail != "other@example.com" {
+		t.Fatalf("applicant data not revised: %+v", revised)
+	}
+}
+
+func TestUnpaidDujiaoInvoiceCanSwitchToWallet(t *testing.T) {
+	store := &requestStoreStub{item: &domain.Request{RequestNo: "INV-OLD", Status: domain.StatusPendingPayment, PaymentChannelID: 2, PayURL: "https://pay.example/old"}}
+	service := NewService(store, channelStoreStub{}, registryStub{gateway: &gatewayStub{}}, "https://lsrai.shop")
+	request, err := service.Create(context.Background(), CreateInput{
+		Source: "dujiao", SourceHost: "lsrai.shop", OriginalOrderNo: "DJ-1",
+		OriginalAmount: money.FromDecimal(decimal.NewFromInt(100)), InvoiceAmount: money.FromDecimal(decimal.NewFromInt(100)),
+		BuyerTitle: "示例公司", TaxNumber: "91350000TEST", RecipientEmail: "finance@example.com", ClientIP: "127.0.0.1",
+		PaymentMethod: domain.PaymentMethodWallet, UserID: 7,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if store.reviseCalls != 1 || store.walletCalls != 1 || request.Status != domain.StatusPendingIssue || request.PayURL != "" || request.PaymentAmount.String() != "3.00" {
+		t.Fatalf("unpaid request not paid from wallet: %+v", request)
 	}
 }

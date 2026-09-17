@@ -153,3 +153,51 @@ func TestSavePaymentDoesNotOverwriteConcurrentPaidCallback(t *testing.T) {
 		t.Fatal("payment save overwrote the callback")
 	}
 }
+
+func TestRevisePendingRenamesUnpaidRequestOnly(t *testing.T) {
+	db := openWalletInvoiceDB(t)
+	store := New(db)
+	request := walletInvoiceRequest("REVISE")
+	request.PayURL = "https://pay.example/old"
+	if err := store.Create(request); err != nil {
+		t.Fatal(err)
+	}
+	revised := *request
+	revised.RequestNo = "INV-REVISE-2"
+	revised.BuyerTitle = "新公司"
+	revised.InvoiceTotalAmount = money.FromDecimal(decimal.NewFromInt(1957))
+	revised.PayURL = ""
+	if err := store.RevisePending(request.RequestNo, &revised); err != nil {
+		t.Fatal(err)
+	}
+	current, err := store.GetByOriginalOrder("dujiao", "lsrai.shop", "REVISE")
+	if err != nil || current.ID != request.ID || current.RequestNo != "INV-REVISE-2" || current.BuyerTitle != "新公司" || current.InvoiceTotalAmount.String() != "1957.00" || current.PayURL != "" {
+		t.Fatalf("revision not stored: %+v err=%v", current, err)
+	}
+	if _, _, err := store.MarkPaid("INV-REVISE-2", "paid-ref", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	again := revised
+	again.RequestNo = "INV-REVISE-3"
+	if err := store.RevisePending("INV-REVISE-2", &again); !errors.Is(err, domain.ErrRequestNotRevisable) {
+		t.Fatalf("paid request revised: %v", err)
+	}
+}
+
+func TestReviseAndPayWithWalletRollsBackWhenBalanceIsInsufficient(t *testing.T) {
+	db := openWalletInvoiceDB(t)
+	store := New(db)
+	request := walletInvoiceRequest("REVISE-WALLET")
+	if err := store.Create(request); err != nil {
+		t.Fatal(err)
+	}
+	revised := *request
+	revised.RequestNo = "INV-REVISE-WALLET-2"
+	if err := store.ReviseAndPayWithWallet(request.RequestNo, &revised, 7, nil); err == nil {
+		t.Fatal("expected wallet failure")
+	}
+	current, err := store.GetByRequestNo(request.RequestNo)
+	if err != nil || current == nil || current.Status != domain.StatusPendingPayment || current.PaidAt != nil {
+		t.Fatalf("failed wallet revision was not rolled back: %+v", current)
+	}
+}

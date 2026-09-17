@@ -26,7 +26,10 @@ const (
 	StatusCancelled      = "cancelled"
 )
 
-var ErrInvalidInvoiceType = errors.New("invalid invoice type")
+var (
+	ErrInvalidInvoiceType  = errors.New("invalid invoice type")
+	ErrRequestNotRevisable = errors.New("invoice request is no longer unpaid")
+)
 
 // Request is the single durable record for invoice intake, payment, Feishu
 // handoff, and final PDF email delivery.

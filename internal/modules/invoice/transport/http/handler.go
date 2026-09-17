@@ -338,6 +338,13 @@ func invoiceOrderAmount(order *orderdomain.Order, payments []paymentdomain.Payme
 	return order.TotalAmount
 }
 
+// defaultInvoiceAmount pre-fills the face amount as the paid amount plus 3%;
+// the applicant may overwrite it.
+func defaultInvoiceAmount(orderAmount money.Amount) money.Amount {
+	rate := decimal.NewFromInt(int64(10_000 + domain.OrdinaryRateBPS)).Div(decimal.NewFromInt(10_000))
+	return money.FromDecimal(orderAmount.Decimal.Mul(rate).Round(2))
+}
+
 func parseInvoiceAmount(raw string, fallback money.Amount) (money.Amount, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -433,7 +440,7 @@ func (h *Handler) respondPreview(c *gin.Context, orderAmount money.Amount, rawIn
 		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_order_ineligible", err)
 		return
 	}
-	invoiceAmount, err := parseInvoiceAmount(rawInvoiceAmount, orderAmount)
+	invoiceAmount, err := parseInvoiceAmount(rawInvoiceAmount, defaultInvoiceAmount(orderAmount))
 	if err != nil {
 		ginutil.RespondError(c, response.CodeBadRequest, "error.invoice_invalid", nil)
 		return

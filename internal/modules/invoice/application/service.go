@@ -31,6 +31,8 @@ var (
 type Store interface {
 	Create(*domain.Request) error
 	CreateAndPayWithWallet(*domain.Request, uint, *uint) error
+	RevisePending(previousRequestNo string, request *domain.Request) error
+	ReviseAndPayWithWallet(previousRequestNo string, request *domain.Request, userID uint, resellerID *uint) error
 	SavePayment(*domain.Request) error
 	GetByRequestNo(string) (*domain.Request, error)
 	GetByOriginalOrder(source, sourceHost, orderNo string) (*domain.Request, error)
@@ -241,21 +243,32 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 	if address, err := mail.ParseAddress(input.RecipientEmail); err != nil || !strings.EqualFold(address.Address, input.RecipientEmail) {
 		return nil, ErrInvalidInput
 	}
+	// One request per platform order: unpaid requests can be revised freely,
+	// paid ones are frozen.
+	var previous *domain.Request
 	if input.Source != "manual" {
-		if existing, err := s.store.GetByOriginalOrder(input.Source, input.SourceHost, input.OriginalOrderNo); err != nil {
+		existing, err := s.store.GetByOriginalOrder(input.Source, input.SourceHost, input.OriginalOrderNo)
+		if err != nil {
 			return nil, err
-		} else if existing != nil {
-			if input.Source != "gmshop" || existing.Status == domain.StatusCancelled || existing.BuyerTitle != input.BuyerTitle || existing.TaxNumber != input.TaxNumber || existing.RecipientEmail != input.RecipientEmail || !existing.InvoiceTotalAmount.Decimal.Equal(input.InvoiceAmount.Decimal) {
+		}
+		if existing != nil {
+			if existing.Status != domain.StatusPendingPayment || existing.PaidAt != nil {
+				if input.Source == "gmshop" && existing.Status != domain.StatusCancelled && sameApplication(existing, input) {
+					return existing, nil
+				}
 				return nil, ErrAlreadyRequested
 			}
-			if existing.Status != domain.StatusPendingPayment || existing.PaidAt != nil || existing.PayURL != "" || existing.QRCode != "" {
-				return existing, nil
+			if input.PaymentMethod == domain.PaymentMethodAlipay && sameApplication(existing, input) {
+				if existing.PayURL != "" || existing.QRCode != "" {
+					return existing, nil
+				}
+				channel, err := s.channels.GetByID(existing.PaymentChannelID)
+				if err != nil || channel == nil || !channel.IsActive || channel.ProviderType != "epay" || channel.ChannelType != "alipay" {
+					return nil, ErrPaymentUnavailable
+				}
+				return s.createPayment(ctx, existing, channel, input.ClientIP)
 			}
-			channel, err := s.channels.GetByID(existing.PaymentChannelID)
-			if err != nil || channel == nil || !channel.IsActive || channel.ProviderType != "epay" || channel.ChannelType != "alipay" {
-				return nil, ErrPaymentUnavailable
-			}
-			return s.createPayment(ctx, existing, channel, input.ClientIP)
+			previous = existing
 		}
 	}
 
@@ -290,21 +303,59 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*domain.Reques
 		CreatedAt:          now,
 		UpdatedAt:          now,
 	}
+	// The gateway order number is the request number, so an unchanged payment
+	// amount keeps the issued payment link; a new amount needs a new number.
+	keepPayment := false
+	if previous != nil {
+		request.ID = previous.ID
+		request.CreatedAt = previous.CreatedAt
+		keepPayment = input.PaymentMethod == domain.PaymentMethodAlipay && previous.PaymentChannelID == channelID &&
+			previous.PaymentAmount.Decimal.Equal(amounts.PaymentAmount.Decimal) && (previous.PayURL != "" || previous.QRCode != "")
+		if keepPayment {
+			request.RequestNo = previous.RequestNo
+			request.ProviderRef = previous.ProviderRef
+			request.PayURL = previous.PayURL
+			request.QRCode = previous.QRCode
+		}
+	}
 	if input.PaymentMethod == domain.PaymentMethodWallet {
-		if err := s.store.CreateAndPayWithWallet(request, input.UserID, input.WalletResellerID); err != nil {
+		if previous != nil {
+			err = s.store.ReviseAndPayWithWallet(previous.RequestNo, request, input.UserID, input.WalletResellerID)
+		} else {
+			err = s.store.CreateAndPayWithWallet(request, input.UserID, input.WalletResellerID)
+		}
+		if err != nil {
 			if errors.Is(err, walletcontract.ErrInsufficientBalance) || errors.Is(err, walletcontract.ErrAccountNotFound) {
 				return nil, ErrWalletInsufficient
+			}
+			if errors.Is(err, domain.ErrRequestNotRevisable) {
+				return nil, ErrAlreadyRequested
 			}
 			return nil, err
 		}
 		s.syncPaidRequest(request)
 		return request, nil
 	}
-	if err := s.store.Create(request); err != nil {
+	if previous != nil {
+		if err := s.store.RevisePending(previous.RequestNo, request); err != nil {
+			if errors.Is(err, domain.ErrRequestNotRevisable) {
+				return nil, ErrAlreadyRequested
+			}
+			return nil, err
+		}
+		if keepPayment {
+			return s.store.GetByRequestNo(request.RequestNo)
+		}
+	} else if err := s.store.Create(request); err != nil {
 		return nil, err
 	}
 
 	return s.createPayment(ctx, request, channel, input.ClientIP)
+}
+
+func sameApplication(existing *domain.Request, input CreateInput) bool {
+	return existing.BuyerTitle == input.BuyerTitle && existing.TaxNumber == input.TaxNumber &&
+		existing.RecipientEmail == input.RecipientEmail && existing.InvoiceTotalAmount.Decimal.Equal(input.InvoiceAmount.Decimal)
 }
 
 func (s *Service) createPayment(ctx context.Context, request *domain.Request, channel *paymentdomain.PaymentChannel, clientIP string) (*domain.Request, error) {

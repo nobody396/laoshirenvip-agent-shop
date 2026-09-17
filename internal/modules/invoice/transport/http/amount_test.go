@@ -44,3 +44,12 @@ func TestParseInvoiceAmountUsesDeclaredFaceAmount(t *testing.T) {
 		t.Fatalf("parseInvoiceAmount() = %s, want 130.00", amount.String())
 	}
 }
+
+func TestDefaultInvoiceAmountAddsServiceRate(t *testing.T) {
+	if got := defaultInvoiceAmount(money.FromDecimal(decimal.NewFromInt(1800))); got.String() != "1854.00" {
+		t.Fatalf("defaultInvoiceAmount() = %s, want 1854.00", got.String())
+	}
+	if got := defaultInvoiceAmount(money.FromDecimal(decimal.RequireFromString("765.50"))); got.String() != "788.47" {
+		t.Fatalf("defaultInvoiceAmount() = %s, want 788.47", got.String())
+	}
+}
