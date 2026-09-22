@@ -198,3 +198,40 @@ func TestToInt64(t *testing.T) {
 		})
 	}
 }
+
+func TestAuthSourceLimitStopsEmailRotationWithoutLimitingPayments(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.SetTrustedProxies(nil)
+	auth := r.Group("/auth")
+	auth.Use(RateLimitMiddleware(nil, RateLimitRule{Prefix: t.Name(), WindowSeconds: 300, MaxRequests: 30}, KeyByIP))
+	auth.POST("/login", func(c *gin.Context) { c.Status(http.StatusNoContent) })
+	auth.POST("/register", func(c *gin.Context) { c.Status(http.StatusNoContent) })
+	r.POST("/payment/callback", func(c *gin.Context) { c.Status(http.StatusNoContent) })
+	for i := 0; i < 31; i++ {
+		path := "/auth/login"
+		if i%2 == 0 {
+			path = "/auth/register"
+		}
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(fmt.Sprintf(`{"email":"rotate%d@example.com"}`, i)))
+		req.RemoteAddr = "192.0.2.55:1234"
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		want := http.StatusNoContent
+		if i == 30 {
+			want = http.StatusTooManyRequests
+		}
+		if w.Code != want {
+			t.Fatalf("request %d got %d want %d", i, w.Code, want)
+		}
+	}
+	for _, tc := range []struct{ path, ip string }{{"/auth/login", "192.0.2.56:1234"}, {"/payment/callback", "192.0.2.55:1234"}} {
+		req := httptest.NewRequest(http.MethodPost, tc.path, nil)
+		req.RemoteAddr = tc.ip
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusNoContent {
+			t.Fatalf("unrelated request %s/%s blocked: %d", tc.path, tc.ip, w.Code)
+		}
+	}
+}
