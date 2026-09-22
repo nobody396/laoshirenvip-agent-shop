@@ -60,11 +60,17 @@ func signedEpusdtACKBody(t *testing.T, status int, orderNo, tradeID string, amou
 
 func TestEpusdtNonpaidACKDoesNotWriteBusinessState(t *testing.T) {
 	for _, status := range []int{1, 3} {
-		for _, initial := range []string{constants.PaymentStatusPending, constants.PaymentStatusSuccess} {
+		for _, initial := range []string{constants.PaymentStatusPending, constants.PaymentStatusSuccess, constants.PaymentStatusExpired} {
 			t.Run(fmt.Sprintf("status_%d_initial_%s", status, initial), func(t *testing.T) {
 				f, spy := newEpusdtACKFixture(t)
 				if err := f.db.Model(f.payment).Update("status", initial).Error; err != nil {
 					t.Fatal(err)
+				}
+				// Production affected payments are expired wallet recharges (no order).
+				if initial == constants.PaymentStatusExpired {
+					if err := f.db.Model(f.payment).Update("order_id", 0).Error; err != nil {
+						t.Fatal(err)
+					}
 				}
 				writes := 0
 				before := func(*gorm.DB) { writes++ }
