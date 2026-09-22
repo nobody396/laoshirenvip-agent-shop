@@ -68,6 +68,7 @@ func TestRouteDomainFilesPreserveTrustBoundaries(t *testing.T) {
 				`userauthtransport.RegisterUserEmailRoutes(user, userEmailHandler)`,
 				`userauthtransport.RegisterUserVerifyAuthRoutes(auth, userVerifyHandler)`,
 				`userauthtransport.RegisterUserRegisterAuthRoutes(auth, userLoginHandler)`,
+				`auth.Use(middleware.RateLimitMiddleware(redisClient, authIPRule, middleware.KeyByIP))`,
 				`userauthtransport.RegisterUserLoginAuthRoutes(auth, userLoginHandler, middleware.RateLimitMiddleware(redisClient, loginRule, middleware.KeyByIPAndJSONField("email")))`,
 				`userauthtransport.RegisterUser2FAAuthRoutes(auth, user2FAHandler, middleware.RateLimitMiddleware(redisClient, loginRule, middleware.KeyByIP))`,
 				`userauthtransport.RegisterUser2FARoutes(user, user2FAHandler)`,

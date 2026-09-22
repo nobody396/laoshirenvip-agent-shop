@@ -108,7 +108,13 @@ func registerStorefrontRoutes(
 	}
 
 	// 用户认证接口
+	// Bound total authentication traffic per source in addition to per-account
+	// login limits. Rotating email addresses must not bypass the shared ceiling.
+	authIPRule := loginRule
+	authIPRule.Prefix += ":source"
+	authIPRule.MaxRequests = 30
 	auth := storefront.Group("/auth")
+	auth.Use(middleware.RateLimitMiddleware(redisClient, authIPRule, middleware.KeyByIP))
 	{
 		userauthtransport.RegisterUserVerifyAuthRoutes(auth, userVerifyHandler)
 		userauthtransport.RegisterUserRegisterAuthRoutes(auth, userLoginHandler)
