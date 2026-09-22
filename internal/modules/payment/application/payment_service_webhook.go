@@ -59,6 +59,18 @@ func (s *PaymentService) HandleSyncCallback(
 		return nil, err
 	}
 
+	// GMPay also sends signed partial/expired notifications. Acknowledge receipt,
+	// not payment: do not enter the state-changing callback/fulfillment pipeline.
+	if strings.EqualFold(strings.TrimSpace(channel.ProviderType), constants.PaymentProviderEpusdt) && result.Status != constants.PaymentStatusSuccess {
+		if strings.TrimSpace(result.OrderNo) == "" || strings.TrimSpace(result.ProviderRef) == "" ||
+			strings.TrimSpace(result.OrderNo) != strings.TrimSpace(payment.GatewayOrderNo) ||
+			strings.TrimSpace(result.ProviderRef) != strings.TrimSpace(payment.ProviderRef) {
+			return nil, ErrPaymentNotFound
+		}
+		paymentLogger("payment_id", payment.ID, "provider_status", result.Status).Infow("payment_epusdt_nonpaid_acknowledged", "ack_only", true)
+		return payment, nil
+	}
+
 	payload := jsonmap.JSON{}
 	if result.Payload != nil {
 		payload = result.Payload

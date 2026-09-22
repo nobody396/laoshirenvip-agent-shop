@@ -376,13 +376,10 @@ func ParseCallback(body []byte) (*CallbackData, error) {
 	return &data, nil
 }
 
-// VerifyCallback 验签 + 状态校验。仅 status==StatusSuccess 视为合法成功通知。
+// VerifyCallback 验证签名和已知协议状态；是否改变付款状态由业务层决定。
 func VerifyCallback(cfg *Config, data *CallbackData) error {
 	if cfg == nil || data == nil {
 		return ErrConfigInvalid
-	}
-	if data.Status != StatusSuccess {
-		return fmt.Errorf("%w: status=%d", ErrResponseInvalid, data.Status)
 	}
 
 	params := map[string]interface{}{
@@ -399,6 +396,9 @@ func VerifyCallback(cfg *Config, data *CallbackData) error {
 	expected := Sign(params, cfg.SecretKey)
 	if !strings.EqualFold(expected, data.Signature) {
 		return ErrSignatureInvalid
+	}
+	if data.Status != StatusWaiting && data.Status != StatusSuccess && data.Status != StatusExpired {
+		return fmt.Errorf("%w: status=%d", ErrResponseInvalid, data.Status)
 	}
 	return nil
 }
