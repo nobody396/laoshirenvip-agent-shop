@@ -42,6 +42,9 @@ import (
 )
 
 type okpayCallbackFixture struct {
+	db          *gorm.DB
+	service     *paymentapp.PaymentService
+	channel     *paymentdomain.PaymentChannel
 	orderRepo   ordercontract.Store
 	paymentRepo paymentcontract.Store
 	handler     *paymentcallback.Handler
@@ -180,6 +183,7 @@ func newOkpayCallbackFixture(t *testing.T) *okpayCallbackFixture {
 	})
 
 	return &okpayCallbackFixture{
+		db: db, service: paymentService, channel: channel,
 		orderRepo:   orderRepo,
 		paymentRepo: paymentRepo,
 		handler:     paymentcallback.NewHandler(callbackServiceTestAdapter{payments: paymentService}, paymentRepo, channelRepo, nil),

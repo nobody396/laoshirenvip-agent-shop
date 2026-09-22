@@ -375,11 +375,11 @@ func TestVerifyCallback_RejectsBadSignature(t *testing.T) {
 	}
 }
 
-func TestVerifyCallback_RejectsNonSuccessStatus(t *testing.T) {
+func TestVerifyCallback_RejectsUnsignedNonSuccessStatus(t *testing.T) {
 	cfg := &Config{SecretKey: "sk-test"}
 	data := &CallbackData{Status: StatusWaiting, Signature: "anything"}
-	if err := VerifyCallback(cfg, data); err == nil {
-		t.Fatalf("expected error for non-success status")
+	if err := VerifyCallback(cfg, data); !errors.Is(err, ErrSignatureInvalid) {
+		t.Fatalf("expected invalid signature for unsigned non-success status, got %v", err)
 	}
 }
 
