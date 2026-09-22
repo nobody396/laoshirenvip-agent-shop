@@ -18,12 +18,18 @@ Reuse existing Redis-backed middleware to cap aggregate authentication traffic a
 
 CRITICAL DEPLOYMENT GATE: do not deploy source-global throttling while client addresses collapse to Docker/EdgeOne nodes. First establish and test authenticated/trusted EdgeOne-to-origin client-IP provenance. Gin currently trusts loopback only; Caddy is untrusted Docker peer. Trusting Caddy alone only improves visibility to EdgeOne egress, not real visitor. Do not trust arbitrary client-supplied XFF or EO-Connecting-IP from a directly reachable origin. Pin trusted proxy identity rather than broad trust-all networks.
 
-Tests added: rotating emails across login/registration reach shared cap; another source remains allowed; payment callback remains allowed; router source guard preserves wiring. `gofmt` and `git diff --check` passed. Full router tests blocked by disk exhaustion; serial retry intentionally interrupted for coordinated disk recovery. No passing test claim yet.
+Tests added: rotating emails across login/registration reach shared cap; another source remains allowed; payment callback remains allowed; router source guard preserves wiring. `gofmt` and `git diff --check` passed. After coordinated disk recovery, `go test -p 1 ./internal/app/httpserver/... -count=1` passed for both router and middleware packages. Real ablation: removing actual auth group middleware caused route guard failure; removing it from the behavioral harness admitted request 31 as 204 instead of expected 429. Restoring both yielded full package PASS. Initial attempts were blocked by disk exhaustion; those failures are superseded only for these two tested packages.
 
 ## Outstanding
 
 - Trusted origin/client-IP chain and privacy-safe access logging (do not record credentials, cookies, authorization or sensitive query parameters).
-- Re-run targeted and route tests, actual ablation proving removal of the group guard allows rotation, then controlled deployment and production readback.
+- Controlled deployment and production readback after origin-provenance gate; focused tests and actual ablation are complete.
 - Email challenge rollout needs verified business-specific sender and owner-approved recipient tests; auto-marked historical accounts need migration strategy, not mass invalidation.
 - Owner enrollment for existing TOTP, backup recovery verification before enforcement.
 - Historical per-visitor attribution cannot be reconstructed from collapsed application IP logs alone; EdgeOne retained edge telemetry may narrow it.
+
+### Origin provenance rollout constraints
+
+Production Caddy serves both platform EdgeOne hostnames and direct customer-owned HTTPS domains on ports 80/443. A host-wide EdgeOne-only firewall would break those customer domains: restrict only the `lsrai.shop, *.lsrai.shop` site route. Customer domains must retain direct access without trusting visitor-supplied proxy headers. App is already exposed only at loopback port 8080.
+
+For the platform route: establish official EdgeOne OriginACL ranges and a verified source restriction (prefer independently authenticated origin requests as well), then only consume EdgeOne's overwritten authoritative visitor header from that trusted peer. Strip untrusted forwarding/client-IP headers in the direct-domain route. Pin Caddy's Docker IP in Compose and configure Gin to trust that exact /32; do not widen to all networks. Validate direct forged headers cannot override client identity before deploying the aggregate source limit. Preserve original Caddyfile/Compose and app image for rollback; Caddy has admin API disabled, so plan controlled proxy restart rather than assuming hot reload is available.
