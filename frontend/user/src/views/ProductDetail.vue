@@ -257,7 +257,7 @@
                       v-for="sku in activeSkus"
                       :key="sku.id"
                       type="button"
-                      class="flex flex-col items-start rounded-xl border px-3 py-2 text-sm transition-all min-h-[44px]"
+                      class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm transition-all min-h-[44px] min-w-0"
                       :class="[
                         normalizeSkuId(sku.id) === selectedSkuId ? 'border-primary/40 bg-primary/10 ring-1 ring-primary/30' : 'border bg-secondary text-foreground',
             isSkuSelectable(sku) ? 'hover:-translate-y-0.5' : 'cursor-not-allowed opacity-55 border-dashed',
@@ -265,13 +265,18 @@
             :disabled="!isSkuSelectable(sku)"
                       @click="selectedSkuId = normalizeSkuId(sku.id)"
                     >
-                      <span class="font-semibold leading-tight">{{ skuDisplayText(sku) }}</span>
-            <span v-if="isSkuSaleDisabled(sku)" class="mt-1 text-xs font-semibold text-amber-600 dark:text-amber-300">{{ t('products.saleDisabled') }}</span>
-                      <span
-                        class="mt-1 rounded-full border px-2 py-0.5 text-[11px]"
-                        :class="skuStockBadgeClass(sku)"
-                      >
-                        {{ skuStockText(sku) }}
+                      <span class="flex min-w-0 flex-col items-start">
+                        <span class="font-semibold leading-tight break-words [overflow-wrap:anywhere]">{{ skuDisplayText(sku) }}</span>
+                        <span v-if="isSkuSaleDisabled(sku)" class="mt-1 text-xs font-semibold text-amber-600 dark:text-amber-300">{{ t('products.saleDisabled') }}</span>
+                        <span
+                          class="mt-1 rounded-full border px-2 py-0.5 text-[11px]"
+                          :class="skuStockBadgeClass(sku)"
+                        >
+                          {{ skuStockText(sku) }}
+                        </span>
+                      </span>
+                      <span class="shrink-0 whitespace-nowrap font-bold tabular-nums text-primary">
+                        {{ formatPrice(sku.price_amount, siteCurrency) }}
                       </span>
                     </button>
                   </div>
