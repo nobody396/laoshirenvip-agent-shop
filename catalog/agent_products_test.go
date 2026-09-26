@@ -83,3 +83,37 @@ func TestCodexCatalogSKUsHaveLocalizedDenominations(t *testing.T) {
 
 	t.Fatal("Codex credits product not found")
 }
+
+func TestNewCatalogProductsHaveCompleteLocales(t *testing.T) {
+	raw, err := os.ReadFile("agent-products.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var products []catalogProduct
+	if err := json.Unmarshal(raw, &products); err != nil {
+		t.Fatal(err)
+	}
+	missing := map[uint]bool{36: true, 37: true, 38: true}
+	for _, product := range products {
+		if !missing[product.ID] {
+			continue
+		}
+		delete(missing, product.ID)
+		for field, values := range map[string]map[string]string{"title": product.Title, "description": product.Description, "content": product.Content} {
+			for _, locale := range []string{"zh-CN", "zh-TW", "en-US"} {
+				if strings.TrimSpace(values[locale]) == "" {
+					t.Errorf("product %d missing %s %s", product.ID, locale, field)
+				}
+				if strings.Contains(values[locale], `\n`) {
+					t.Errorf("product %d escaped newline in %s %s", product.ID, locale, field)
+				}
+			}
+			if values["en"] != values["en-US"] {
+				t.Errorf("product %d has inconsistent English aliases in %s", product.ID, field)
+			}
+		}
+	}
+	if len(missing) != 0 {
+		t.Fatalf("missing localized catalog products: %v", missing)
+	}
+}
