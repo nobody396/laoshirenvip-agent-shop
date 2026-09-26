@@ -16,11 +16,22 @@ const normalizeLocaleCode = (locale?: unknown) => normalizeText(locale).toLowerC
 // rather than allowing an English storefront to fall back to Chinese.
 const localizeKnownPlainSpecText = (value: string, locale?: string) => {
   const normalized = normalizeText(value)
+  const normalizedLocale = normalizeLocaleCode(locale)
+  const importedLabels: Record<string, [string, string]> = {
+    'Codex 美国一次性接码 1次': ['Codex US SMS Verification — One-Time', 'Codex 美國一次性接碼 1次'],
+    'Codex 美国长效接码 20–30天': ['Codex US SMS Verification — 20–30 Days', 'Codex 美國長效接碼 20–30天'],
+    'ChatGPT Pro 20X iOS 1个月': ['ChatGPT Pro 20X iOS — 1 Month', 'ChatGPT Pro 20X iOS 1個月'],
+  }
+  const imported = importedLabels[normalized]
+  if (imported) {
+    if (normalizedLocale === 'en' || normalizedLocale === 'en-us') return imported[0]
+    if (['zh-tw', 'zh-hk', 'zh-mo'].includes(normalizedLocale)) return imported[1]
+    return normalized
+  }
   const codexCredits = normalized.match(/^(\d+)\s*点数额度$/)
   if (!codexCredits) return normalized
 
   const amount = codexCredits[1]
-  const normalizedLocale = normalizeLocaleCode(locale)
   if (normalizedLocale === 'en' || normalizedLocale === 'en-us') {
     return `${amount} Credits`
   }

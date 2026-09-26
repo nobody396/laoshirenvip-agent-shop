@@ -29,3 +29,18 @@ test('continues to resolve fully localized SKU values', () => {
     '250 Credits',
   )
 })
+
+test('imported SMS and iOS SKU labels follow the storefront locale after synchronization', () => {
+  const rows = [
+    ['Codex 美国一次性接码 1次', 'Codex US SMS Verification — One-Time', 'Codex 美國一次性接碼 1次'],
+    ['Codex 美国长效接码 20–30天', 'Codex US SMS Verification — 20–30 Days', 'Codex 美國長效接碼 20–30天'],
+    ['ChatGPT Pro 20X iOS 1个月', 'ChatGPT Pro 20X iOS — 1 Month', 'ChatGPT Pro 20X iOS 1個月'],
+  ]
+  for (const [source, english, traditional] of rows) {
+    assert.equal(formatSkuSpecValues({ name: source }, 'en-US'), english)
+    assert.equal(formatSkuSpecValues({ name: source }, 'en'), english)
+    assert.equal(formatSkuSpecValues({ name: source }, 'zh-TW'), traditional)
+    assert.equal(formatSkuSpecValues({ name: source }, 'zh-CN'), source)
+  }
+  assert.equal(formatSkuSpecValues({ name: 'Unrelated SKU' }, 'en-US'), 'Unrelated SKU')
+})
