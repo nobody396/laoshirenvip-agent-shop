@@ -22,7 +22,7 @@ python3 scripts/check-catalog-locales.py https://babygptpro.lsrai.shop
 
 The 2026-09-26 locale repair covers products 36–38. Their missing English and
 traditional-Chinese copy was added; literal escaped newlines were corrected.
-The data release changed only localized copy and update timestamps. An exact
+The data release changed only localized copy, the language-neutral SMS tag, and update timestamps. An exact
 pre-change backup, guarded SQL migration, and rollback SQL are retained on the
 application server in `backups/locales-20260926/`. Prices, inventory, fulfillment,
 and payment configuration were not changed. SMS/iOS SKU labels are localized
