@@ -60,7 +60,15 @@ export default {
         if (!filename.toLowerCase().endsWith(".pdf") || !pdf.startsWith("JVBERi0") || pdf.length > 5_600_000) {
           return json({ ok: false, error: "invalid_invoice_attachment" }, 400);
         }
-        message.attachments = [{ content: pdf, filename, type: "application/pdf", disposition: "attachment" }];
+        // The send_email binding treats string content as raw bytes, so the
+        // base64 payload must be decoded to binary before handing it over.
+        let content;
+        try {
+          content = Uint8Array.from(atob(pdf), (char) => char.charCodeAt(0)).buffer;
+        } catch {
+          return json({ ok: false, error: "invalid_invoice_attachment" }, 400);
+        }
+        message.attachments = [{ content, filename, type: "application/pdf", disposition: "attachment" }];
       }
       const result = await env.EMAIL.send(message);
       return json({ ok: true, accepted: true, message_id_present: Boolean(result?.messageId) });

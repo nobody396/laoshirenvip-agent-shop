@@ -46,5 +46,11 @@ test("sends invoice PDF as a transactional attachment", async () => {
   assert.equal(response.status, 200);
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].from, { email: "no-reply@laoshirenvip.com", name: "老实人AI VIP" });
-  assert.deepEqual(calls[0].attachments, [{ content: "JVBERi0xLjQK", filename: "invoice.pdf", type: "application/pdf", disposition: "attachment" }]);
+  assert.equal(calls[0].attachments.length, 1);
+  const [attachment] = calls[0].attachments;
+  assert.equal(attachment.filename, "invoice.pdf");
+  assert.equal(attachment.type, "application/pdf");
+  assert.equal(attachment.disposition, "attachment");
+  assert.ok(attachment.content instanceof ArrayBuffer);
+  assert.deepEqual(Array.from(new Uint8Array(attachment.content)), Array.from(new TextEncoder().encode("%PDF-1.4\n")));
 });
