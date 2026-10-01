@@ -33,6 +33,7 @@
           <h2 class="text-lg font-bold text-foreground">{{ t('home.purchaseNotice.guideTitle') }}</h2>
         </div>
         <p class="mt-1.5 text-sm text-muted-foreground">{{ t('home.purchaseNotice.guideSubtitle') }}</p>
+        <div class="mt-3 flex flex-wrap items-center gap-3"><p class="text-sm font-medium">{{ t('guide_entry') }}</p><BuyingGuide /></div>
       </div>
       <div class="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-4">
         <article v-for="item in guideItems" :key="item.title" class="bg-card p-5">
@@ -47,6 +48,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import BuyingGuide from './BuyingGuide.vue'
 import { useI18n } from 'vue-i18n'
 import { CircleAlert, Clock3, ExternalLink, KeyRound, ShieldCheck, Smartphone, WalletCards } from 'lucide-vue-next'
 import { useAppStore } from '../stores/app'
