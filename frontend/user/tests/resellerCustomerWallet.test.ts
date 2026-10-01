@@ -33,3 +33,16 @@ test('reseller console exposes tenant customer wallets and authenticated SKU pri
   assert.match(wallet, /walletScope === 'reseller'/)
   assert.match(wallet, /resellerWalletManagedHint/)
 })
+
+test('customer top-up reveals and focuses the form after rendering, and isolates customer history', async () => {
+  const view = await readFile(new URL('../src/views/reseller/ResellerCustomers.vue', import.meta.url), 'utf8')
+  const selection = view.slice(view.indexOf('const selectCustomer ='), view.indexOf('const loadTransactions ='))
+  assert.match(selection, /selected\.value = row\s+transactions\.value = \[\]/)
+  assert.match(selection, /await nextTick\(\)/)
+  assert.match(selection, /if \(selected\.value\?\.id !== row\.id\) return/)
+  assert.match(selection, /document\.getElementById\('customer-wallet-amount'\)/)
+  assert.match(selection, /scrollIntoView\(\{ block: 'center' \}\)/)
+  assert.match(selection, /focus\(\{ preventScroll: true \}\)/)
+  assert.match(view, /if \(selected\.value\?\.id === customerId\) transactions\.value = response\.data\.data/)
+  assert.match(view, /if \(selected\.value\?\.id === customerId\) transactions\.value = \[\]/)
+})

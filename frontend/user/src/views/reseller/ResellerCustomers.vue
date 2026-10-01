@@ -137,7 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { nextTick, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ShieldCheck, Tags, UsersRound, WalletCards } from 'lucide-vue-next'
 import { resellerAPI } from '../../api/reseller'
@@ -186,22 +186,30 @@ const resetFilters = () => {
   void load(1)
 }
 
-const selectCustomer = (row: ResellerCustomerWalletRow) => {
+const selectCustomer = async (row: ResellerCustomerWalletRow) => {
   selected.value = row
+  transactions.value = []
   form.amount = ''
   form.remark = ''
   form.request_id = requestId()
   success.value = ''
   submitError.value = ''
   void loadTransactions(row.id)
+  await nextTick()
+  if (selected.value?.id !== row.id) return
+  const amountInput = document.getElementById('customer-wallet-amount')
+  if (amountInput instanceof HTMLInputElement) {
+    amountInput.scrollIntoView({ block: 'center' })
+    amountInput.focus({ preventScroll: true })
+  }
 }
 
 const loadTransactions = async (customerId: number) => {
   try {
     const response = await resellerAPI.customerWalletTransactions(customerId, { page: 1, page_size: 20 })
-    transactions.value = response.data.data || []
+    if (selected.value?.id === customerId) transactions.value = response.data.data || []
   } catch {
-    transactions.value = []
+    if (selected.value?.id === customerId) transactions.value = []
   }
 }
 
