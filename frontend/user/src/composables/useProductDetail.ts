@@ -68,6 +68,8 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
   }
   const currentImage = ref<string>('')
   const selectedSkuId = ref(0)
+  const requestedSkuId = computed(() => normalizeSkuId(route.query.sku))
+  const hasRequestedSku = computed(() => route.query.sku !== undefined)
   const quantity = ref(1)
   const purchaseWarning = ref('')
 
@@ -303,7 +305,7 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
 
   const purchaseType = computed(() => product.value?.purchase_type || 'member')
   const requiresLogin = computed(() => purchaseType.value === 'member' && !userAuthStore.isAuthenticated)
-  const requiresSKUSelection = computed(() => activeSkus.value.length > 1 && !selectedSku.value)
+  const requiresSKUSelection = computed(() => (hasRequestedSku.value || activeSkus.value.length > 1) && !selectedSku.value)
   const stockBelowMinPurchase = computed(() => {
     const limit = quantityEffectiveLimit.value
     if (limit === null) return false
@@ -356,6 +358,11 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
 
   const syncSelectedSku = () => {
     const rows = activeSkus.value
+    if (hasRequestedSku.value) {
+      if (rows.some((sku: any) => normalizeSkuId(sku?.id) === selectedSkuId.value)) return
+      selectedSkuId.value = rows.some((sku: any) => normalizeSkuId(sku?.id) === requestedSkuId.value) ? requestedSkuId.value : 0
+      return
+    }
     if (rows.length === 0) {
       selectedSkuId.value = 0
       return
@@ -539,6 +546,7 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
       }
       syncSelectedSku()
       await nextTick()
+      if (hasRequestedSku.value) document.getElementById('purchase-options')?.scrollIntoView({ block: 'start' })
       options.onLoaded?.()
     } catch (error) {
       console.error('Failed to load product:', error)
@@ -640,6 +648,8 @@ export function useProductDetail(options: { onLoaded?: () => void } = {}) {
     loadProduct()
     ensureMemberLevels()
   })
+
+  watch(() => route.query.sku, () => { selectedSkuId.value = 0; syncSelectedSku() })
 
   watch(userMemberLevelId, () => {
     ensureMemberLevels()

@@ -248,7 +248,7 @@
                   </ul>
                 </div>
 
-                <div v-if="activeSkus.length" class="mb-8">
+                <div id="purchase-options" v-if="activeSkus.length" class="mb-8">
                   <h2 class="mb-3 text-sm font-bold uppercase tracking-widest text-muted-foreground">
                     {{ t('productDetail.skuTitle') }}
                   </h2>

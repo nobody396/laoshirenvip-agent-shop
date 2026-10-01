@@ -133,7 +133,7 @@
           </div>
 
           <!-- 规格 -->
-          <div v-if="activeSkus.length" class="my-5">
+          <div id="purchase-options" v-if="activeSkus.length" class="my-5">
             <div class="mb-2.5 text-[13px] font-bold uppercase tracking-[0.04em] text-muted-foreground">{{ t('productDetail.skuTitle') }}</div>
             <div class="flex flex-wrap gap-2.5">
               <button
